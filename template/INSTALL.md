@@ -40,7 +40,7 @@ Start as small as the project. Add a layer only when the pain is real.
 |---|---|---|
 | **0 — Core** | Any project, even solo / one agent at a time | `README.md`, `PROJECT.md`, `agent-log.md`, `agents/`, `state/PROJECT_STATE.md`, `scripts/status.sh`, `scripts/session-end.sh`, `CLAUDE-SNIPPET.md` |
 | **1 — Long-run** | Weeks-long, or history won't fit in one context | + `PROTOCOL.md`, `decisions/DECISIONS.md`, `runs/`, `archive/` |
-| **2 — Concurrent** | 2–3 agents editing the **same day / same files** | + `WORKTREES.md`, `STATUS.md`, `work/`, `scripts/worktree.sh` |
+| **2 — Concurrent** | 2–3 agents editing the **same day / same files** | + `WORKTREES.md`, `STATUS.md`, `work/`, `scripts/worktree.sh`, `NIGHTSHIFT.md`, `HEARTBEAT.md`, `scripts/runner.sh` |
 
 Deleting a tier is safe — every file carries a machine-readable label on line 1:
 `<!-- apsolut-agents: tier=<0|1|2> kind=<doc|instance|generated> -->`. When unsure,
@@ -96,9 +96,12 @@ locally and never pushes it — the next agent (and prod) never sees it.
 | `runs/README.md` | 1 | doc | Where subagent fan-out results land |
 | `archive/` | 1 | — | Rotated old `agent-log` slices |
 | `WORKTREES.md` | 2 | doc | True concurrency: per-agent git worktrees |
+| `NIGHTSHIFT.md` | 2 | doc | Unattended overnight runs — rules + morning ritual |
+| `HEARTBEAT.md` | 2 | instance | Night Shift policy: budgets, timeouts, lane commands |
 | `STATUS.md` | 2 | generated | At-a-glance board — rendered by `status.sh` |
 | `work/_TEMPLATE.md` | 2 | doc | One file per task — the ownership atom |
 | `scripts/worktree.sh` | 2 | doc | Spawn / list / merge+cleanup agent worktrees |
+| `scripts/runner.sh` | 2 | doc | Night Shift single-lane runner (see `NIGHTSHIFT.md`) |
 | `reference/multi-agent-cli-foundations.md` | 1 | doc | Someday-maybe inbox/orchestrator architecture — reference only |
 
 ## 6. Upgrading

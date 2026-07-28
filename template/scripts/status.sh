@@ -66,6 +66,13 @@ if [ -d "$WS/work" ]; then
     case "$(basename "$f")" in _TEMPLATE.md) continue;; esac
     id=$(fm_get "$f" id);       [ -n "$id" ] || id="?"
     st=$(fm_get "$f" status);   [ -n "$st" ] || st="?"
+    if [ "$st" = "waiting" ]; then
+      ok=yes
+      for d in $(fm_get "$f" after | tr -d '[]' | tr ',' ' '); do
+        case "$(fm_get "$WS/work/$d.md" status 2>/dev/null)" in done|review) ;; *) ok=no;; esac
+      done
+      [ "$ok" = yes ] && st="waiting (ready)" || st="waiting (deps)"
+    fi
     ow=$(fm_get "$f" owner);    [ -n "$ow" ] || ow="?"
     ti=$(fm_get "$f" title);    [ -n "$ti" ] || ti="?"
     ne=$(fm_get "$f" needs);    [ -n "$ne" ] || ne="[]"

@@ -1,2 +1,5 @@
 # machine-local worktree pointer (see template/WORKTREES.md)
 .primary
+
+# idea-pipeline drafts (promote PRD.md out before committing)
+ideas/
