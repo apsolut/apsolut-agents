@@ -43,3 +43,22 @@ Oversized log? `scripts/session-end.sh` auto-archives old entries to
 
 ### claude — 2026-07-28 — HOLD
 Overhaul complete: worktrees Tier 2, scripts, dogfood. HOLD until human decides on a remote.
+
+### Claude — 2026-07-29 night shift v0
+- Ran the first idea-pipeline round (D-002-style dogfood): Claude draft → blind parallel
+  reviews by AGY/Gemini + Grok → synthesized PRD, promoted to `runs/2026-07-29-night-shift-prd.md`.
+  Both reviewers converged on four cuts; adopted as D-004. One process hiccup: Grok's
+  first pass raced a half-written prompt file and correctly returned "kill — draft empty".
+- Implemented v0: `scripts/runner.sh` (claim/spawn/timeout/green/salvage/report),
+  `HEARTBEAT.md` policy (budget $25/night, ntfy.sh), `NIGHTSHIFT.md`, `after:` +
+  `budget:` card fields, ready-computation in `status.sh`.
+- Acceptance tests on scratch repo: happy path (T-001 green→review), dependency
+  semantics failure (T-002 blocked — `after:` ≠ code visibility, now documented),
+  chaos (T-666 fail→retry→blocked; T-777 hung→timeout rc=124→circuit breaker→clean
+  report). Zero orphan claims, zero default-branch touches.
+- Human's v0 gate choices: $25/night budget, scratch-repo supervised runs, ntfy.sh pings.
+  Next for human: set `notify_url` + `green_cmd` in HEARTBEAT.md when installing into a
+  real project; 3 supervised `--once` runs are the gate to real overnight use.
+
+### claude — 2026-07-29 — HOLD
+Night Shift v0 shipped and tested; HOLD stands (no remote).

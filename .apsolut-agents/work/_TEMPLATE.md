@@ -5,10 +5,12 @@ status: waiting          # waiting | writing | need-feedback | review | done | h
 owner: <agent>
 title: <one line>
 needs: []                # [<agent>] or [human] when status is need-feedback
+after: []                # [T-01, T-02] — card is not ready until these are done/review
 files:                   # paths you expect to touch (declare INTENT on hot files)
   - <path/to/file>
 branch: null             # agent/<agent>/<id> — set by worktree.sh spawn
 worktree: null           # ../<repo>-wt-<agent>-<id> — set by worktree.sh spawn
+budget: null             # minutes — Night Shift per-card timeout override (default in HEARTBEAT.md)
 commit: null             # set to the hash when done
 updated: <date>
 ---

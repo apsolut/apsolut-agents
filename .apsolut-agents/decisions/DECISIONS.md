@@ -40,3 +40,10 @@ Template:
 - **Rejected:** keeping full ceremony with enforcement hooks (heaviest option, fights the grain); pure-markdown pruning without scripts (leaves the stale-state root cause in place).
 - **Status:** implemented (e46fabb, 9e373fa)
 - **Owners / applies to:** `template/PROTOCOL.md`, `template/runs/README.md`, all scripts
+
+### D-004 — Night Shift v0: rule-based, merge-free, kill-is-terminal  (2026-07-29)
+- **Decision:** Unattended overnight runs ship as `runner.sh` + `HEARTBEAT.md` policy + `NIGHTSHIFT.md`, per the three-model PRD (`runs/2026-07-29-night-shift-prd.md`): no LLM in the control plane; branches stay unmerged until morning; timeout-kill is terminal (cleanup + retry counter, no resume-as-nudge); cross-model reassign is morning-human-only; claim = `mkdir` mutex + card rewrite with boot-time stale-claim recovery; per-night hard budget cap ($25 default); provider 429s back off instead of tripping the breaker. `after:` edges are sequencing only — dependent cards cannot see unmerged dependency code (proven in the acceptance test).
+- **Why:** Both blind reviewers (Gemini, Grok) independently demanded the same four cuts from Claude's draft; convergence of independent reviews outranks the drafter's preferences.
+- **Rejected:** stage-2 haiku classifier (both reviews), overnight `night/<date>` integration branch (both), auto-reassign (both), derived-complexity timeouts (no size model exists).
+- **Status:** implemented (v0; gates to v1/v2 defined in NIGHTSHIFT.md)
+- **Owners / applies to:** `template/scripts/runner.sh`, `template/HEARTBEAT.md`, `template/NIGHTSHIFT.md`, Tier 2

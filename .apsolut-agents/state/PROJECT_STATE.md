@@ -11,24 +11,24 @@ anything no longer true (git keeps history), keep the whole file to ~1 screen.
 ## Facts (generated)
 
 <!-- facts:begin -->
-_Generated 2026-07-28 21:26 by status.sh — do not hand-edit this block._
+_Generated 2026-07-29 01:40 by status.sh — do not hand-edit this block._
 
 | | |
 |--|--|
 | Branch | `main` |
 | Ahead/behind upstream | no upstream configured |
-| Dirty files | 1 |
+| Dirty files | 12 |
 | Worktrees | 1 (incl. primary) |
-| Last session token | claude — 2026-07-28 — HOLD |
-| agent-log.md | 45 lines |
+| Last session token | claude — 2026-07-29 — HOLD |
+| agent-log.md | 64 lines |
 
 Recent commits:
 ```
+41380a3 feat: Night Shift v0 — runner.sh, HEARTBEAT.md policy, NIGHTSHIFT.md, dependency edges (per 3-model PRD)
+039b7d5 agents: claude session end 2026-07-28 (HOLD)
 b460002 fix: roster is instance data — move it from README.md to PROJECT.md (dogfood catch)
 bcb1713 fix: status.sh table spacing + warnings newline (found in scratchpad acceptance test)
 9e373fa feat: status/session-end/worktree scripts, installer, repo README
-e46fabb docs: rewrite payload — worktrees replace locks, pruned protocol, tier labels, runs/, CLAUDE snippet
-e980707 refactor: move payload into template/, drop locks + CONCURRENCY (worktrees replace them)
 ```
 <!-- facts:end -->
 
