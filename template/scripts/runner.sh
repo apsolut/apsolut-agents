@@ -117,7 +117,6 @@ while :; do
 
   ID=$(pick_ready || true)
   if [ -z "$ID" ]; then
-    if ls "$WS"/claims/ 2>/dev/null | grep -q . || [ "$ONCE" = yes ]; then :; fi
     [ "$ONCE" = yes ] && finish "board empty"
     tick "idle — no ready cards"; sleep "$POLL"; continue
   fi

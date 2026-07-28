@@ -27,6 +27,11 @@ thresholds, `green_cmd`, per-agent headless commands, ntfy.sh URL.
 - `files:` declared; cards touching `PROJECT.md` human-gate paths are never claimed.
 - Optional `after: [T-01]` dependency edges and `budget: 30` (minutes) override.
 
+**`after:` is sequencing, NOT code visibility.** Branches stay unmerged overnight, so
+a dependent card branches from the default branch and **cannot see its dependency's
+code**. If card B needs card A's code, they are one card — or B waits for the morning
+merge. (Found the hard way in the v0 acceptance test.)
+
 ## The loop (per card)
 
 claim (`mkdir claims/<id>` mutex → card rewrite with owner/status) → spawn worktree →
