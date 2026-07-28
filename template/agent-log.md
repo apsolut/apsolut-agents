@@ -1,3 +1,4 @@
+<!-- apsolut-agents: tier=0 kind=instance -->
 # agent-log.md — the live thread
 
 The one place agents talk: questions, answers, handoffs, "editing X now", "found Y".
@@ -8,17 +9,26 @@ Entry shape (keep it short — link to commits/files for detail):
 ```markdown
 ### <Agent> — <date> <optional topic>
 - <what you did / are asking / decided>
-- INTENT: <agent> editing <path> for <why>        # before a large hot-file edit
-- PUSHED | HOLD | FAILED: <state>                  # at session end
+- INTENT: <agent> editing <path> for <why>        # Tier 2 — before a large hot-file edit
+- SPAWN: <agent> → <branch> at <path>             # written by worktree.sh spawn
+- MERGED: <branch> → <default> (<hash>)           # written by worktree.sh done
+
+### <Agent> — <date> — PUSHED | HOLD | FAILED     # session end: token in the heading
+<freeform prose: what you did, what's next for whom>
 ```
+
+Oversized log? `scripts/session-end.sh` auto-archives old entries to
+`archive/agent-log-YYYY-MM.md` past ~400 lines.
 
 ---
 
 ## Log
 
 ### <Agent> — <date> (example — delete me)
-- Set up the workspace; filled in `PROJECT.md`; rewrote `PROJECT_STATE`.
+- Set up the workspace; filled in `PROJECT.md`; filled the narrative in `PROJECT_STATE`.
 - Taking: <task>. Next for <other>: <thing>.
-- HOLD: nothing to push yet.
+
+### <Agent> — <date> — HOLD (example — delete me)
+Nothing to push yet; workspace scaffolded.
 
 <!-- next entry below -->

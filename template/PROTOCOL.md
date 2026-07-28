@@ -1,11 +1,13 @@
+<!-- apsolut-agents: tier=1 kind=doc -->
 # PROTOCOL — long runs (Tier 1)
 
 _For weeks-long or large projects where no agent can hold the whole history in context._
-_Delete this file (and `decisions/`, `archive/`) if the project is small/short._
+_Delete this file (and `decisions/`, `runs/`, `archive/`) if the project is small/short._
 
 The governing constraint: **every file an agent reads at session start must stay small
-and current.** We checkpoint and rotate rather than append forever. Growth lives in git
-history and `archive/`, not in the files you read every session.
+and current.** Facts that scripts can derive from git are generated, never hand-written —
+hand-maintained state always drifts until it lies. Growth lives in git history and
+`archive/`, not in the files you read every session.
 
 ---
 
@@ -13,43 +15,46 @@ history and `archive/`, not in the files you read every session.
 
 **Start — read only, in order:** `PROJECT.md` → `state/PROJECT_STATE.md` → tail of
 `agent-log.md` → `git log -12 --oneline` → your `agents/agent-<you>.md`. *(Tier 2 also:
-`STATUS.md` + `ls locks/`.)*
+run `sh .apsolut-agents/scripts/status.sh` and read the board it prints.)*
+
+First session ever? Create `agents/agent-<you>.md` from the template and add your
+roster row in `README.md` **before your first task** — an unfilled charter means other
+agents can't route work to you.
 
 **During:**
 - Append to `agent-log.md` for anything another agent must see.
 - Cross-cutting decision → `decisions/DECISIONS.md` + a one-line pointer in the log.
-- Before a large edit to a **hot file** (see `PROJECT.md`) → `INTENT: <agent> editing <path> for <why>` in the log.
+- If another agent was active today, note in the log what you're about to edit.
+  *(Tier 2: the full `INTENT:` convention — see `WORKTREES.md §5`.)*
 
-**End — mandatory log block:**
+**End — one heading token, then freeform prose:**
 ```markdown
-### <Agent> — <date> end
-- Did: …
-- PUSHED | HOLD | FAILED: …
-- Next for <other>: …
-- State file updated: yes/no
+### <Agent> — <date> — PUSHED | HOLD | FAILED
+<what you did, what's next for whom — normal prose, keep it short>
 ```
-Then **rewrite** `state/PROJECT_STATE.md` (see §2).
+Then run `sh .apsolut-agents/scripts/session-end.sh <you> <TOKEN>` — it verifies the
+token, compacts the log if oversized, and regenerates the state facts. No other
+ceremony: the token is the contract, the script does the bookkeeping.
 
 ## 2. State = save-game, not diary
 
-`state/PROJECT_STATE.md` is **rewritten**, never appended forever. It holds only what's
-true *now*: HEAD/remote delta, HOLD status, ownership/claims, blockers, top-3 next
-actions, links to active plans. Delete anything no longer true — git keeps history.
+`state/PROJECT_STATE.md` has two zones:
 
-**Only the session-ending agent rewrites it** (as the last action before the end block),
-so two agents don't clobber the save-game. Treat it as a hot file.
+- **Facts block** (between `<!-- facts:begin -->` and `<!-- facts:end -->`) — branch,
+  ahead/behind, dirty count, recent commits, last session token, worktrees. Written by
+  `scripts/status.sh`. **Never hand-edit it**; it cannot go stale because it is derived.
+- **Narrative** (everything else) — HOLD + why, ownership summary, blockers, top-3 next
+  actions, do-not-undo. Hand-edit **when it changes**, not on a schedule. HOLD stays
+  human-written: no script can know the human lifted it.
 
-## 3. Compaction (how you survive weeks)
+Delete narrative that is no longer true — git keeps history.
 
-Without this, `agent-log.md` becomes an unreadable novel and wastes everyone's context.
+## 3. Compaction (automated)
 
-| Trigger | Action | Who |
-|---|---|---|
-| `agent-log.md` > ~150 lines, or month rolls over | Move settled/older entries to `archive/agent-log-YYYY-MM.md`; leave open threads + a 3-line recap | **The agent whose entry tips it over** does it in that same commit |
-| A decision closes | One line in `DECISIONS.md`; drop the re-litigation from the live log | closer |
-| `PROJECT_STATE` | Always a full rewrite | session-ender |
-
-Compaction needs an **owner** or it never happens — hence "whoever tips it over."
+`session-end.sh` archives the oldest entries to `archive/agent-log-YYYY-MM.md` once
+`agent-log.md` exceeds ~400 lines, cutting at an entry boundary and leaving a pointer
+line. `status.sh` warns when the log is oversized. No social rule, no owner — the
+scripts do it, because a rule with a human owner never fired in practice.
 
 ## 4. Decisions
 
@@ -59,20 +64,24 @@ Compaction needs an **owner** or it never happens — hence "whoever tips it ove
 | Cross-cutting (shared API/shape, schema, dependency, test strategy) | Negotiate in log ≤3 rounds → review backstop or human | `decisions/DECISIONS.md` |
 | One-way / high-cost (see `PROJECT.md` human-gates) | **Human only** | `DECISIONS.md` |
 
-Give each decision a **stable id** (`D-001`, `D-002`, …) so you can write "superseded by
-D-0NN" when pruning. Template in `decisions/DECISIONS.md`.
+Rules that keep the register honest:
+- **Stable ids:** next id = highest existing + 1. Gaps are allowed; ids are never reused.
+- **Close the loop:** every entry carries `Status: proposed | final | implemented (<commit>)`.
+  When you implement a decision, update its `Status:` line in the same session — a
+  register that says "not implemented" about shipped work is worse than no register.
+- Mark superseded entries `~~superseded by D-0NN~~` at the top; don't delete them.
 
-## 5. Concurrency & INTENT
+## 5. Subagent runs (fan-outs)
 
-- One **owner** per open task at a time (Tier 2: `work/<id>.md`; else the `PROJECT_STATE`
-  ownership list).
-- **INTENT before large hot-file edits.** An INTENT is **released at your session end** —
-  a dangling INTENT with no release is void after one session (so a crashed session never
-  deadlocks a file forever).
-- Shared docs (`PROTOCOL.md`, `README.md`, `PROJECT_STATE.md`) are hot files too — the
-  same INTENT courtesy applies.
-- If two agents want the same file → the second picks other work or asks in the log.
-- Cap argument at 3 rounds → human.
+When an agent fans out to N subagents (a Claude Code Task/Workflow, a review swarm,
+any one-shot multi-agent burst): **the orchestrating agent owns the whole run** —
+subagents never touch this workspace. Exactly two artifacts land here:
+
+1. One log entry: N agents, duration, headline numbers, verdict.
+2. One file `runs/<date>-<slug>.md` with the surviving output (findings, ranked plan,
+   explicit rejects), linked from that entry.
+
+Decisions arising from a run go to `DECISIONS.md` as usual. See `runs/README.md`.
 
 ## 6. Push / ship (standing agreement)
 
@@ -82,13 +91,14 @@ D-0NN" when pruning. Template in `decisions/DECISIONS.md`.
 ## 7. What "good" looks like after 4 weeks
 
 - A new session rehydrates from `PROJECT.md` + `PROJECT_STATE` + log tail + git log — nothing more.
-- The backlog is scannable checkboxes, not a novel; `agent-log.md` is this week's thread, older months archived.
-- `DECISIONS.md` is ≤1 page of *still-true* calls.
-- No dual conversation venues; `HOLD`/`PUSHED` is never ambiguous.
+- The facts block is always current because nobody maintains it — a script does.
+- `agent-log.md` is this month's thread; older slices sit in `archive/`.
+- `DECISIONS.md` is ≤1 page of *still-true* calls, each with an honest `Status:`.
+- Every fan-out run left its plan in `runs/`, not in a vanished task output.
 
 ## 8. Don't build heavy machinery early
 
-Markdown + git handles human-paced agents for a long time. Add inbox pollers, a lock
-protocol, or an orchestrator **only** when concurrent edits actually hurt — see
-`CONCURRENCY.md` for the Tier-2 layer, and `multi-agent-cli-foundations.md` for the
-someday-maybe architecture. Most projects never need them.
+Markdown + git + three small scripts handle human-paced agents for a long time. True
+same-day concurrency → add Tier 2 (`WORKTREES.md`): worktree isolation, not locks.
+Inbox pollers / orchestrators / A2A: see `reference/multi-agent-cli-foundations.md` —
+the someday-maybe architecture. Most projects never need it.

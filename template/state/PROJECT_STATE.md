@@ -1,20 +1,22 @@
+<!-- apsolut-agents: tier=0 kind=instance -->
 # PROJECT_STATE — save-game checkpoint
 
-**Rewrite this file at session end. Do not append forever.** Read it right after
-`PROJECT.md` when starting. Keep it to ~1 screen — delete anything no longer true; git
-keeps the history.
-
-_Last rewrite: <date> by <agent>._
+Two zones. The **facts block** below is written by `scripts/status.sh` — never
+hand-edit between its markers; it cannot go stale because it is derived from git.
+The **narrative** sections are yours: hand-edit them **when they change**, delete
+anything no longer true (git keeps history), keep the whole file to ~1 screen.
 
 ---
 
-## Ship
+## Facts (generated)
 
-| | |
-|--|--|
-| Branch | `<default branch>` |
-| Local HEAD vs remote | `<in sync / N ahead — unpushed>` |
-| HOLD | `<no — or: yes, set by <who> on <date> because <why>>` |
+<!-- facts:begin -->
+_(empty — run `sh .apsolut-agents/scripts/status.sh` to populate)_
+<!-- facts:end -->
+
+## HOLD
+
+`<no — or: yes, set by <who> on <date> because <why>>` — only the human lifts a HOLD.
 
 ## Ownership / claims
 
@@ -38,5 +40,5 @@ _Last rewrite: <date> by <agent>._
 
 ## Active docs
 
-- Talk: `agent-log.md` · Rules: `PROTOCOL.md` · Stack: `PROJECT.md`
+- Talk: `agent-log.md` · Rules: `PROTOCOL.md` · Stack: `PROJECT.md` · Concurrency: `WORKTREES.md`
 - `<links to active plans / backlog / deploy notes>`

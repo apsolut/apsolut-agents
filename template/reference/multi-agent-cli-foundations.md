@@ -1,3 +1,11 @@
+<!-- apsolut-agents: tier=1 kind=doc -->
+> **REFERENCE ONLY — do not follow this document in this workspace.**
+> It describes a heavier architecture (per-agent inboxes, an orchestrator, wrapper
+> scripts, a different `locks/` scheme) that this workspace **deliberately does not
+> use**. The live design is `README.md` + `PROTOCOL.md` + `WORKTREES.md`. This file
+> is kept as the someday-maybe blueprint if a project ever truly outgrows
+> markdown + git + worktrees. Where it contradicts the live docs, the live docs win.
+
 # Multi-Agent CLI Orchestration — Foundations
 
 _A working reference for coordinating Codex, Claude Code, and Grok CLI agents on a single long-running SaaS build._

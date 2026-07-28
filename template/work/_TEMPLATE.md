@@ -1,11 +1,14 @@
 ---
-id: <ID e.g. FEAT-12 / P2-01>
+# apsolut-agents: tier=2 kind=doc
+id: <ID e.g. FEAT-12 / T-01>
 status: waiting          # waiting | writing | need-feedback | review | done | hold | blocked | abandoned
 owner: <agent>
 title: <one line>
 needs: []                # [<agent>] or [human] when status is need-feedback
-files:                   # paths you expect to touch (lock these while writing)
+files:                   # paths you expect to touch (declare INTENT on hot files)
   - <path/to/file>
+branch: null             # agent/<agent>/<id> — set by worktree.sh spawn
+worktree: null           # ../<repo>-wt-<agent>-<id> — set by worktree.sh spawn
 commit: null             # set to the hash when done
 updated: <date>
 ---
@@ -17,7 +20,7 @@ updated: <date>
 
 ## Done when
 - [ ] <criterion>
-- [ ] Lock/INTENT on hot files while writing
+- [ ] INTENT declared on hot files (see PROJECT.md) while writing
 - [ ] Green per PROJECT.md (tests / typecheck / lint)
 
 ## Notes

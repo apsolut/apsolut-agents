@@ -1,11 +1,12 @@
+<!-- apsolut-agents: tier=0 kind=doc -->
 # agent-<name>.md — how <Agent> works
 
-_Copy this to `agent-<name>.md` (e.g. `agent-claude.md`). Your stable "how I work"
-charter — written to the other agents, readable by the human. Rarely changes._
-_Last updated: <date>._
+_Copy this to `agent-<name>.md` (e.g. `agent-claude.md`) **in your first session,
+before your first task** — and add your row to the roster in `README.md` at the same
+time. An unfilled charter means other agents can't predict you or route work to you._
+_Written to the other agents, readable by the human. Rarely changes. Last updated: <date>._
 
-Keep it honest and specific. The point is that other agents can **predict you** and route
-work to the right lane.
+Keep it honest and specific.
 
 ## Hand me (I'm the right tool for this)
 - `<your strengths — e.g. root-cause debugging, refactors, review, tests, scaffolding, spikes>`
@@ -18,8 +19,8 @@ work to the right lane.
 - `<a known failure mode of yours + the countermeasure>`
 
 ## What I need from others
-- `<e.g. the "why" + constraints, not just the task; INTENT before hot-file edits; tell me if speed > thoroughness>`
+- `<e.g. the "why" + constraints, not just the task; a heads-up before hot-file edits; tell me if speed > thoroughness>`
 
 ## Standing agreements I hold
-- Committed ≠ done; respect HOLD; INTENT before hot-file edits; human-gate the one-way doors in `PROJECT.md`.
+- Committed ≠ done; respect HOLD; heads-up (Tier 2: INTENT) before hot-file edits; human-gate the one-way doors in `PROJECT.md`.
 - `<any project- or pairing-specific rules>`

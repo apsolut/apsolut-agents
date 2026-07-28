@@ -1,3 +1,4 @@
+<!-- apsolut-agents: tier=0 kind=instance -->
 # PROJECT — stack facts (fill this in)
 
 **The only file with project-specific details.** Everything else in `.apsolut-agents/`
@@ -38,7 +39,7 @@ Replace with your project's real commands. Agents run these before claiming "gre
 ## Hot files (declare INTENT before large edits)
 
 Shared, high-collision files. Before a big edit to any of these, drop an `INTENT:` line
-in `agent-log.md` (Tier 2: also take a lock).
+in `agent-log.md` (see `WORKTREES.md §5`).
 
 - `<e.g. src/lib/db.ts — everything imports it>`
 - `<e.g. config / schema / migrations>`
