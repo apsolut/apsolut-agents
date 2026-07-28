@@ -36,6 +36,16 @@ Replace with your project's real commands. Agents run these before claiming "gre
 > Agents: **read this table before running any tool.** Don't run a formatter/linter the
 > project doesn't use — it will churn the whole codebase in the wrong style.
 
+## Roster
+
+Fill in as agents join — first session: add your row + create `agents/agent-<you>.md`.
+
+| Agent | Default lane |
+|---|---|
+| *(e.g. Claude)* | *(e.g. root-cause fixes, migration/schema safety, review, tests)* |
+| *(e.g. Grok)* | *(e.g. fast iteration, spikes, shipping mechanics)* |
+| Human | push/deploy, tiebreak, legal/billing, one-way doors |
+
 ## Hot files (declare INTENT before large edits)
 
 Shared, high-collision files. Before a big edit to any of these, drop an `INTENT:` line

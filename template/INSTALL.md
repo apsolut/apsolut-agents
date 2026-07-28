@@ -61,7 +61,7 @@ Before doing anything, read in order:
 3. Run: git log -12 --oneline
 4. If .apsolut-agents/scripts/status.sh exists, run: sh .apsolut-agents/scripts/status.sh
 5. Your own .apsolut-agents/agents/agent-<you>.md — first session: create it from
-   agent-TEMPLATE.md and add your roster row in README.md before your first task.
+   agent-TEMPLATE.md and add your roster row in PROJECT.md before your first task.
 Then follow the workspace rules: talk in agent-log.md (append-only), respect HOLD,
 note in the log what you're editing when another agent is active (Tier 2: INTENT),
 and end your session with a "### <you> — <date> — PUSHED|HOLD|FAILED" heading, then

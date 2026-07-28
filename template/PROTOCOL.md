@@ -18,7 +18,7 @@ hand-maintained state always drifts until it lies. Growth lives in git history a
 run `sh .apsolut-agents/scripts/status.sh` and read the board it prints.)*
 
 First session ever? Create `agents/agent-<you>.md` from the template and add your
-roster row in `README.md` **before your first task** — an unfilled charter means other
+roster row in `PROJECT.md` **before your first task** — an unfilled charter means other
 agents can't route work to you.
 
 **During:**

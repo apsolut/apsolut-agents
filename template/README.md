@@ -22,7 +22,7 @@ New here? Read **`INSTALL.md`** once. Working the project? Read on.
 5. *(Tier 2)* run `sh .apsolut-agents/scripts/status.sh` — work board, worktrees, warnings.
 6. Your own `agents/agent-<you>.md` — your working style, if you need the refresher.
    **First session ever: create it from `agents/agent-TEMPLATE.md` and add your roster
-   row below — before your first task.**
+   row in `PROJECT.md` — before your first task.**
 
 If getting oriented takes more than these, a file has grown past its size discipline —
 run `scripts/session-end.sh` (it compacts) or flag it in the log.
@@ -55,13 +55,8 @@ backlog is never a chat thread.
 
 ## Roster
 
-Fill in as agents join — **adding your row is part of your first session, not optional.**
+The roster table lives in **`PROJECT.md → Roster`** (it's instance data — this file
+gets overwritten on `install.sh --refresh`, `PROJECT.md` never is). Adding your row
+there + creating `agents/agent-<you>.md` is part of your first session, not optional.
 One agent writes a given module at a time; check `PROJECT_STATE` ownership (or `work/*`
 in Tier 2) before claiming overlapping work.
-
-| Agent | Default lane |
-|---|---|
-| *(e.g. Claude)* | *(e.g. root-cause fixes, migration/schema safety, review, tests)* |
-| *(e.g. Grok)* | *(e.g. fast iteration, spikes, shipping mechanics)* |
-| *(e.g. Codex)* | *(e.g. scaffolding, repetitive modules)* |
-| Human | push/deploy, tiebreak, legal/billing, one-way doors |

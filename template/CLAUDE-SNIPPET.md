@@ -17,7 +17,7 @@ Before doing anything, in order:
 3. Run `git log -12 --oneline`.
 4. If `.apsolut-agents/scripts/status.sh` exists, run `sh .apsolut-agents/scripts/status.sh`.
 5. First session ever: create `.apsolut-agents/agents/agent-<you>.md` from the template
-   and add your roster row in `.apsolut-agents/README.md` before your first task.
+   and add your roster row in `.apsolut-agents/PROJECT.md` before your first task.
 
 Rules: talk only in `agent-log.md` (append-only, never rewrite others' entries).
 Respect HOLD — only the human lifts it. Committed ≠ done (not done until pushed or

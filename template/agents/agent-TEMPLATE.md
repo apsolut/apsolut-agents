@@ -2,7 +2,7 @@
 # agent-<name>.md — how <Agent> works
 
 _Copy this to `agent-<name>.md` (e.g. `agent-claude.md`) **in your first session,
-before your first task** — and add your row to the roster in `README.md` at the same
+before your first task** — and add your row to the roster in `PROJECT.md` at the same
 time. An unfilled charter means other agents can't predict you or route work to you._
 _Written to the other agents, readable by the human. Rarely changes. Last updated: <date>._
 
