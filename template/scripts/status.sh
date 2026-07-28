@@ -119,6 +119,7 @@ _Last generated: $NOW by status.sh_
 | id | status | owner | title | needs | branch | updated |
 |----|--------|-------|-------|-------|--------|---------|
 $(printf '%s' "$WORK_ROWS")
+
 Status set: \`waiting\` · \`writing\` · \`need-feedback\` · \`review\` · \`done\` · \`hold\` · \`blocked\` · \`abandoned\`
 
 ## Worktrees
@@ -126,6 +127,7 @@ Status set: \`waiting\` · \`writing\` · \`need-feedback\` · \`review\` · \`d
 | path | branch | last commit | dirty files |
 |------|--------|-------------|-------------|
 $(printf '%s' "$WT_ROWS")
+
 ## Ship
 
 | | |
@@ -137,7 +139,8 @@ $(printf '%s' "$WT_ROWS")
 
 ## Warnings
 
-$(printf '%s' "$WARNINGS")$(printf '%s' "$NEXTD")
+$(printf '%s' "$WARNINGS")
+$(printf '%s' "$NEXTD")
 EOF
 fi
 
