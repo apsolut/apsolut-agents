@@ -1,0 +1,4 @@
+# apsolut-agents: tier=0 kind=doc
+# The worktree pointer is machine-local, written by scripts/worktree.sh spawn —
+# never commit it (each secondary worktree gets its own).
+.primary
