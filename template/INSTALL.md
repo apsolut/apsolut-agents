@@ -115,3 +115,10 @@ sh install.sh <path-to-your-repo> --refresh
 Refresh overwrites files labeled `kind=doc` or `kind=generated` and **never touches
 `kind=instance` files** — your log, state, decisions, PROJECT.md, charters, and work
 files survive every upgrade.
+
+> **Upgrading a pre-label (old-format) workspace:** the overwrite decision comes from
+> the *template's* label, so old customized doc files — especially a README with a
+> filled-in roster — get overwritten. Port any customizations (roster → `PROJECT.md`)
+> BEFORE refreshing, or recover them from git afterwards. Also: refresh adds ALL
+> template files; if the project chose a lower tier, delete the higher-tier additions
+> after (tier labels are on line 1).

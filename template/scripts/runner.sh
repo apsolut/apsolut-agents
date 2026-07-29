@@ -173,6 +173,13 @@ while :; do
     sh "$WS/scripts/worktree.sh" spawn "$AGENT" "$ID" >/dev/null
     WT=$(fm_get "$CARD" worktree); BR=$(fm_get "$CARD" branch)
   fi
+  # never run destructive git ops anywhere but a spawned worktree
+  case "$(basename "$WT")" in
+    *-wt-*) ;;
+    *) tick "SKIP $ID: worktree path '$WT' is not a spawned worktree — refusing"
+       fm_set "$CARD" status blocked
+       rm -rf "$WS/claims/$ID"; CURRENT_ID=""; FAILS=$((FAILS+1)); continue;;
+  esac
   PRE=$(git -C "$WT" rev-parse HEAD)
 
   N=$(( $(cat "$WS/runs/.attempts-$ID" 2>/dev/null || echo 0) + 1 ))

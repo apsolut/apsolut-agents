@@ -114,8 +114,13 @@ done)
   fi
 
   if [ -n "$WT" ] && [ "$WT" != "null" ] && [ -d "$WT" ]; then
-    git -C "$REPO" worktree remove "$WT" --force
-    echo "removed worktree: $WT"
+    case "$(basename "$WT")" in
+      "$NAME"-wt-*)
+        git -C "$REPO" worktree remove "$WT" --force
+        echo "removed worktree: $WT" ;;
+      *)
+        echo "refusing to remove '$WT' — not a spawned worktree path ($NAME-wt-*); remove manually if intended" >&2 ;;
+    esac
   fi
   if [ "$MERGE" = yes ]; then
     git -C "$REPO" branch -d "$BRANCH" && echo "deleted branch: $BRANCH"
