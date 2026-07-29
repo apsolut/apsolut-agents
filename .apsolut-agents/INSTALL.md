@@ -12,13 +12,15 @@ No servers, no daemons, no build step.
 
 ## 1. Install into a project
 
-From the apsolut-agents repo:
+One-liner from inside your repo (no clone needed; `--wire` auto-inserts the bootstrap
+block into CLAUDE.md/AGENTS.md; `--tag vX.Y.Z` pins a release):
 
 ```
-sh install.sh <path-to-your-repo>
+curl -fsSL https://raw.githubusercontent.com/apsolut/apsolut-agents/main/install.sh | sh -s -- . --wire
 ```
 
-or manually: copy `template/` into your repo as **`.apsolut-agents/`**. Then:
+or from a clone: `sh install.sh <path-to-your-repo> --wire` — or manually copy
+`template/` into your repo as **`.apsolut-agents/`**. Then:
 
 1. Open **`PROJECT.md`** and fill in the blanks (build/test commands, hot files,
    what needs a human, deploy). This is the only place with project specifics.
@@ -90,6 +92,8 @@ locally and never pushes it — the next agent (and prod) never sees it.
 | `state/PROJECT_STATE.md` | 0 | instance | Save-game — generated facts + hand-written narrative |
 | `scripts/status.sh` | 0 | doc | Renders `STATUS.md` + the state facts block from git |
 | `scripts/session-end.sh` | 0 | doc | Verifies end token, compacts log, refreshes facts |
+| `scripts/upgrade.sh` | 0 | doc | Self-upgrade from GitHub — no source clone needed |
+| `VERSION` | 0 | generated | Installed release — written by install/upgrade |
 | `.gitignore` | 0 | doc | Ignores the `.primary` worktree pointer |
 | `PROTOCOL.md` | 1 | doc | Long-run rules: sessions, compaction, decisions, runs |
 | `PLAYBOOK.md` | 1 | doc | Delivery practices: small batches, card contract, risk tags |
@@ -107,11 +111,13 @@ locally and never pushes it — the next agent (and prod) never sees it.
 
 ## 6. Upgrading
 
-Newer apsolut-agents version? From its repo:
+The installed folder upgrades itself — no source clone needed:
 
 ```
-sh install.sh <path-to-your-repo> --refresh
+sh .apsolut-agents/scripts/upgrade.sh [--tag vX.Y.Z]
 ```
+
+(From a clone, `sh install.sh <path-to-your-repo> --refresh` does the same.)
 
 Refresh overwrites files labeled `kind=doc` or `kind=generated` and **never touches
 `kind=instance` files** — your log, state, decisions, PROJECT.md, charters, and work

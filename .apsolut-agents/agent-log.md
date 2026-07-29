@@ -84,3 +84,12 @@ Runner hardened per 3-model verification; regression 5/5.
 
 ### claude — 2026-07-29 — PUSHED
 All done: 3/3 gates, PLAYBOOK, safety guards, joyci upgrade, pushed to origin.
+
+### Claude — 2026-07-29 drop-in distribution (v0.5.0)
+- install.sh is now self-bootstrapping: `curl -fsSL .../install.sh | sh -s -- . --wire` works with no clone (verified live against GitHub). --wire inserts the bootstrap block into CLAUDE.md/AGENTS.md between idempotent markers; --tag pins a release.
+- Installed workspaces are self-sufficient: new `scripts/upgrade.sh` fetches the payload tarball and applies refresh rules in place (verified: customized instance file survived; pinned-tag mode works). VERSION stamped on install/upgrade; repo tagged v0.5.0.
+- New user-level Claude Code skill `/apsolut-agents` (init|refresh|wire|status) wraps the whole flow — agent-native install in any project.
+- degit documented as the zero-dependency alternative. Rejected for now: npm wrapper, dist-branch + git-subtree merges (revisit if customized-doc upgrades recur), submodules (breaks committed-history property).
+
+### claude — 2026-07-29 — PUSHED
+v0.5.0: drop-in distribution layer shipped and live-tested.

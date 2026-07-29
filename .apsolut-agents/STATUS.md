@@ -3,7 +3,7 @@
 
 # STATUS board
 
-_Last generated: 2026-07-29 03:19 by status.sh_
+_Last generated: 2026-07-29 03:39 by status.sh_
 
 ## Work units
 
@@ -24,8 +24,8 @@ Status set: `waiting` · `writing` · `need-feedback` · `review` · `done` · `
 | | |
 |--|--|
 | Branch | `main` |
-| Ahead/behind upstream | 2 ahead / 0 behind upstream |
-| Dirty files | 10 |
+| Ahead/behind upstream | 0 ahead / 0 behind upstream |
+| Dirty files | 5 |
 | Last session token | claude — 2026-07-29 — PUSHED |
 
 ## Warnings
