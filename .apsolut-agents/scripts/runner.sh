@@ -163,6 +163,14 @@ while :; do
   CURRENT_ID=$ID
   echo $$ > "$WS/claims/$ID/pid"
   CARD="$WS/work/$ID.md"
+
+  # test-first gate (PLAYBOOK §2): night cards must name a test somewhere, or declare spike: true
+  if [ "$(fm_get "$CARD" spike)" != "true" ] && ! grep -qi "test" "$CARD"; then
+    fm_set "$CARD" status blocked
+    printf '\nAttempted: claim by runner\nFailed because: no test named on the card and spike is not true (PLAYBOOK §2)\nWould unblock: add a failing-test criterion to Done-when, or set spike: true\n' >> "$CARD"
+    tick "refused $ID: test-first gate (PLAYBOOK §2)"
+    rm -rf "$WS/claims/$ID"; CURRENT_ID=""; continue
+  fi
   fm_set "$CARD" owner "$AGENT"
   fm_set "$CARD" status writing
   fm_set "$CARD" claimed "$(date -u +%Y-%m-%dT%H:%M:%SZ) pid:$$"
@@ -173,6 +181,13 @@ while :; do
     sh "$WS/scripts/worktree.sh" spawn "$AGENT" "$ID" >/dev/null
     WT=$(fm_get "$CARD" worktree); BR=$(fm_get "$CARD" branch)
   fi
+  # never run destructive git ops anywhere but a spawned worktree
+  case "$(basename "$WT")" in
+    *-wt-*) ;;
+    *) tick "SKIP $ID: worktree path '$WT' is not a spawned worktree — refusing"
+       fm_set "$CARD" status blocked
+       rm -rf "$WS/claims/$ID"; CURRENT_ID=""; FAILS=$((FAILS+1)); continue;;
+  esac
   PRE=$(git -C "$WT" rev-parse HEAD)
 
   N=$(( $(cat "$WS/runs/.attempts-$ID" 2>/dev/null || echo 0) + 1 ))
@@ -203,7 +218,7 @@ $(cat "$CARD")"
   fi
   echo "$N" > "$WS/runs/.attempts-$ID"
 
-  COST=$(grep -o '"total_cost_usd"[: ]*[0-9.]*' "$OUT" | tail -1 | grep -o '[0-9.]*$' || true)
+  COST=$(grep -oE '"(total_cost_usd|costUSD|total_cost)"[: ]*[0-9.]+' "$OUT" | tail -1 | grep -o '[0-9.]*$' || true)
   add_spend "${COST:-$FALLBACK_COST}"
 
   # agent must still be on its card branch — anything else is a hard fail

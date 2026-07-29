@@ -13,7 +13,7 @@ _Tier: 0 (core). Last updated: 2026-07-28 by Claude._
 | | |
 |---|---|
 | **Project** | apsolut-agents — the multi-agent workspace boilerplate itself (this repo dogfoods it) |
-| **Repo / remote** | local only, branch `main` — no remote yet |
+| **Repo / remote** | `origin git@github.com:apsolut/apsolut-agents.git`, branch `main` |
 | **Stack** | Markdown + POSIX sh (Git Bash on Windows). No runtime, no deps beyond git/sed/awk/grep. |
 | **Deploy target** | none — "shipping" = users copying `template/` via `install.sh` |
 

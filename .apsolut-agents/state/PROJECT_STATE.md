@@ -11,30 +11,30 @@ anything no longer true (git keeps history), keep the whole file to ~1 screen.
 ## Facts (generated)
 
 <!-- facts:begin -->
-_Generated 2026-07-29 02:28 by status.sh — do not hand-edit this block._
+_Generated 2026-07-29 03:19 by status.sh — do not hand-edit this block._
 
 | | |
 |--|--|
 | Branch | `main` |
-| Ahead/behind upstream | no upstream configured |
-| Dirty files | 5 |
+| Ahead/behind upstream | 2 ahead / 0 behind upstream |
+| Dirty files | 10 |
 | Worktrees | 1 (incl. primary) |
-| Last session token | claude — 2026-07-29 — HOLD |
-| agent-log.md | 72 lines |
+| Last session token | claude — 2026-07-29 — PUSHED |
+| agent-log.md | 86 lines |
 
 Recent commits:
 ```
-75ef70a fix: harden runner.sh per AGY+Grok code review — claim protocol, recovery, midnight, CRLF, singleton, provider 5xx
-00f9ed9 fix: after-edges semantics note + dead line in runner (acceptance-test findings)
-019b73d agents: claude session end 2026-07-29 (HOLD)
-41380a3 feat: Night Shift v0 — runner.sh, HEARTBEAT.md policy, NIGHTSHIFT.md, dependency edges (per 3-model PRD)
-039b7d5 agents: claude session end 2026-07-28 (HOLD)
+f8aa8a2 feat: PLAYBOOK.md (3-model synthesis) — risk tags, hard test-first gate, card contract; widen cost parser
+102c885 fix: destructive git ops refuse any path that is not a spawned *-wt-* worktree
+6d1e320 agents: gate run 1 of 3 passed (real grok lane, scratch)
+51179cb chore: add payload-pollution grep to the dogfood green definition
+3faf6c2 agents: claude session end 2026-07-29 (HOLD)
 ```
 <!-- facts:end -->
 
 ## HOLD
 
-yes — no remote exists yet; human decides if/where to publish. Only the human lifts a HOLD.
+no — HOLD lifted 2026-07-29: human provided the remote (github.com/apsolut/apsolut-agents); push allowed.
 
 ## Ownership / claims
 

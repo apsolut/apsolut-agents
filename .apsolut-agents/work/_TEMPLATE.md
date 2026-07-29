@@ -5,7 +5,9 @@ status: waiting          # waiting | writing | need-feedback | review | done | h
 owner: <agent>
 title: <one line>
 needs: []                # [<agent>] or [human] when status is need-feedback
-after: []                # [T-01, T-02] — card is not ready until these are done/review
+after: []                # [T-01, T-02] — card is not ready until these are done (merged)
+risk: []                 # [api-contract, schema, pii, money, ui] — see PLAYBOOK.md §4
+spike: false             # true = research/docs card; waives the night test-first gate
 files:                   # paths you expect to touch (declare INTENT on hot files)
   - <path/to/file>
 branch: null             # agent/<agent>/<id> — set by worktree.sh spawn
@@ -21,7 +23,8 @@ updated: <date>
 <what "done" means in one or two sentences>
 
 ## Done when
-- [ ] <criterion>
+- [ ] A failing test exists that proves the goal (write it first — enforced for night cards)
+- [ ] <criterion — checkable by a machine or a stranger, not a vibe>
 - [ ] INTENT declared on hot files (see PROJECT.md) while writing
 - [ ] Green per PROJECT.md (tests / typecheck / lint)
 

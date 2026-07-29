@@ -74,3 +74,13 @@ Runner hardened per 3-model verification; regression 5/5.
 ### Claude — 2026-07-29 gate run 1 of 3 — PASS
 - First real-LLM lane: runner.sh drove the grok CLI on card T-010 (scratch repo). Grok claimed, worked in its worktree, one clean commit (mul + div with div-by-zero throw + tests), green passed on attempt 1 in ~1 min of a 10-min cap, card -> review, branch stayed unmerged until supervisor merge via worktree.sh done --merge; main green after merge. Spend tracked, well under cap. Zero touches of main by the agent, zero orphan claims.
 - Gate criteria met for run 1. Two more supervised --once runs to pass v0; then real-project install.
+
+### Claude — 2026-07-29 "do all" session
+- Remote added + pushed: github.com/apsolut/apsolut-agents (HOLD lifted by human).
+- Gate runs 2 and 3 PASSED: agy/Gemini implemented clamp (green attempt 1, ~5 min); grok on a deliberately vague card DISCOVERED the hidden strict.js contract and implemented pow + hardening (green, $0.20). v0 gate: 3/3 supervised runs clean. Learned: grok CLI reports costUSD — cost parser widened.
+- PLAYBOOK shipped via the pipeline (D-005). Test-first gate live in runner (regression: refusal + spike waiver both verified).
+- Safety hardening after human question: all destructive git ops now refuse non-*-wt-* paths (runner + worktree.sh); INSTALL §6 documents the pre-label-upgrade README hazard.
+- joyci workspace upgraded (Tier 0+1 respected, roster ported to its PROJECT.md, logged there, left uncommitted for human).
+
+### claude — 2026-07-29 — PUSHED
+All done: 3/3 gates, PLAYBOOK, safety guards, joyci upgrade, pushed to origin.

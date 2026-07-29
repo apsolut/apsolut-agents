@@ -47,3 +47,10 @@ Template:
 - **Rejected:** stage-2 haiku classifier (both reviews), overnight `night/<date>` integration branch (both), auto-reassign (both), derived-complexity timeouts (no size model exists).
 - **Status:** implemented (v0; gates to v1/v2 defined in NIGHTSHIFT.md)
 - **Owners / applies to:** `template/scripts/runner.sh`, `template/HEARTBEAT.md`, `template/NIGHTSHIFT.md`, Tier 2
+
+### D-005 — PLAYBOOK: enforce-or-omit delivery practices  (2026-07-29)
+- **Decision:** Ship `PLAYBOOK.md` (Tier 1) per the 3-model synthesis (`runs/2026-07-29-playbook-review.md`): small batches; checkable Done-when with a HARD test-first runner gate (`spike: true` = visible waiver); risk tags (`api-contract, schema, pii, money, ui`) instead of B2B/B2C profiles; no metric claims until scripts compute them; fixed-shape blameless blocked notes. Universal rules live in the card template so Tier 0 gets the substance.
+- **Why:** Both blind reviewers independently identified unenforced prose as the end-block failure class and market-persona profiles as costume; convergence adopted.
+- **Rejected:** DORA-lite section without implementation; B2B/B2C axis; convention-only test-first.
+- **Status:** implemented
+- **Owners / applies to:** template/PLAYBOOK.md, work/_TEMPLATE.md, scripts/runner.sh
