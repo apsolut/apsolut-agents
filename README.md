@@ -12,18 +12,29 @@ No servers, no daemons, no orchestrator. Markdown + git + three POSIX-sh scripts
 
 ## Install
 
-```
-sh install.sh <path-to-your-repo>
-```
-
-This copies `template/` into your repo as `.apsolut-agents/`. Then follow the
-checklist it prints — full instructions in [`template/INSTALL.md`](template/INSTALL.md).
-
-Upgrade an existing installation without touching your log/state/decisions:
+One-liner, no clone needed (from inside your project):
 
 ```
-sh install.sh <path-to-your-repo> --refresh
+curl -fsSL https://raw.githubusercontent.com/apsolut/apsolut-agents/main/install.sh | sh -s -- . --wire
 ```
+
+`--wire` also inserts the agent bootstrap block into your `CLAUDE.md`/`AGENTS.md`
+(between markers, idempotent). Pin a release with `--tag vX.Y.Z`. Alternatives:
+
+```
+sh install.sh <path-to-your-repo> --wire      # from a local clone
+npx degit apsolut/apsolut-agents/template .apsolut-agents   # payload only, no refresh logic
+```
+
+Full instructions in [`template/INSTALL.md`](template/INSTALL.md). Upgrading later
+needs nothing but the installed folder itself:
+
+```
+sh .apsolut-agents/scripts/upgrade.sh          # fetches latest, never touches your data
+```
+
+`kind=instance` files (your log, state, decisions, PROJECT.md, cards) survive every
+upgrade; `VERSION` records what you're on.
 
 ## The tier model
 
