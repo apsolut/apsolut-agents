@@ -25,7 +25,8 @@ _Tier: 0 (core). Last updated: 2026-07-28 by Claude._
 | No stale lock refs | `grep -rilE "locks/" template --include="*.md"` → only WORKTREES.md + reference/ |
 | Script smoke test | fresh repo in scratchpad → `sh install.sh <dir>` → `status.sh`, `worktree.sh spawn/done`, `session-end.sh` all exit 0 |
 | Board regen | `sh .apsolut-agents/scripts/status.sh` |
-| **"Green" =** | all four of the above |
+| No instance leakage into payload | `grep -rniE "joyci\|D:/sites\|scratchpad\|T-00[0-9]\|2026-" template/ \| grep -v "<date>" \| grep -v reference/` → must print nothing |
+| **"Green" =** | all five of the above |
 
 > Agents: **read this table before running any tool.** There is no formatter, linter,
 > or test framework here — don't invent one.
