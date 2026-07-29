@@ -13,7 +13,7 @@ night_budget_usd: 25
 cost_fallback_usd: 2.00
 stop_time: 07:00
 idle_poll_seconds: 300
-stale_claim_minutes: 90
+stale_claim_minutes: 5
 
 ## Verification — what "green" means for a card's worktree
 green_cmd: echo "SET green_cmd IN HEARTBEAT.md" && false

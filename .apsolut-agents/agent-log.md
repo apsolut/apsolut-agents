@@ -62,3 +62,11 @@ Overhaul complete: worktrees Tier 2, scripts, dogfood. HOLD until human decides 
 
 ### claude — 2026-07-29 — HOLD
 Night Shift v0 shipped and tested; HOLD stands (no remote).
+
+### Claude — 2026-07-29 verification round
+- AGY + Grok blind-reviewed runner.sh against the PRD (~20 findings, strong convergence on the claim/recovery/kill path). Hardened: full claim rewrite, dead-pid recovery (5m grace, pid-0 bug fixed), CRLF-safe parsing, midnight-safe stop with morning re-arm, lane singleton + exit trap, reset-to-pre-SHA on fail, branch assert, 5xx backoff without attempt burn, numeric sanitization, green sentinel refusal, done-only deps, exit codes. 4 findings rejected with reasons. Artifact: runs/2026-07-29-night-shift-code-review.md
+- Full regression on fresh scratch: 5/5 pass (sentinel refusal, happy+deps, singleton, chaos breaker exit=2 + timeout rc=124, stale recovery).
+- Next: gate run #1 with the REAL grok CLI as worker lane, supervised.
+
+### claude — 2026-07-29 — HOLD
+Runner hardened per 3-model verification; regression 5/5.

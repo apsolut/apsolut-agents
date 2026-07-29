@@ -29,8 +29,9 @@ thresholds, `green_cmd`, per-agent headless commands, ntfy.sh URL.
 
 **`after:` is sequencing, NOT code visibility.** Branches stay unmerged overnight, so
 a dependent card branches from the default branch and **cannot see its dependency's
-code**. If card B needs card A's code, they are one card — or B waits for the morning
-merge. (Found the hard way in the v0 acceptance test.)
+code**. The runner therefore only treats `after:` deps as satisfied once the dep is
+`done` (i.e. **merged**) — `review` is not enough. If card B needs card A's code the
+same night, they are one card. (Found the hard way in the v0 acceptance test.)
 
 ## The loop (per card)
 
