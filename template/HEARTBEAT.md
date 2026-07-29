@@ -13,7 +13,7 @@ night_budget_usd: 25
 cost_fallback_usd: 2.00
 stop_time: 07:00
 idle_poll_seconds: 300
-stale_claim_minutes: 90
+stale_claim_minutes: 5
 
 ## Verification — what "green" means for a card's worktree
 green_cmd: echo "SET green_cmd IN HEARTBEAT.md" && false
@@ -32,3 +32,5 @@ cmd_agy: agy --dangerously-skip-permissions --output-format json -p
 - `night_budget_usd` is a per-night HARD stop, enforced from CLI cost output when
   available, else `cost_fallback_usd` per card. Per-card time cap = `budget:` on the
   card, else `card_timeout_minutes`.
+- `stale_claim_minutes` = grace before a claim whose runner PID is dead gets released.
+- One runner per agent name — a second `runner.sh <agent>` refuses to start.

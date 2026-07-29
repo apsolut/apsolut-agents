@@ -4,6 +4,7 @@
 # Per PRD (multi-model reviewed): rule-based only, no overnight merges (branches
 # survive to morning), kill is terminal, claim = mkdir mutex + card rewrite,
 # provider errors back off instead of tripping the breaker. See NIGHTSHIFT.md.
+# Hardened per the AGY+Grok code-review round (see runs/ for the review artifacts).
 set -eu
 
 AGENT=${1:?usage: runner.sh <agent> [--once]}
@@ -19,49 +20,85 @@ DATE=$(date +%Y-%m-%d)
 REPORT="$WS/runs/night-$DATE.md"; SPENDF="$WS/runs/.spend-$DATE"
 mkdir -p "$WS/claims" "$WS/runs"
 
-cfg() { sed -n "s/^$1:[[:space:]]*//p" "$HB" | head -1; }
-fm_get() { awk -v k="$2" 'NR==1&&$0=="---"{f=1;next} f&&$0=="---"{exit}
-  f&&index($0,k":")==1{sub("^" k ":[ \t]*","");sub("[ \t]*#.*$","");print;exit}' "$1"; }
-fm_set() { awk -v k="$2" -v v="$3" 'NR==1&&$0=="---"{f=1;print;next}
-  f&&$0=="---"{f=0;print;next} f&&index($0,k":")==1{print k": "v;next}{print}' \
+cfg() { sed -n "s/^$1:[[:space:]]*//p" "$HB" | head -1 | tr -d '\r'; }
+fm_get() { awk -v k="$2" 'NR==1&&$0~/^---\r?$/{f=1;next} f&&$0~/^---\r?$/{exit}
+  f&&index($0,k":")==1{sub("^" k ":[ \t]*","");sub("[ \t]*#.*$","");sub(/\r$/,"");print;exit}' "$1"; }
+fm_set() { awk -v k="$2" -v v="$3" 'NR==1&&$0~/^---\r?$/{f=1;print;next}
+  f&&$0~/^---\r?$/{if(!done)print k": "v;f=0;print;next}
+  f&&index($0,k":")==1{print k": "v;done=1;next}{print}' \
   "$1" > "$1.tmp" && mv "$1.tmp" "$1"; }
+num_or() { case "$1" in ''|*[!0-9.]*|*.*.*) echo "$2";; *) echo "$1";; esac; }
 
-TIMEOUT_MIN=$(cfg card_timeout_minutes); TIMEOUT_MIN=${TIMEOUT_MIN:-45}
-MAX_ATTEMPTS=$(cfg max_attempts_per_card); MAX_ATTEMPTS=${MAX_ATTEMPTS:-2}
-MAX_FAILS=$(cfg max_consecutive_failures_lane); MAX_FAILS=${MAX_FAILS:-3}
-BUDGET=$(cfg night_budget_usd); BUDGET=${BUDGET:-25}
-FALLBACK_COST=$(cfg cost_fallback_usd); FALLBACK_COST=${FALLBACK_COST:-2}
+TIMEOUT_MIN=$(num_or "$(cfg card_timeout_minutes)" 45)
+MAX_ATTEMPTS=$(num_or "$(cfg max_attempts_per_card)" 2)
+MAX_FAILS=$(num_or "$(cfg max_consecutive_failures_lane)" 3)
+BUDGET=$(num_or "$(cfg night_budget_usd)" "$(num_or "$(cfg night_budget)" 25)")
+FALLBACK_COST=$(num_or "$(cfg cost_fallback_usd)" 2)
 STOP=$(cfg stop_time | tr -d ':'); STOP=${STOP:-0700}
-POLL=$(cfg idle_poll_seconds); POLL=${POLL:-300}
-STALE_MIN=$(cfg stale_claim_minutes); STALE_MIN=${STALE_MIN:-90}
+POLL=$(num_or "$(cfg idle_poll_seconds)" 300)
+STALE_MIN=$(num_or "$(cfg stale_claim_minutes)" "$(num_or "$(cfg stall_claim_minutes)" 5)")
 GREEN=$(cfg green_cmd)
 NTFY=$(cfg notify_url)
 CMD=$(cfg "cmd_$AGENT")
 [ -n "$CMD" ] || { echo "error: no cmd_$AGENT in HEARTBEAT.md" >&2; exit 1; }
-[ -n "$GREEN" ] || { echo "error: no green_cmd in HEARTBEAT.md" >&2; exit 1; }
+case "$GREEN" in ''|*"SET green_cmd"*)
+  echo "error: green_cmd in HEARTBEAT.md is unset — define what green means before running nights" >&2; exit 1;;
+esac
+
+now_hhmm() { date +%H%M; }
+in_stop_window() { awk -v n="$(now_hhmm)" -v s="$STOP" 'BEGIN{exit !(int(n)>=int(s) && int(n)<1200)}'; }
+# started during the morning window (e.g. a supervised 08:00 run) → don't stop instantly;
+# the stop gate re-arms once the clock leaves the window (past noon or past midnight).
+ARMED=yes; in_stop_window && ARMED=no
 
 notify() { [ -n "$NTFY" ] && curl -s -d "night-shift[$AGENT]: $1" "$NTFY" >/dev/null 2>&1 || true; }
 tick() { printf 'TICK: %s %s %s\n' "$AGENT" "$(date '+%m-%d %H:%M')" "$1" >> "$LOG"; }
-spent() { cat "$SPENDF" 2>/dev/null || echo 0; }
-add_spend() { awk "BEGIN{printf \"%.2f\", $(spent) + $1}" > "$SPENDF"; }
+spent() { num_or "$(cat "$SPENDF" 2>/dev/null || echo 0)" 0; }
+add_spend() { awk "BEGIN{printf \"%.2f\", $(spent) + $(num_or "$1" 0)}" > "$SPENDF.tmp" && mv "$SPENDF.tmp" "$SPENDF"; }
 
-# --- boot recovery: clear claims whose runner is dead and old -------------------
+# --- lane singleton: one runner per agent name -----------------------------------
+LANE="$WS/claims/.lane-$AGENT"
+if ! mkdir "$LANE" 2>/dev/null; then
+  lp=$(cat "$LANE/pid" 2>/dev/null || echo "")
+  if [ -n "$lp" ] && kill -0 "$lp" 2>/dev/null; then
+    echo "error: runner for '$AGENT' already active (pid $lp)" >&2; exit 1
+  fi
+  rm -rf "$LANE"; mkdir "$LANE"
+fi
+echo $$ > "$LANE/pid"
+
+CURRENT_ID=""
+cleanup() {
+  if [ -n "$CURRENT_ID" ] && [ -d "$WS/claims/$CURRENT_ID" ]; then
+    rm -rf "$WS/claims/$CURRENT_ID"
+    c="$WS/work/$CURRENT_ID.md"
+    [ -f "$c" ] && [ "$(fm_get "$c" status)" = "writing" ] && fm_set "$c" status waiting
+    tick "released claim $CURRENT_ID on exit"
+  fi
+  rm -rf "$LANE"
+}
+trap cleanup EXIT INT TERM
+
+# --- boot recovery: release claims whose runner is dead ---------------------------
 for c in "$WS"/claims/*/; do
   [ -d "$c" ] || continue
-  id=$(basename "$c"); pid=$(cat "$c/pid" 2>/dev/null || echo 0)
-  age=$(( ( $(date +%s) - $(date -r "$c" +%s 2>/dev/null || date +%s) ) / 60 ))
-  if ! kill -0 "$pid" 2>/dev/null && [ "$age" -ge "$STALE_MIN" ]; then
+  id=$(basename "$c")
+  case "$id" in .lane-*) continue;; esac
+  pid=$(cat "$c/pid" 2>/dev/null || echo "")
+  ft=$(date -r "$c" +%s 2>/dev/null || echo 0)
+  age=$(( ( $(date +%s) - ft ) / 60 ))
+  if { [ -z "$pid" ] || ! kill -0 "$pid" 2>/dev/null; } && [ "$age" -ge "$STALE_MIN" ]; then
     rm -rf "$c"
     [ -f "$WS/work/$id.md" ] && fm_set "$WS/work/$id.md" status waiting
-    tick "recovered stale claim $id (pid $pid dead, ${age}m old)"
+    tick "recovered stale claim $id (pid ${pid:-none} dead, ${age}m old)"
   fi
 done
 
-deps_met() { # $1 = card file → 0 if every id in after: is done/review
+deps_met() { # $1 = card file → 0 if every id in after: is done (merged — review is NOT enough)
   a=$(fm_get "$1" after | tr -d '[]' | tr ',' ' ')
   for d in $a; do
     df="$WS/work/$d.md"; [ -f "$df" ] || return 1
-    case "$(fm_get "$df" status)" in done|review) ;; *) return 1;; esac
+    [ "$(fm_get "$df" status)" = "done" ] || return 1
   done
   return 0
 }
@@ -70,16 +107,17 @@ pick_ready() { # print first claimable card id, or nothing
   for f in "$WS"/work/*.md; do
     [ -f "$f" ] || continue
     case "$(basename "$f")" in _TEMPLATE.md) continue;; esac
+    i=$(fm_get "$f" id); [ -n "$i" ] || continue
     [ "$(fm_get "$f" status)" = "waiting" ] || continue
     o=$(fm_get "$f" owner)
     case "$o" in "$AGENT"|any|"<agent>"|"") ;; *) continue;; esac
     deps_met "$f" || continue
-    fm_get "$f" id; return 0
+    echo "$i"; return 0
   done
   return 1
 }
 
-finish() {
+finish() { # $1 reason, $2 exit code
   {
     echo "# Night report — $DATE (lane: $AGENT)"
     echo
@@ -102,7 +140,7 @@ finish() {
   tick "night end: $1 (report: runs/$(basename "$REPORT"))"
   notify "ended: $1 — spend \$$(spent). Report ready."
   sh "$WS/scripts/status.sh" >/dev/null 2>&1 || true
-  exit 0
+  exit "${2:-0}"
 }
 
 echo "runner[$AGENT]: timeout=${TIMEOUT_MIN}m attempts=$MAX_ATTEMPTS breaker=$MAX_FAILS budget=\$$BUDGET stop=$STOP"
@@ -110,35 +148,37 @@ tick "night start (budget \$$BUDGET, stop $STOP)"
 FAILS=0
 
 while :; do
-  NOW=$(date +%H%M | sed 's/^0*//'); S=$(echo "$STOP" | sed 's/^0*//')
-  [ "${NOW:-0}" -ge "${S:-700}" ] && [ "${NOW:-0}" -lt 1200 ] && finish "stop_time"
-  awk "BEGIN{exit !($(spent) >= $BUDGET)}" && { notify "BUDGET CAP hit (\$$(spent))"; finish "budget"; }
-  [ "$FAILS" -ge "$MAX_FAILS" ] && { notify "CIRCUIT BREAKER: $FAILS consecutive failures"; finish "breaker"; }
+  if [ "$ARMED" = no ]; then in_stop_window || ARMED=yes
+  elif in_stop_window; then finish "stop_time" 0; fi
+  awk "BEGIN{exit !($(spent) >= $BUDGET)}" && { notify "BUDGET CAP hit (\$$(spent))"; finish "budget" 3; }
+  [ "$FAILS" -ge "$MAX_FAILS" ] && { notify "CIRCUIT BREAKER: $FAILS consecutive failures"; finish "breaker" 2; }
 
   ID=$(pick_ready || true)
   if [ -z "$ID" ]; then
-    [ "$ONCE" = yes ] && finish "board empty"
+    [ "$ONCE" = yes ] && finish "board empty" 0
     tick "idle — no ready cards"; sleep "$POLL"; continue
   fi
 
   mkdir "$WS/claims/$ID" 2>/dev/null || { sleep 5; continue; }
+  CURRENT_ID=$ID
   echo $$ > "$WS/claims/$ID/pid"
   CARD="$WS/work/$ID.md"
-  fm_set "$CARD" owner "$AGENT"; fm_set "$CARD" updated "$DATE"
+  fm_set "$CARD" owner "$AGENT"
+  fm_set "$CARD" status writing
+  fm_set "$CARD" claimed "$(date -u +%Y-%m-%dT%H:%M:%SZ) pid:$$"
+  fm_set "$CARD" updated "$DATE"
 
   BR=$(fm_get "$CARD" branch); WT=$(fm_get "$CARD" worktree)
   if [ -z "$BR" ] || [ "$BR" = "null" ] || [ ! -d "${WT:-/nonexistent}" ]; then
     sh "$WS/scripts/worktree.sh" spawn "$AGENT" "$ID" >/dev/null
-    WT=$(fm_get "$CARD" worktree)
-  else
-    fm_set "$CARD" status writing
+    WT=$(fm_get "$CARD" worktree); BR=$(fm_get "$CARD" branch)
   fi
+  PRE=$(git -C "$WT" rev-parse HEAD)
 
   N=$(( $(cat "$WS/runs/.attempts-$ID" 2>/dev/null || echo 0) + 1 ))
-  echo "$N" > "$WS/runs/.attempts-$ID"
-  CB=$(fm_get "$CARD" budget); case "$CB" in ''|null) CB=$TIMEOUT_MIN;; esac
+  CB=$(num_or "$(fm_get "$CARD" budget | tr -dc '0-9')" "$TIMEOUT_MIN")
   OUT="$WS/runs/$ID-attempt$N.out"
-  PROMPT="You are agent '$AGENT' working alone, headless, in the isolated git worktree at $WT (your cwd). Implement the task card below. Rules: commit your work in this worktree with clear messages; run the project's green check and iterate until it passes; do NOT touch any .apsolut-agents folder; do NOT push; do NOT switch branches. When done, stop.
+  PROMPT="You are agent '$AGENT' working alone, headless, in the isolated git worktree at $WT (your cwd), on branch $BR. Implement the task card below. Rules: commit your work in this worktree with clear messages; run the project's green check and iterate until it passes; do NOT touch any .apsolut-agents folder; do NOT push; do NOT switch branches. When done, stop.
 
 === TASK CARD ===
 $(cat "$CARD")"
@@ -152,13 +192,23 @@ $(cat "$CARD")"
   GD=$(git -C "$WT" rev-parse --git-dir 2>/dev/null || true)
   [ -n "$GD" ] && rm -f "$GD/index.lock" 2>/dev/null || true
 
-  if grep -qiE '(^|[^0-9])429([^0-9]|$)|rate.?limit|quota exceeded|overloaded' "$OUT"; then
-    tick "provider backoff on $ID (not a failure)"; rm -rf "$WS/claims/$ID"
-    fm_set "$CARD" status waiting; sleep 900; continue
+  # provider trouble (429/5xx/quota) = backoff, not a failure, not an attempt
+  if grep -qiE '(^|[^0-9])(429|50[0-4])([^0-9]|$)|rate.?limit|quota exceeded|overloaded|server error|service unavailable' "$OUT"; then
+    tick "provider backoff on $ID (not a failure, not an attempt)"
+    git -C "$WT" reset --hard -q "$PRE" 2>/dev/null || true
+    git -C "$WT" clean -fdq -e .apsolut-agents 2>/dev/null || true
+    fm_set "$CARD" status waiting
+    rm -rf "$WS/claims/$ID"; CURRENT_ID=""
+    sleep 900; continue
   fi
+  echo "$N" > "$WS/runs/.attempts-$ID"
 
   COST=$(grep -o '"total_cost_usd"[: ]*[0-9.]*' "$OUT" | tail -1 | grep -o '[0-9.]*$' || true)
   add_spend "${COST:-$FALLBACK_COST}"
+
+  # agent must still be on its card branch — anything else is a hard fail
+  NOWBR=$(git -C "$WT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "?")
+  [ "$NOWBR" = "$BR" ] || { RC=97; echo "runner: branch assert failed ($NOWBR != $BR)" >> "$OUT"; }
 
   if [ -n "$(git -C "$WT" status --porcelain | grep -v '\.apsolut-agents' || true)" ]; then
     git -C "$WT" add -A -- ':!.apsolut-agents' 2>/dev/null || git -C "$WT" add -A
@@ -173,7 +223,7 @@ $(cat "$CARD")"
     tick "green $ID"
   else
     FAILS=$(( FAILS + 1 ))
-    git -C "$WT" reset --hard -q 2>/dev/null || true
+    git -C "$WT" reset --hard -q "$PRE" 2>/dev/null || true
     git -C "$WT" clean -fdq -e .apsolut-agents 2>/dev/null || true
     if [ "$N" -ge "$MAX_ATTEMPTS" ]; then
       fm_set "$CARD" status blocked
@@ -186,5 +236,5 @@ $(cat "$CARD")"
       tick "red $ID attempt $N (rc=$RC) — will retry"
     fi
   fi
-  rm -rf "$WS/claims/$ID"
+  rm -rf "$WS/claims/$ID"; CURRENT_ID=""
 done
