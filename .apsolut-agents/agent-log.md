@@ -70,3 +70,7 @@ Night Shift v0 shipped and tested; HOLD stands (no remote).
 
 ### claude — 2026-07-29 — HOLD
 Runner hardened per 3-model verification; regression 5/5.
+
+### Claude — 2026-07-29 gate run 1 of 3 — PASS
+- First real-LLM lane: runner.sh drove the grok CLI on card T-010 (scratch repo). Grok claimed, worked in its worktree, one clean commit (mul + div with div-by-zero throw + tests), green passed on attempt 1 in ~1 min of a 10-min cap, card -> review, branch stayed unmerged until supervisor merge via worktree.sh done --merge; main green after merge. Spend tracked, well under cap. Zero touches of main by the agent, zero orphan claims.
+- Gate criteria met for run 1. Two more supervised --once runs to pass v0; then real-project install.
