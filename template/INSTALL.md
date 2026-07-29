@@ -39,7 +39,7 @@ Start as small as the project. Add a layer only when the pain is real.
 | Tier | Use when | Keep these files |
 |---|---|---|
 | **0 — Core** | Any project, even solo / one agent at a time | `README.md`, `PROJECT.md`, `agent-log.md`, `agents/`, `state/PROJECT_STATE.md`, `scripts/status.sh`, `scripts/session-end.sh`, `CLAUDE-SNIPPET.md` |
-| **1 — Long-run** | Weeks-long, or history won't fit in one context | + `PROTOCOL.md`, `decisions/DECISIONS.md`, `runs/`, `archive/` |
+| **1 — Long-run** | Weeks-long, or history won't fit in one context | + `PROTOCOL.md`, `PLAYBOOK.md`, `decisions/DECISIONS.md`, `runs/`, `archive/` |
 | **2 — Concurrent** | 2–3 agents editing the **same day / same files** | + `WORKTREES.md`, `STATUS.md`, `work/`, `scripts/worktree.sh`, `NIGHTSHIFT.md`, `HEARTBEAT.md`, `scripts/runner.sh` |
 
 Deleting a tier is safe — every file carries a machine-readable label on line 1:
@@ -92,6 +92,7 @@ locally and never pushes it — the next agent (and prod) never sees it.
 | `scripts/session-end.sh` | 0 | doc | Verifies end token, compacts log, refreshes facts |
 | `.gitignore` | 0 | doc | Ignores the `.primary` worktree pointer |
 | `PROTOCOL.md` | 1 | doc | Long-run rules: sessions, compaction, decisions, runs |
+| `PLAYBOOK.md` | 1 | doc | Delivery practices: small batches, card contract, risk tags |
 | `decisions/DECISIONS.md` | 1 | instance | Durable "why" record (grep it, don't read it whole) |
 | `runs/README.md` | 1 | doc | Where subagent fan-out results land |
 | `archive/` | 1 | — | Rotated old `agent-log` slices |
