@@ -19,6 +19,11 @@ Before doing anything, in order:
 5. First session ever: create `.apsolut-agents/agents/agent-<you>.md` from the template
    and add your roster row in `.apsolut-agents/PROJECT.md` before your first task.
 
+You may drive other agents: if `.apsolut-agents/scripts/delegate.sh` exists you can hand a
+task card to any other roster agent's CLI (`delegate.sh run <agent> <id> --detach`), track
+it (`status`, `tail`), send correction rounds (`run … --note "…"`), or `stop` it — you stay
+accountable for its output. Read `.apsolut-agents/DELEGATION.md` before the first dispatch.
+
 Rules: talk only in `agent-log.md` (append-only, never rewrite others' entries).
 Respect HOLD — only the human lifts it. Committed ≠ done (not done until pushed or
 the log says HOLD). If another agent was active today, say in the log what you're

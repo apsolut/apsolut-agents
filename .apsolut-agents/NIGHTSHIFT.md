@@ -21,6 +21,12 @@ sh .apsolut-agents/scripts/runner.sh claude --once # supervised single pass (v0 
 Config lives in `HEARTBEAT.md` (instance file — yours): timeouts, budget, breaker
 thresholds, `green_cmd`, per-agent headless commands, ntfy.sh URL.
 
+**Attended sibling:** `DELEGATION.md` / `scripts/delegate.sh` runs the same agents on the
+same cards *while you're present* — you dispatch, watch, and send correction rounds. Same
+claim mutex and same daily spend ledger, so the two can't collide over a card. Rule of
+thumb: rule-based and destructive-on-red at 3am (`runner.sh`), judgement-based and
+non-destructive when a foreman is reading the output (`delegate.sh`).
+
 ## What a card needs to be night-runnable
 
 - Concrete **Goal** + **Done when** (vague cards produce confident garbage at 3am).

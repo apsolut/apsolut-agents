@@ -71,17 +71,26 @@ Rules that keep the register honest:
   register that says "not implemented" about shipped work is worse than no register.
 - Mark superseded entries `~~superseded by D-0NN~~` at the top; don't delete them.
 
-## 5. Subagent runs (fan-outs)
+## 5. Subagent runs and delegated agents
 
-When an agent fans out to N subagents (a Claude Code Task/Workflow, a review swarm,
-any one-shot multi-agent burst): **the orchestrating agent owns the whole run** —
-subagents never touch this workspace. Exactly two artifacts land here:
+The rule is the same for both, and it is the only rule that matters: **the agent that
+spawned it owns everything it produced.** Spawned agents never touch this workspace —
+the spawner translates their output into the record.
+
+**Fan-outs** (a Claude Code Task/Workflow, a review swarm, any one-shot multi-agent
+burst) leave exactly two artifacts here:
 
 1. One log entry: N agents, duration, headline numbers, verdict.
 2. One file `runs/<date>-<slug>.md` with the surviving output (findings, ranked plan,
    explicit rejects), linked from that entry.
 
-Decisions arising from a run go to `DECISIONS.md` as usual. See `runs/README.md`.
+**Delegated peers** *(Tier 2)* — another agent's CLI, driven by you through
+`scripts/delegate.sh` — are the same contract with more at stake, because a delegate
+commits code. `delegate.sh` writes the mechanical log entries (dispatch, result, spend);
+you still owe the judgement: what you accepted, what you rejected, why, and the verdict
+on every branch you leave behind. Full protocol and caps: **`DELEGATION.md`**.
+
+Decisions arising from either go to `DECISIONS.md` as usual. See `runs/README.md`.
 
 ## 6. Push / ship (standing agreement)
 
