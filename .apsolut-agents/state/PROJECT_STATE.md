@@ -17,18 +17,18 @@ _Generated 2026-07-31 08:37 by status.sh — do not hand-edit this block._
 |--|--|
 | Branch | `feat/delegation-and-installer-fixes` |
 | Ahead/behind upstream | 0 ahead / 0 behind upstream |
-| Dirty files | 0 |
+| Dirty files | 1 |
 | Worktrees | 1 (incl. primary) |
-| Last session token | claude — 2026-07-31 — HOLD |
-| agent-log.md | 111 lines |
+| Last session token | claude — 2026-07-31 — PUSHED |
+| agent-log.md | 114 lines |
 
 Recent commits:
 ```
+dde25e4 agents: claude session end 2026-07-31 (PUSHED)
 1661789 feat: green output stamps exact commit (delegate.sh, runner.sh); protocol norms from buzz review (D-006)
 1ab218d feat: agent-drives-agent delegation; fix: install.sh exited 1 on success
 8d0ca92 agents: claude session end 2026-07-29 (PUSHED)
 e333038 feat: drop-in distribution — self-bootstrapping install.sh (curl|sh, --wire, --tag), in-payload upgrade.sh, VERSION stamping
-f33a7d0 agents: claude session end 2026-07-29 (PUSHED)
 ```
 <!-- facts:end -->
 

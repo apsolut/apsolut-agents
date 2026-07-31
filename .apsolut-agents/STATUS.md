@@ -25,8 +25,8 @@ Status set: `waiting` · `writing` · `need-feedback` · `review` · `done` · `
 |--|--|
 | Branch | `feat/delegation-and-installer-fixes` |
 | Ahead/behind upstream | 0 ahead / 0 behind upstream |
-| Dirty files | 0 |
-| Last session token | claude — 2026-07-31 — HOLD |
+| Dirty files | 1 |
+| Last session token | claude — 2026-07-31 — PUSHED |
 
 ## Warnings
 

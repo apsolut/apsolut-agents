@@ -109,3 +109,6 @@ buzz protocol assimilation, uncommitted for human review
 
 ### claude — 2026-07-31 — HOLD
 buzz package converged via 2-round grok review, uncommitted
+
+### claude — 2026-07-31 — PUSHED
+HOLD lifted by human; buzz package (D-006 converged form + green HEAD stamps) pushed to origin.
