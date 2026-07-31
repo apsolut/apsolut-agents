@@ -230,6 +230,7 @@ $(cat "$CARD")"
     git -C "$WT" commit -q -m "$ID: uncommitted work salvaged by runner (attempt $N)" || true
   fi
 
+  echo "green_cmd @ $(git -C "$WT" rev-parse HEAD)" >> "$OUT"
   if [ "$RC" -eq 0 ] && ( cd "$WT" && sh -c "$GREEN" ) >> "$OUT" 2>&1; then
     fm_set "$CARD" status review
     FAILS=0

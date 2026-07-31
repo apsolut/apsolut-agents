@@ -45,7 +45,9 @@ minutes of wall clock; a 20-line edit does not need a foreman.
 3. **Track.** `delegate.sh status` for the board (who's running, which round, spend so
    far, which cards are waiting on your judgement). `delegate.sh tail <id>` for live
    output. Poll on your own rhythm — don't sit in a tight loop burning context; do other
-   work between checks.
+   work between checks. Status you put in the log is facts off the board — running,
+   exited (code), green/red, timed out — never a guess about what the delegate is
+   "probably" doing; timers are backstops, facts decide.
 4. **Decide.** On green: read the diff, then `worktree.sh done <id> --merge`. On red:
    read the output and choose — one more round with a correction, take it yourself, or
    escalate. `delegate.sh stop <id>` kills a delegate that's off the rails; it
@@ -145,6 +147,10 @@ for subagent fan-outs, and for the same reason:
   the next session can see what you left undecided.
 - **`Committed ≠ done` applies to your delegates' work too.** A delegate cannot push, so
   its work is *by construction* not done until you merge and push it.
+- **Prefer fresh eyes for judgement verdicts.** `green_cmd` decides mechanically;
+  where only judgement can verdict (a design, a review, a doc), route the read to an
+  agent that didn't produce it when the roster allows — after three correction rounds
+  you aren't one. Solo roster: say so in the log and review it yourself.
 
 ## 6. Interaction with Night Shift
 

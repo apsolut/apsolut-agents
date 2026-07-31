@@ -3,7 +3,7 @@
 
 # STATUS board
 
-_Last generated: 2026-07-29 03:39 by status.sh_
+_Last generated: 2026-07-31 01:30 by status.sh_
 
 ## Work units
 
@@ -23,12 +23,12 @@ Status set: `waiting` · `writing` · `need-feedback` · `review` · `done` · `
 
 | | |
 |--|--|
-| Branch | `main` |
+| Branch | `feat/delegation-and-installer-fixes` |
 | Ahead/behind upstream | 0 ahead / 0 behind upstream |
-| Dirty files | 5 |
-| Last session token | claude — 2026-07-29 — PUSHED |
+| Dirty files | 17 |
+| Last session token | claude — 2026-07-31 — HOLD |
 
 ## Warnings
 
 - _(none)_
-- next decision id: D-006
+- next decision id: D-007

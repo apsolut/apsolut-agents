@@ -334,7 +334,8 @@ $(cat "$CARD")"
   if [ "$RC" -eq 0 ]; then
     case "$GREEN" in
       ''|*"SET green_cmd"*) VERDICT=unverified ;;
-      *) if ( cd "$WT" && sh -c "$GREEN" ) >> "$OUT" 2>&1; then VERDICT=green; fi ;;
+      *) echo "green_cmd @ $(git -C "$WT" rev-parse HEAD)" >> "$OUT"
+         if ( cd "$WT" && sh -c "$GREEN" ) >> "$OUT" 2>&1; then VERDICT=green; fi ;;
     esac
   fi
   NCOMMITS=$(git -C "$WT" rev-list --count "$PRE..HEAD" 2>/dev/null || echo 0)

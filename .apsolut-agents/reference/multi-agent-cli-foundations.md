@@ -163,3 +163,14 @@ This file-based approach is intentionally the simplest viable version. If the pr
 3. Seed `PROJECT_STATE.md` and `DECISIONS.md` with the current state of the project.
 4. Define each agent's ownership area (Section 3) so task routing has a default answer.
 5. Start with sequential task handoff before enabling any concurrent/locking behavior — add complexity only once the simple version is proven out.
+
+---
+
+## 12. Prior art: Block's buzz
+
+[block/buzz](https://github.com/block/buzz) is Sections 2–7 of this document built
+for real — relay, signed events, per-agent keypairs, orchestrator @mentions — and
+worth reading before building any of it yourself. What this workspace took from it
+is recorded in D-006 (protocol norms, not platform); the relay layer solves
+cross-machine problems markdown + git + worktrees don't have. If that day comes,
+start there, not from scratch.

@@ -23,6 +23,11 @@ agents can't route work to you.
 
 **During:**
 - Append to `agent-log.md` for anything another agent must see.
+- **Publish asymmetrically.** A result, blocker, or question another agent or the
+  human needs goes in the log or it doesn't exist. The converse holds mid-session:
+  nothing new → no entry, and never an entry that is only an acknowledgement. The
+  session-end token heading (End, below) is always required — it's the contract,
+  not chatter.
 - Cross-cutting decision → `decisions/DECISIONS.md` + a one-line pointer in the log.
 - If another agent was active today, note in the log what you're about to edit.
   *(Tier 2: the full `INTENT:` convention — see `WORKTREES.md §5`.)*
@@ -47,7 +52,8 @@ ceremony: the token is the contract, the script does the bookkeeping.
   actions, do-not-undo. Hand-edit **when it changes**, not on a schedule. HOLD stays
   human-written: no script can know the human lifted it.
 
-Delete narrative that is no longer true — git keeps history.
+Delete narrative that is no longer true — git keeps history; the session that ships
+an item (merged, decided, unblocked) is the session that deletes its line.
 
 ## 3. Compaction (automated)
 
@@ -96,6 +102,10 @@ Decisions arising from either go to `DECISIONS.md` as usual. See `runs/README.md
 
 - **Committed ≠ done.** Green (per `PROJECT.md`) → push **unless** the log or human says
   `HOLD`. Session end always states `PUSHED | HOLD | FAILED`. Agents never override a HOLD.
+- **Green is a claim about a commit — state it as one.** The scripts stamp
+  `green_cmd @ <commit>` in run output; for by-hand claims, quote the check and
+  `git rev-parse HEAD` from the same shell. Scope negative claims ("no callers",
+  "not found") to the places you actually searched.
 
 ## 7. What "good" looks like after 4 weeks
 

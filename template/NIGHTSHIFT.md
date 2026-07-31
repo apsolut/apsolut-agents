@@ -29,7 +29,9 @@ non-destructive when a foreman is reading the output (`delegate.sh`).
 
 ## What a card needs to be night-runnable
 
-- Concrete **Goal** + **Done when** (vague cards produce confident garbage at 3am).
+- Concrete **Goal** + **Done when** (vague cards produce confident garbage at 3am) —
+  stating what must be true, not which commands to run, and no constraints the task
+  doesn't actually have: the 3am agent treats every word on the card as law.
 - `files:` declared; cards touching `PROJECT.md` human-gate paths are never claimed.
 - Optional `after: [T-01]` dependency edges and `budget: 30` (minutes) override.
 

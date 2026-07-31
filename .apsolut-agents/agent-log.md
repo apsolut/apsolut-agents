@@ -93,3 +93,19 @@ All done: 3/3 gates, PLAYBOOK, safety guards, joyci upgrade, pushed to origin.
 
 ### claude — 2026-07-29 — PUSHED
 v0.5.0: drop-in distribution layer shipped and live-tested.
+
+### Claude — 2026-07-31 buzz assimilation (D-006)
+- Read block/buzz (Block's Nostr-relay hive-mind platform) end to end: ACP base prompt, orchestrator personas, PERSONA_PACK_SPEC, kickoff-silent-failures postmortem, buzz-agent design docs.
+- Imported their production scar tissue as protocol prose (D-006): asymmetric publish + no-bare-acks (PROTOCOL §1), evict-on-ship (PROTOCOL §2), verification honesty — exact-commit green, full suite, scoped negatives (PROTOCOL §6), facts-decide-timers-backstop + never-self-review (DELEGATION §2/§5), goal+success-check card writing (NIGHTSHIFT). Prior-art section added to reference/multi-agent-cli-foundations.md §12.
+- Rejected the platform itself (relay, keypairs, persona packs) — cross-machine problems we don't have; charter frontmatter parsed by delegate.sh noted as revisit-if-duplication-bites.
+- Template edited first; verified instance copies were clean mirrors of HEAD before overwriting; four doc files mirrored.
+
+### claude — 2026-07-31 — HOLD
+buzz protocol assimilation, uncommitted for human review
+
+### Claude — 2026-07-31 buzz import adversarially reviewed (Grok, 2 rounds)
+- Grok blind-attacked the D-006 import (verdicts: 2 CUT, 3 REWRITE, 1 KEEP-nothing); its core hit was constitutional — no import had gained a script line. Converged package shipped: green output now stamps `green_cmd @ <HEAD>` in delegate.sh + runner.sh (mechanism), all five norms compressed and citation-stripped, "full suite" cut as harmful, never-self-review softened to prefer-fresh-eyes with solo fallback, NIGHTSHIFT clause folded not appended, reference §12 shrunk to a pointer. D-006 rewritten to record the converged form. Artifact: runs/2026-07-31-buzz-review-grok.md (~$0.22, 2 rounds).
+- Both models conceded points on the record; disagreement that survived (Grok's "zero prose until a local scar") is logged as rejected with reasons in D-006.
+
+### claude — 2026-07-31 — HOLD
+buzz package converged via 2-round grok review, uncommitted
