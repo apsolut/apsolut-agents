@@ -1,11 +1,13 @@
 ---
 # apsolut-agents: tier=2 kind=doc
-id: <ID e.g. FEAT-12 / T-01>
+id: <ID e.g. FEAT-12 / T-01>   # this file's NAME must be exactly <id>.md — everything is keyed on it
 status: waiting          # waiting | writing | need-feedback | review | done | hold | blocked | abandoned
 owner: <agent>
 title: <one line>
 needs: []                # [<agent>] or [human] when status is need-feedback
-after: []                # [T-01, T-02] — card is not ready until these are done (merged)
+after: []                # [T-01, T-02] — ready only when these are done (MERGED). Nothing
+                         # merges overnight, so an after: edge means this card will NOT
+                         # run the same night as its dependency (NIGHTSHIFT.md).
 risk: []                 # [api-contract, schema, pii, money, ui] — see PLAYBOOK.md §4
 spike: false             # true = research/docs card; waives the night test-first gate
 files:                   # paths you expect to touch (declare INTENT on hot files)

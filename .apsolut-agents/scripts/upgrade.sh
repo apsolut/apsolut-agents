@@ -6,6 +6,22 @@
 # --dry-run prints what it would add/update/keep and writes nothing.
 set -eu
 
+# --- run from a temp copy of this file ---------------------------------------------
+# The refresh loop below cp's scripts/upgrade.sh — this very file — while the shell
+# is still reading it incrementally: executing the on-disk copy during a real upgrade
+# splices the new file's bytes into the running script at the old offset. Re-exec a
+# temp copy first; $0 moves, so the workspace path travels via env.
+if [ -z "${APSOLUT_UPGRADE_REEXEC:-}" ]; then
+  APSOLUT_UPGRADE_WS=$(cd "$(dirname "$0")/.." && pwd)
+  APSOLUT_UPGRADE_SELF=$(mktemp)
+  cp "$0" "$APSOLUT_UPGRADE_SELF"
+  export APSOLUT_UPGRADE_WS APSOLUT_UPGRADE_SELF APSOLUT_UPGRADE_REEXEC=1
+  exec sh "$APSOLUT_UPGRADE_SELF" "$@"
+fi
+# from here on we ARE the temp copy — remove it on any exit, even a usage error
+# (the trap below is replaced by the wider TMP+SELF trap once TMP exists)
+trap 'rm -f "$APSOLUT_UPGRADE_SELF"' EXIT
+
 REPO_URL=https://github.com/apsolut/apsolut-agents
 TAG=main; DRY=no
 while [ $# -gt 0 ]; do
@@ -17,7 +33,7 @@ while [ $# -gt 0 ]; do
   shift
 done
 
-WS=$(cd "$(dirname "$0")/.." && pwd)
+WS=$APSOLUT_UPGRADE_WS
 if [ -f "$WS/.primary" ]; then
   echo "error: run from the primary worktree ($(cat "$WS/.primary"))" >&2; exit 1
 fi
@@ -25,7 +41,7 @@ CUR=$(cat "$WS/VERSION" 2>/dev/null) || CUR=""
 CUR=$(printf '%s' "$CUR" | tr -d ' \r\n')
 [ -n "$CUR" ] || CUR=unknown
 
-TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
+TMP=$(mktemp -d); trap 'rm -rf "$TMP" "$APSOLUT_UPGRADE_SELF"' EXIT
 case "$TAG" in main) REF=refs/heads/main ;; *) REF=refs/tags/$TAG ;; esac
 echo "fetching payload ($TAG) from $REPO_URL ..."
 # fetch to a file rather than piping into tar, so a 404 reports as itself

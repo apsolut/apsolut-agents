@@ -29,6 +29,10 @@ non-destructive when a foreman is reading the output (`delegate.sh`).
 
 ## What a card needs to be night-runnable
 
+- **Filename = `<id>.md`, exactly.** Claims, deps and reports all construct
+  `work/<id>.md` from the `id:` field; the runner refuses to start the lane if any
+  card's filename disagrees with its `id:` (a mismatch used to half-work, then
+  silently miss everything downstream).
 - Concrete **Goal** + **Done when** (vague cards produce confident garbage at 3am) —
   stating what must be true, not which commands to run, and no constraints the task
   doesn't actually have: the 3am agent treats every word on the card as law.
@@ -51,6 +55,9 @@ worktree, retry once, then `status: blocked` + phone ping.
 
 ## Safety rails (structural)
 
+- Lane preflight: on boot the runner sends the CLI one "reply ok" probe from an empty
+  temp dir and refuses to start the lane if it fails — bad auth or a refusing account
+  costs one probe, not a whole board of burned attempts.
 - Runner cannot push and never merges — branches only. HOLD stays human.
 - Per-night **hard budget cap** (`night_budget_usd`), per-card time cap, lane circuit
   breaker (N consecutive failures → stop), provider 429/quota → backoff, not failure.
@@ -69,5 +76,5 @@ here, with the attempt output in front of you.
 
 v0: 3 supervised `--once` runs — zero double-claims, zero touches of the default
 branch, every green branch builds, budget respected. v1: 5 clean unattended solo
-nights. v2: add the second lane + `heartbeat.sh`. Full rationale: the night-shift
+nights. v2: add the second lane + `heartbeat.sh` (future — not shipped yet). Full rationale: the night-shift
 PRD in `runs/` (or `ideas/` while drafting).

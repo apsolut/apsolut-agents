@@ -61,3 +61,10 @@ Template:
 - **Rejected:** the relay/Nostr/keypair platform (cross-machine problems this workspace doesn't have); "full suite, never scoped" (fights deliberate card scoping and budgets); hard never-self-review duty (fails a solo roster); long in-doc buzz citations (evidence lives here, docs stay terse); persona-pack machinery; charter YAML frontmatter parsed by `delegate.sh` (revisit if the `agents/` ↔ `cmd_<agent>:` duplication bites); "zero prose until a local scar exists" (would delete half of PROTOCOL — norms that define done/green/honest are not the skippable ceremony D-003 pruned).
 - **Status:** implemented
 - **Owners / applies to:** all agents; template/PROTOCOL.md, template/DELEGATION.md, template/NIGHTSHIFT.md, template/reference/multi-agent-cli-foundations.md, template/scripts/delegate.sh, template/scripts/runner.sh
+
+### D-007 — License is MIT; card filename must equal `<id>.md` (enforced)  (2026-08-11)
+- **Decision:** (a) The repo ships under MIT — chosen by the human 2026-08-11; the public `curl | sh` install was legally unusable without a grant. (b) The card contract "filename = `<id>.md`" is now enforced, not etiquette: runner refuses the lane, delegate refuses the card, status.sh warns. Scripts key claims/deps/reports on the filename; discovery by frontmatter `id:` alone is not supported.
+- **Why:** A real overnight run (field report, `runs/2026-08-11-field-report-and-pre-merge-review.md`) lost a night to a descriptively-named card that was discovered but silently missed downstream. Enforce-or-omit (D-005) says a checkable rule must be a check.
+- **Rejected:** resolving cards by scanning frontmatter everywhere (spreads O(n) scans through every script and keeps two sources of truth); dual-key support (same problem, plus ambiguity when they disagree).
+- **Status:** implemented
+- **Owners / applies to:** LICENSE; template/scripts/runner.sh, delegate.sh, status.sh; template/work/_TEMPLATE.md

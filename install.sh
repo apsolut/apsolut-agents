@@ -20,6 +20,10 @@
 # that proves the result matches this installer byte-for-byte.
 set -eu
 
+# Everything lives in main(), invoked on the very last line: a truncated
+# `curl | sh` download then parses to EOF without executing anything.
+main() {
+
 REPO_URL=https://github.com/apsolut/apsolut-agents
 TARGET=""; REFRESH=no; WIRE=no; TAG=main; DRY=no
 while [ $# -gt 0 ]; do
@@ -42,7 +46,11 @@ DEST="$TB/.apsolut-agents"
 CLEANUP=""
 trap 'if [ -n "$CLEANUP" ]; then rm -rf "$CLEANUP"; fi' EXIT
 SCRIPTDIR=$(cd "$(dirname "$0" 2>/dev/null || echo .)" 2>/dev/null && pwd || echo "")
-if [ -n "$SCRIPTDIR" ] && [ -d "$SCRIPTDIR/template" ]; then
+# a local template/ dir is only trusted if it is OUR payload: under `curl | sh`,
+# $0 is "sh" and SCRIPTDIR falls back to the cwd — any project that happens to ship
+# its own template/ folder (themes, scaffolds) must not be installed as the workspace.
+if [ -n "$SCRIPTDIR" ] && [ -d "$SCRIPTDIR/template" ] \
+   && [ -f "$SCRIPTDIR/template/PROTOCOL.md" ] && [ -f "$SCRIPTDIR/template/scripts/status.sh" ]; then
   SRC="$SCRIPTDIR/template"
   VERFILE="$SCRIPTDIR/VERSION"; VERFALLBACK=dev
 else
@@ -173,3 +181,6 @@ fi
 # explicit success: a trailing conditional that evaluates false is the script's last
 # command, so without this a fully successful --wire run can exit 1.
 exit 0
+
+}
+main "$@"

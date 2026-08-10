@@ -11,24 +11,24 @@ anything no longer true (git keeps history), keep the whole file to ~1 screen.
 ## Facts (generated)
 
 <!-- facts:begin -->
-_Generated 2026-07-31 08:37 by status.sh — do not hand-edit this block._
+_Generated 2026-08-11 01:28 by status.sh — do not hand-edit this block._
 
 | | |
 |--|--|
 | Branch | `feat/delegation-and-installer-fixes` |
 | Ahead/behind upstream | 0 ahead / 0 behind upstream |
-| Dirty files | 1 |
+| Dirty files | 29 |
 | Worktrees | 1 (incl. primary) |
 | Last session token | claude — 2026-07-31 — PUSHED |
-| agent-log.md | 114 lines |
+| agent-log.md | 120 lines |
 
 Recent commits:
 ```
+e949e61 agents: claude PUSHED token — HOLD lifted by human
 dde25e4 agents: claude session end 2026-07-31 (PUSHED)
 1661789 feat: green output stamps exact commit (delegate.sh, runner.sh); protocol norms from buzz review (D-006)
 1ab218d feat: agent-drives-agent delegation; fix: install.sh exited 1 on success
 8d0ca92 agents: claude session end 2026-07-29 (PUSHED)
-e333038 feat: drop-in distribution — self-bootstrapping install.sh (curl|sh, --wire, --tag), in-payload upgrade.sh, VERSION stamping
 ```
 <!-- facts:end -->
 
@@ -40,17 +40,17 @@ no — HOLD lifted 2026-07-29: human provided the remote (github.com/apsolut/aps
 
 | Task / id | Owner | Status |
 |---|---|---|
-| Overhaul (worktrees, scripts, dogfood) | Claude | done — see log 2026-07-28 |
+| v0.6.0 (delegation + field-report fixes) | Claude | done — merged to main 2026-08-11 |
 
 ## Blockers
 
-1. None. Open question for the human: create a remote + push? (HOLD stands until then.)
+1. None.
 
 ## Top 3 next actions
 
-1. Human: decide on a remote/publishing — lifts the HOLD. — human
-2. Optionally run `sh install.sh <joyci> --refresh` to upgrade the joyci demo workspace docs without touching its log/state. — human or Claude
-3. First real 2-agent worktree session on a live project to shake out `worktree.sh` ergonomics. — any agent
+1. `doctor` command (probe + green_cmd + card/`after:` graph + rolling cost vs budget) — highest-leverage next feature per the 2026-08-11 field report. — any agent
+2. Second-data-point items from the field report: refusal classification, rolling per-card cost fallback, pre-card budget check, `files:` post-card enforcement (backlog in `runs/2026-08-11-field-report-and-pre-merge-review.md`). — any agent
+3. Watch the first CI run on main (shellcheck -S error + install smoke test) and fix anything it flags. — Claude
 
 ## Do-not-undo
 

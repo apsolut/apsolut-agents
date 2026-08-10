@@ -45,6 +45,23 @@ case "$GREEN" in ''|*"SET green_cmd"*)
   echo "error: green_cmd in HEARTBEAT.md is unset — define what green means before running nights" >&2; exit 1;;
 esac
 
+# --- card contract: filename must be exactly <id>.md ------------------------------
+# pick_ready discovers cards by frontmatter id:, but claims, deps and reports all
+# construct work/<id>.md from that id — a mismatched filename half-works, then every
+# downstream step silently misses (cost a full night in the field, 2026-08-11).
+CARD_ERRS=0
+for f in "$WS"/work/*.md; do
+  [ -f "$f" ] || continue
+  case "$(basename "$f")" in _TEMPLATE.md) continue;; esac
+  i=$(fm_get "$f" id)
+  if [ -z "$i" ]; then
+    echo "error: work/$(basename "$f") has no 'id:' in its frontmatter" >&2; CARD_ERRS=$((CARD_ERRS+1))
+  elif [ "$(basename "$f")" != "$i.md" ]; then
+    echo "error: work/$(basename "$f") declares 'id: $i' — rename the file to $i.md" >&2; CARD_ERRS=$((CARD_ERRS+1))
+  fi
+done
+[ "$CARD_ERRS" -eq 0 ] || { echo "error: $CARD_ERRS bad card(s) — refusing to start the lane" >&2; exit 1; }
+
 now_hhmm() { date +%H%M; }
 in_stop_window() { awk -v n="$(now_hhmm)" -v s="$STOP" 'BEGIN{exit !(int(n)>=int(s) && int(n)<1200)}'; }
 # started during the morning window (e.g. a supervised 08:00 run) → don't stop instantly;
@@ -78,6 +95,29 @@ cleanup() {
   rm -rf "$LANE"
 }
 trap cleanup EXIT INT TERM
+
+# --- lane preflight: prove the CLI can answer before burning cards -----------------
+# One probe from an empty temp cwd (never the repo — the CLI runs with a bypassed
+# permission posture). A lane whose CLI cannot answer at all — bad auth, refused
+# account, dead binary — would otherwise march the whole board, charging an attempt
+# plus fallback cost per card (cost a full night in the field, 2026-08-11).
+probe_fail() {
+  echo "error: preflight probe for '$AGENT' $1 — refusing to start the lane" >&2
+  printf '%s\n' "$PROBE_OUT" | command tail -5 >&2
+  tick "preflight probe FAILED ($AGENT): $1 — lane refused"
+  notify "preflight probe failed ($1) — lane refused"
+  exit 1
+}
+PROBE_DIR=$(mktemp -d)
+PROBE_OUT=""
+if PROBE_OUT=$( cd "$PROBE_DIR" && timeout -k 10 180 sh -c "$CMD \"\$1\"" runner "Reply with the single word: ok" 2>&1 ); then
+  rm -rf "$PROBE_DIR"
+else
+  rm -rf "$PROBE_DIR"; probe_fail "exited non-zero"
+fi
+printf '%s' "$PROBE_OUT" | grep -q '"is_error"[[:space:]]*:[[:space:]]*true' && probe_fail "returned is_error:true"
+case "$PROBE_OUT" in *[Oo][Kk]*) ;; *) probe_fail "returned no 'ok'";; esac
+tick "preflight probe ok ($AGENT)"
 
 # --- boot recovery: release claims whose runner is dead ---------------------------
 for c in "$WS"/claims/*/; do
@@ -126,6 +166,7 @@ finish() { # $1 reason, $2 exit code
     echo "| card | status | attempts | branch | diffstat vs $(git -C "$REPO" rev-parse --abbrev-ref HEAD) |"
     echo "|---|---|---|---|---|"
     for f in "$WS"/work/*.md; do
+      [ -f "$f" ] || continue
       case "$(basename "$f")" in _TEMPLATE.md) continue;; esac
       id=$(fm_get "$f" id); st=$(fm_get "$f" status); br=$(fm_get "$f" branch)
       at=$(cat "$WS/runs/.attempts-$id" 2>/dev/null || echo 0)
@@ -207,8 +248,10 @@ $(cat "$CARD")"
   GD=$(git -C "$WT" rev-parse --git-dir 2>/dev/null || true)
   [ -n "$GD" ] && rm -f "$GD/index.lock" 2>/dev/null || true
 
-  # provider trouble (429/5xx/quota) = backoff, not a failure, not an attempt
-  if grep -qiE '(^|[^0-9])(429|50[0-4])([^0-9]|$)|rate.?limit|quota exceeded|overloaded|server error|service unavailable' "$OUT"; then
+  # provider trouble (429/5xx/quota) = backoff, not a failure, not an attempt.
+  # Status codes only count NEXT TO an http/status/error marker: a bare (429|50x) match
+  # false-positives on commit SHAs and ordinary app output (found by adversarial review).
+  if grep -qiE 'rate.?limit|quota exceeded|overloaded|too many requests|service.{0,15}unavailable|internal server error|bad gateway|gateway time.?out|(http|status( code)?|api.?error|error.?code)[^0-9A-Za-z]{0,4}(429|50[0-4]|529)([^0-9]|$)' "$OUT"; then
     tick "provider backoff on $ID (not a failure, not an attempt)"
     git -C "$WT" reset --hard -q "$PRE" 2>/dev/null || true
     git -C "$WT" clean -fdq -e .apsolut-agents 2>/dev/null || true

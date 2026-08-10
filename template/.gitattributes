@@ -1,0 +1,5 @@
+# apsolut-agents: tier=0 kind=doc
+# Shipped with the payload so the INSTALLED scripts survive Windows checkouts:
+# with core.autocrlf=true, CRLF in a script body breaks sh ($'\r': command not found).
+* text=auto
+*.sh text eol=lf

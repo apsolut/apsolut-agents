@@ -5,7 +5,7 @@ A drop-in workspace for coordinating multiple AI coding agents (Claude, Grok, Co
 Gemini, …) on **one repo**, from a tiny solo app to a multi-week SaaS. Stack-agnostic:
 all project specifics live in **`PROJECT.md`**; everything else is generic.
 
-Plain markdown + git + three small POSIX-sh scripts (they run in Git Bash on Windows).
+Plain markdown + git + a handful of small POSIX-sh scripts (they run in Git Bash on Windows).
 No servers, no daemons, no build step.
 
 ---

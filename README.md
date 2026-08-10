@@ -7,8 +7,8 @@ stale), and true same-day concurrency runs on **git worktrees** — one isolated
 checkout per agent, one shared coordination folder, zero merge conflicts on the
 coordination files.
 
-No servers, no daemons, no orchestrator. Markdown + git + three POSIX-sh scripts
-(they run in Git Bash on Windows).
+No servers, no daemons, no orchestrator. Markdown + git + a handful of small
+POSIX-sh scripts (they run in Git Bash on Windows).
 
 ## Install
 
@@ -95,6 +95,11 @@ cap. Protocol: [`template/DELEGATION.md`](template/DELEGATION.md).
 Unattended variant — write cards in the evening, review branches in the morning:
 [`template/NIGHTSHIFT.md`](template/NIGHTSHIFT.md) (`runner.sh`). Same cards, same claim
 mutex, same spend ledger, so the two never collide.
+
+**Run the v0 gate first.** A supervised `runner.sh <agent> --once` pass costs about a
+dollar and catches the misconfiguration that would otherwise burn the entire night —
+it is the feature, not a formality. The runner also probes the CLI on boot and refuses
+the lane if the model can't answer at all.
 
 ## This repo dogfoods itself
 

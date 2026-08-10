@@ -38,7 +38,9 @@ LOG="$WS/agent-log.md"
 LOGLINES=0; [ -f "$LOG" ] && LOGLINES=$(wc -l < "$LOG" | tr -d ' ')
 LASTTOKEN="(none)"
 if [ -f "$LOG" ]; then
-  t=$(grep '^### ' "$LOG" | grep -E 'PUSHED|HOLD|FAILED' | tail -1 || true)
+  # -vF '<' drops the protocol's own example line ("### <Agent> — <date> — PUSHED | …"),
+  # which otherwise reports as the last session forever on a fresh install.
+  t=$(grep '^### ' "$LOG" | grep -E 'PUSHED|HOLD|FAILED' | grep -vF '<' | tail -1 || true)
   [ -n "$t" ] && LASTTOKEN=$(echo "$t" | sed 's/^### //')
 fi
 
@@ -65,13 +67,23 @@ if [ -d "$WS/work" ]; then
     [ -f "$f" ] || continue
     case "$(basename "$f")" in _TEMPLATE.md) continue;; esac
     id=$(fm_get "$f" id);       [ -n "$id" ] || id="?"
+    if [ "$id" != "?" ] && [ "$(basename "$f")" != "$id.md" ]; then
+      WARNINGS="${WARNINGS}- ⚠ \`work/$(basename "$f")\` declares \`id: $id\` — runner/delegate key everything on \`work/$id.md\` and will silently miss it; rename the file
+"
+    fi
     st=$(fm_get "$f" status);   [ -n "$st" ] || st="?"
     if [ "$st" = "waiting" ]; then
       ok=yes
       for d in $(fm_get "$f" after | tr -d '[]' | tr ',' ' '); do
-        case "$(fm_get "$WS/work/$d.md" status 2>/dev/null)" in done|review) ;; *) ok=no;; esac
+        # done ONLY — mirrors runner.sh deps_met: review is unmerged, so its code is
+        # invisible to a dependent branch and the night runner will not start the card.
+        case "$(fm_get "$WS/work/$d.md" status 2>/dev/null)" in done) ;; *) ok=no;; esac
       done
-      [ "$ok" = yes ] && st="waiting (ready)" || st="waiting (deps)"
+      if [ "$ok" = yes ]; then st="waiting (ready)"; else
+        st="waiting (deps)"
+        WARNINGS="${WARNINGS}- ⚠ \`$id\` waits on cards that are not done — \`after:\` clears only on MERGE, so an overnight run will never start it (NIGHTSHIFT.md)
+"
+      fi
     fi
     ow=$(fm_get "$f" owner);    [ -n "$ow" ] || ow="?"
     ti=$(fm_get "$f" title);    [ -n "$ti" ] || ti="?"

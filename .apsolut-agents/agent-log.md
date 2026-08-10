@@ -112,3 +112,9 @@ buzz package converged via 2-round grok review, uncommitted
 
 ### claude — 2026-07-31 — PUSHED
 HOLD lifted by human; buzz package (D-006 converged form + green HEAD stamps) pushed to origin.
+
+### Claude — 2026-08-11 field-report triage + pre-merge review → v0.6.0
+- Pre-merge fan-out: 3 subagents (shell correctness / docs parity / upgrades), ~220k tokens, ~5 min. Docs parity clean; shell review verdict "NOT safe to merge" — 4 confirmed bugs, each reproduced. Human delivered a full night-shift field report from a real project the same hour.
+- Fixed all four confirmed review bugs (stop-orphans-agent, upgrade.sh self-overwrite, throttle-regex false positives, installer trusting foreign template/) plus the field report's certain ones (filename≠id silent miss, no lane preflight, after: deadlock warning, status.sh token grep). Diffstat two-dot report bug was already fixed on this branch — reporter's copy was older.
+- Shipped v0.6.0: LICENSE (MIT, human choice — D-007), CHANGELOG, CI (shellcheck + install smoke test), template/.gitattributes, filename contract enforced (D-007). Deferred-with-reasons backlog in the runs file.
+- Artifact: runs/2026-08-11-field-report-and-pre-merge-review.md

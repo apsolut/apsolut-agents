@@ -1,0 +1,34 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # -S error only: these scripts are hand-tuned POSIX sh; style-level findings
+      # are reviewed by agents, not gated here.
+      - run: shellcheck -s sh -S error install.sh template/scripts/*.sh
+
+  install-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: fresh install, parity, refresh, wire idempotency
+        run: |
+          set -eu
+          T=$(mktemp -d)
+          git init -q "$T"
+          sh install.sh "$T" --dry-run
+          sh install.sh "$T" --wire
+          # the invariant INSTALL.md documents: install == payload, byte for byte
+          diff -r template "$T/.apsolut-agents" --exclude=VERSION
+          sh install.sh "$T" --refresh
+          sh install.sh "$T" --refresh --dry-run
+          sh install.sh "$T" --refresh --wire   # marker present — must skip and still exit 0
+          test "$(grep -c 'apsolut-agents:begin' "$T/CLAUDE.md")" = 1
+          test "$(cat "$T/.apsolut-agents/VERSION")" = "$(cat VERSION)" || { echo "VERSION not stamped"; cat "$T/.apsolut-agents/VERSION"; exit 1; }

@@ -113,16 +113,20 @@ stop)
   ID=$1
   c="$WS/claims/$ID"
   [ -d "$c" ] || { echo "error: no active claim for '$ID'" >&2; exit 1; }
-  # flag first, then kill the delegate.sh child BEFORE the agent it is waiting on:
-  # otherwise `wait` returns and the child races us through its own post-run bookkeeping.
+  # flag first: the flag is what makes the parent stand down — its `wait` returns and
+  # it sees `stopped`, so it neither releases the claim nor writes RESULT bookkeeping.
+  # Read BOTH pids before killing anything (killing the parent can tear down the claim
+  # dir contents), then kill the agent CLI FIRST: killing the parent first orphans a
+  # bypass-permissions agent that keeps running and spending unsupervised.
   : > "$c/stopped"
-  for pf in pid agent.pid; do
-    p=$(cat "$c/$pf" 2>/dev/null || echo '')
-    if [ -n "$p" ] && kill -0 "$p" 2>/dev/null; then
+  AP=$(cat "$c/agent.pid" 2>/dev/null || echo '')
+  PP=$(cat "$c/pid" 2>/dev/null || echo '')
+  for p in $AP $PP; do
+    if kill -0 "$p" 2>/dev/null; then
       kill -TERM "$p" 2>/dev/null || true
       sleep 2
       kill -0 "$p" 2>/dev/null && kill -KILL "$p" 2>/dev/null || true
-      echo "killed $pf=$p"
+      echo "killed pid $p"
     fi
   done
   CARD="$WS/work/$ID.md"
@@ -151,8 +155,6 @@ stop)
 
 # ---------------------------------------------------------------- run
 run|--detached-child)
-  CHILD=no
-  [ "$SUB" = "--detached-child" ] && CHILD=yes
   [ $# -ge 2 ] || usage
   AGENT=$1; ID=$2; shift 2
   DETACH=no; NOTE=""; CBUDGET=""
@@ -169,7 +171,9 @@ run|--detached-child)
   CMD=$(cfg "cmd_$AGENT")
   [ -n "$CMD" ] || { echo "error: no 'cmd_$AGENT:' in HEARTBEAT.md — the human defines each agent's headless command and its permission posture there" >&2; exit 1; }
   CARD="$WS/work/$ID.md"
-  [ -f "$CARD" ] || { echo "error: no work/$ID.md — write the card first (copy work/_TEMPLATE.md). A delegation without a card has nothing to verify against." >&2; exit 1; }
+  [ -f "$CARD" ] || { echo "error: no work/$ID.md — write the card first (copy work/_TEMPLATE.md). A delegation without a card has nothing to verify against. NOTE: the card's FILENAME must be exactly <id>.md." >&2; exit 1; }
+  CID=$(fm_get "$CARD" id)
+  [ "$CID" = "$ID" ] || { echo "error: work/$ID.md declares 'id: ${CID:-<none>}' — filename and id: must match (claims, deps and reports are all keyed by <id>.md)" >&2; exit 1; }
 
   # --- guards (all fail closed) -------------------------------------------------
   DEPTH=$(num_or "${APSOLUT_AGENT_DEPTH:-0}" 0)
@@ -217,6 +221,10 @@ run|--detached-child)
   cleanup() {
     [ "$RELEASED" = yes ] && return 0
     RELEASED=yes
+    # `delegate.sh stop` owns the teardown: it salvages, resets the card and removes
+    # the claim itself. A parent killed by stop must not delete the stopped flag and
+    # agent.pid out from under it — that would orphan the agent stop is about to kill.
+    [ -f "$CLAIM/stopped" ] && return 0
     if [ -d "$CLAIM" ]; then
       [ "$(fm_get "$CARD" status)" = "writing" ] && fm_set "$CARD" status waiting
       rm -rf "$CLAIM"
@@ -303,7 +311,9 @@ $(cat "$CARD")"
 
   # provider trouble (429/5xx/quota) is not the delegate's failure and not a round —
   # same carve-out runner.sh makes, so a rate limit can't consume the correction budget.
-  if grep -qiE '(^|[^0-9])(429|50[0-4])([^0-9]|$)|rate.?limit|quota exceeded|overloaded|server error|service unavailable' "$OUT"; then
+  # Status codes only count NEXT TO an http/status/error marker: a bare (429|50x) match
+  # false-positives on commit SHAs and ordinary app output (found by adversarial review).
+  if grep -qiE 'rate.?limit|quota exceeded|overloaded|too many requests|service.{0,15}unavailable|internal server error|bad gateway|gateway time.?out|(http|status( code)?|api.?error|error.?code)[^0-9A-Za-z]{0,4}(429|50[0-4]|529)([^0-9]|$)' "$OUT"; then
     salvage
     printf '%s\n' "$(( ROUND - 1 ))" > "$WS/runs/.rounds-$ID"
     fm_set "$CARD" status waiting
