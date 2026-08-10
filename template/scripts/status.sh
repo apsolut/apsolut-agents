@@ -1,5 +1,6 @@
 #!/bin/sh
 # apsolut-agents: tier=0 kind=doc
+# SPDX-License-Identifier: MIT — (c) 2026 apsolut — https://github.com/apsolut/apsolut-agents
 # status.sh — render STATUS.md + the facts block of state/PROJECT_STATE.md from git.
 # Pure derivation: run it as often as you like; only the timestamp changes.
 # Works from the primary worktree or a secondary one (follows .primary).

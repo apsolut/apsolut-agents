@@ -1,5 +1,6 @@
 #!/bin/sh
 # apsolut-agents: tier=2 kind=doc
+# SPDX-License-Identifier: MIT — (c) 2026 apsolut — https://github.com/apsolut/apsolut-agents
 # worktree.sh spawn <agent> <task-id> — isolated checkout + branch for an agent
 # worktree.sh done  <task-id> [--merge] — verify, (merge,) remove, record
 # worktree.sh list — worktree table

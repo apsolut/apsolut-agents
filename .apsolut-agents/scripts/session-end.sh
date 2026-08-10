@@ -1,5 +1,6 @@
 #!/bin/sh
 # apsolut-agents: tier=0 kind=doc
+# SPDX-License-Identifier: MIT — (c) 2026 apsolut — https://github.com/apsolut/apsolut-agents
 # session-end.sh <agent> <PUSHED|HOLD|FAILED> [--commit] [summary...]
 # Verifies/append the session-end token heading, compacts an oversized log,
 # regenerates the facts, and (optionally, primary worktree only) commits the

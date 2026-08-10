@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: MIT — (c) 2026 apsolut — https://github.com/apsolut/apsolut-agents
 # install.sh — install or upgrade the .apsolut-agents/ workspace.
 #
 # Local (from a clone):

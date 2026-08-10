@@ -1,5 +1,6 @@
 #!/bin/sh
 # apsolut-agents: tier=0 kind=doc
+# SPDX-License-Identifier: MIT — (c) 2026 apsolut — https://github.com/apsolut/apsolut-agents
 # upgrade.sh [--tag vX.Y.Z] [--dry-run] — self-upgrade this installed workspace from GitHub.
 # No source clone needed: fetches the payload tarball and applies the refresh rules
 # (kind=doc|generated overwritten, kind=instance NEVER touched). Run from the primary.

@@ -1,5 +1,6 @@
 #!/bin/sh
 # apsolut-agents: tier=2 kind=doc
+# SPDX-License-Identifier: MIT — (c) 2026 apsolut — https://github.com/apsolut/apsolut-agents
 # runner.sh <agent> [--once] — Night Shift v0: single-lane overnight task runner.
 # Per PRD (multi-model reviewed): rule-based only, no overnight merges (branches
 # survive to morning), kill is terminal, claim = mkdir mutex + card rewrite,

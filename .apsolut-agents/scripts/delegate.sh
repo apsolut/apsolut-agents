@@ -1,5 +1,6 @@
 #!/bin/sh
 # apsolut-agents: tier=2 kind=doc
+# SPDX-License-Identifier: MIT — (c) 2026 apsolut — https://github.com/apsolut/apsolut-agents
 # delegate.sh — in-session delegation: one agent drives ANOTHER agent's CLI headless,
 # tracks it, sends follow-up rounds, and stops it. The symmetric counterpart to
 # runner.sh: same card / claim / spend state, but a foreman is present and decides.

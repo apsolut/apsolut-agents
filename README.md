@@ -119,3 +119,11 @@ template/         the payload — what lands in your repo as .apsolut-agents/
 Design lineage: the protocol was pruned against evidence from a real multi-week,
 two-agent run — ceremony that agents skipped in practice was cut or automated;
 facts that drifted when hand-written are now derived from git.
+
+## License
+
+MIT ([`LICENSE`](LICENSE)). Reuse, fork, sell — the one obligation is keeping the
+copyright and license notice with copies. So that this survives partial reuse,
+every script carries an SPDX header and installed workspaces ship their own copy
+at `.apsolut-agents/LICENSE`; please keep the headers when lifting a single file.
+Ideas parking lot: [`FUTURE.md`](FUTURE.md).
