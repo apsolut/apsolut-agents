@@ -11,24 +11,24 @@ anything no longer true (git keeps history), keep the whole file to ~1 screen.
 ## Facts (generated)
 
 <!-- facts:begin -->
-_Generated 2026-08-11 01:28 by status.sh — do not hand-edit this block._
+_Generated 2026-08-11 01:44 by status.sh — do not hand-edit this block._
 
 | | |
 |--|--|
-| Branch | `feat/delegation-and-installer-fixes` |
+| Branch | `main` |
 | Ahead/behind upstream | 0 ahead / 0 behind upstream |
-| Dirty files | 29 |
+| Dirty files | 1 |
 | Worktrees | 1 (incl. primary) |
-| Last session token | claude — 2026-07-31 — PUSHED |
-| agent-log.md | 120 lines |
+| Last session token | claude — 2026-08-11 — PUSHED |
+| agent-log.md | 123 lines |
 
 Recent commits:
 ```
+771d128 feat: v0.6.0 — field-report fixes, lane preflight, filename contract, MIT license, CI
 e949e61 agents: claude PUSHED token — HOLD lifted by human
 dde25e4 agents: claude session end 2026-07-31 (PUSHED)
 1661789 feat: green output stamps exact commit (delegate.sh, runner.sh); protocol norms from buzz review (D-006)
 1ab218d feat: agent-drives-agent delegation; fix: install.sh exited 1 on success
-8d0ca92 agents: claude session end 2026-07-29 (PUSHED)
 ```
 <!-- facts:end -->
 

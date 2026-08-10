@@ -118,3 +118,6 @@ HOLD lifted by human; buzz package (D-006 converged form + green HEAD stamps) pu
 - Fixed all four confirmed review bugs (stop-orphans-agent, upgrade.sh self-overwrite, throttle-regex false positives, installer trusting foreign template/) plus the field report's certain ones (filename≠id silent miss, no lane preflight, after: deadlock warning, status.sh token grep). Diffstat two-dot report bug was already fixed on this branch — reporter's copy was older.
 - Shipped v0.6.0: LICENSE (MIT, human choice — D-007), CHANGELOG, CI (shellcheck + install smoke test), template/.gitattributes, filename contract enforced (D-007). Deferred-with-reasons backlog in the runs file.
 - Artifact: runs/2026-08-11-field-report-and-pre-merge-review.md
+
+### claude — 2026-08-11 — PUSHED
+v0.6.0 shipped: 4-agent verified fixes + field-report triage merged to main, tagged, CI live. Next: doctor command, second-data-point backlog (see runs/2026-08-11).
