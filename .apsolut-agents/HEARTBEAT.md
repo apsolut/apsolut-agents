@@ -12,7 +12,7 @@ max_consecutive_failures_lane: 3
 # night_budget_usd is a HARD stop but is checked BETWEEN cards — a night can overshoot
 # by roughly one card's cost before it trips. (Keep comments on their own line: the
 # scripts grep `key: value` and an inline comment would corrupt the value.)
-night_budget_usd: 25
+night_budget_usd: 100
 # cost_fallback_usd is charged per card when the CLI emits no cost output — exactly when
 # you are flying blind. Field-observed real cards ran $6–10; tune this up, not down.
 cost_fallback_usd: 2.00

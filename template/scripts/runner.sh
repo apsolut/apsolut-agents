@@ -32,7 +32,7 @@ num_or() { case "$1" in ''|*[!0-9.]*|*.*.*) echo "$2";; *) echo "$1";; esac; }
 TIMEOUT_MIN=$(num_or "$(cfg card_timeout_minutes)" 45)
 MAX_ATTEMPTS=$(num_or "$(cfg max_attempts_per_card)" 2)
 MAX_FAILS=$(num_or "$(cfg max_consecutive_failures_lane)" 3)
-BUDGET=$(num_or "$(cfg night_budget_usd)" "$(num_or "$(cfg night_budget)" 25)")
+BUDGET=$(num_or "$(cfg night_budget_usd)" "$(num_or "$(cfg night_budget)" 100)")
 FALLBACK_COST=$(num_or "$(cfg cost_fallback_usd)" 2)
 STOP=$(cfg stop_time | tr -d ':'); STOP=${STOP:-0700}
 POLL=$(num_or "$(cfg idle_poll_seconds)" 300)
