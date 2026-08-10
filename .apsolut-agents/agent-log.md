@@ -121,3 +121,8 @@ HOLD lifted by human; buzz package (D-006 converged form + green HEAD stamps) pu
 
 ### claude — 2026-08-11 — PUSHED
 v0.6.0 shipped: 4-agent verified fixes + field-report triage merged to main, tagged, CI live. Next: doctor command, second-data-point backlog (see runs/2026-08-11).
+
+### Claude — 2026-08-11 (later) — license attribution + FUTURE.md
+- Attribution made structural, not historical: SPDX headers in every script (survives single-file reuse), LICENSE shipped inside template/ so installed workspaces carry it, README license section. Rejected the history-rewrite route (first-commit LICENSE injection): force-push breaks tags/clones/DECISIONS hashes and buys nothing — a re-user can rewrite history too; MIT's force is legal, not cryptographic.
+- FUTURE.md (renamed from TODO.md): ideas parking lot seeded with the never-auto-delete-worktrees constraint, Docker-isolated lanes, and a 4-agent idea fan-out (throughput/safety/DX/memory). Artifact: runs/2026-08-11-future-ideas-fanout.md
+- Default night budget raised $25 → $100 (HEARTBEAT template + dogfood + runner fallback).
