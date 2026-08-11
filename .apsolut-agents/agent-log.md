@@ -129,3 +129,8 @@ v0.6.0 shipped: 4-agent verified fixes + field-report triage merged to main, tag
 
 ### Claude — 2026-08-11 (later) — failure-context retries + evidence refs shipped
 - Graduated from FUTURE.md after 2026 ecosystem research validated both (Ralph-loop re-feed mechanism; evidence preservation): runner red path now pins each attempt under refs/apsolut/attempts/ and feeds the failed diff + output tail into the next attempt prompt; backoff path salvages + pins before reset (a 429 no longer destroys work). Logic reviewed + syntax-checked, not yet night-tested — first real night validates.
+
+### Claude — 2026-08-11 (later) — doctor.sh shipped (v0.7.0)
+- scripts/doctor.sh: one-command preflight (tools, HEARTBEAT sanity, card contract + after: graph incl. cycles, claims, green on primary, rolling cost vs budget, opt-in live CLI probes; exit 1 on any FAIL). Tested on a scratch board with planted defects (bad filename, missing dep, cycle — all caught) and a clean board (exit 0).
+- Dogfood catch: doctor flagged that this workspace never defined green_cmd — now set to sh -n over all scripts; doctor exits 0 here.
+- VERSION 0.7.0, CHANGELOG, NIGHTSHIFT gate + README updated; doctor entry evicted from FUTURE.md.

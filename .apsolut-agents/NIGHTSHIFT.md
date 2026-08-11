@@ -78,6 +78,10 @@ here, with the attempt output in front of you.
 
 ## Phase gates (don't skip)
 
+Before any run: `sh .apsolut-agents/scripts/doctor.sh <agent>` — tools, HEARTBEAT
+sanity, card contract + `after:` graph, green on the primary, rolling cost vs
+budget, and a live CLI probe, in one command. Exit 1 = do not start the night.
+
 v0: 3 supervised `--once` runs — zero double-claims, zero touches of the default
 branch, every green branch builds, budget respected. v1: 5 clean unattended solo
 nights. v2: add the second lane + `heartbeat.sh` (future — not shipped yet). Full rationale: the night-shift

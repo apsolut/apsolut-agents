@@ -48,9 +48,9 @@ no — HOLD lifted 2026-07-29: human provided the remote (github.com/apsolut/aps
 
 ## Top 3 next actions
 
-1. `doctor` command (probe + green_cmd + card/`after:` graph + rolling cost vs budget) — highest-leverage next feature per the 2026-08-11 field report. — any agent
+1. Night-test the new runner paths (failure-context retries, evidence refs, preflight probe) with a real supervised `--once` run — logic is reviewed but not field-proven. — human + any agent
 2. Second-data-point items from the field report: refusal classification, rolling per-card cost fallback, pre-card budget check, `files:` post-card enforcement (backlog in `runs/2026-08-11-field-report-and-pre-merge-review.md`). — any agent
-3. Watch the first CI run on main (shellcheck -S error + install smoke test) and fix anything it flags. — Claude
+3. Structural no-push at worktree spawn (per-worktree pushurl blackhole — closes the one prompt-only containment rail; see FUTURE.md Safer). — any agent
 
 ## Do-not-undo
 

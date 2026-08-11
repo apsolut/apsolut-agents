@@ -3,6 +3,27 @@
 All notable changes to apsolut-agents. Pin a release with `install.sh --tag vX.Y.Z`;
 upgrade an installed workspace with `sh .apsolut-agents/scripts/upgrade.sh`.
 
+## v0.7.0 — 2026-08-11
+
+### Added
+- **`scripts/doctor.sh [agent ...]`** — one-command workspace preflight: tools,
+  HEARTBEAT sanity (incl. non-numeric key detection), card contract + `after:`
+  graph (missing deps, cycles, overnight-unreachable), stale claims, `green_cmd`
+  on the primary, rolling cost vs budget, and opt-in live CLI probes. Exit 1 on
+  any failure. (Field report 2026-08-11 — "highest-leverage next feature".)
+- **Failure-context retries** (`runner.sh`): a red attempt's diff + output tail
+  is saved to `runs/<id>-attempt<N>.fail` and fed into the next attempt's prompt
+  — retries are no longer blind.
+- **Evidence refs** (`runner.sh`): every reset pins the salvaged attempt under
+  `refs/apsolut/attempts/<id>-<n>` (gc-proof); the throttle-backoff path now
+  salvage-commits before resetting, so a 429 never destroys uncommitted work.
+- SPDX license headers in every script; LICENSE shipped inside the payload;
+  `FUTURE.md` ideas parking lot.
+
+### Changed
+- Default `night_budget_usd` raised from 25 to 100 (HEARTBEAT template + runner
+  fallback).
+
 ## v0.6.0 — 2026-08-11
 
 ### Added

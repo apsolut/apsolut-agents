@@ -96,10 +96,13 @@ Unattended variant — write cards in the evening, review branches in the mornin
 [`template/NIGHTSHIFT.md`](template/NIGHTSHIFT.md) (`runner.sh`). Same cards, same claim
 mutex, same spend ledger, so the two never collide.
 
-**Run the v0 gate first.** A supervised `runner.sh <agent> --once` pass costs about a
-dollar and catches the misconfiguration that would otherwise burn the entire night —
-it is the feature, not a formality. The runner also probes the CLI on boot and refuses
-the lane if the model can't answer at all.
+**Run the v0 gate first.** `scripts/doctor.sh <agent>` preflights everything in one
+command — tools, config sanity, every card's contract and `after:` graph, green on
+the primary, rolling cost vs budget, plus a live probe of the agent's CLI. Then a
+supervised `runner.sh <agent> --once` pass costs about a dollar and catches the
+misconfiguration that would otherwise burn the entire night — it is the feature,
+not a formality. The runner also probes the CLI on boot and refuses the lane if
+the model can't answer at all.
 
 ## This repo dogfoods itself
 

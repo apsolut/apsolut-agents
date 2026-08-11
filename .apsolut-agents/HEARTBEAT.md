@@ -28,7 +28,7 @@ delegate_timeout_minutes: 45
 delegate_budget_usd: 25
 
 ## Verification — what "green" means for a card's worktree
-green_cmd: echo "SET green_cmd IN HEARTBEAT.md" && false
+green_cmd: sh -n install.sh && for f in template/scripts/*.sh .apsolut-agents/scripts/*.sh; do sh -n "$f" || exit 1; done
 
 ## Notification (ntfy.sh topic URL, or leave empty for log-only)
 notify_url:

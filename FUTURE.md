@@ -152,10 +152,6 @@ Keeps the no-daemon soul — the container lives exactly as long as the lane doe
 
 ## Smarter
 
-- **`doctor` command** — probe the model, check `timeout`/`jq`/git, run
-  `green_cmd` on the primary, validate every card filename + `after:` graph,
-  print rolling per-card cost vs budget. Everything a babysitter checks by hand,
-  in one command. (Field report 2026-08-11 — highest-leverage next feature.)
 - **Refusal/infra classifier** — `is_error:true` + near-zero output tokens ≈
   infrastructure, not work: trip the breaker instead of burning attempts across
   the board. (One field incident; needs a second data point.)
