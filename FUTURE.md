@@ -189,6 +189,14 @@ Keeps the no-daemon soul — the container lives exactly as long as the lane doe
 - **Per-card-start spend accrual** — write the fallback cost at claim time and
   true it up at completion, so mid-run `delegate.sh status` shows real spend and
   the overshoot window shrinks.
+- **`refs:` card field (rich references)** — agents imitate a concrete artifact
+  better than they parse a spec. A frontmatter list (an exemplar file, a commit
+  that did something similar, a doc) that the runner inlines into the prompt as
+  "imitate the shape of these" — vague cards produce less confident 3am garbage
+  when they point at something real. Pure frontmatter + prompt assembly. First
+  step: `refs:` in `_TEMPLATE.md` + a cat/log of each listed path into the
+  dispatch prompt. (From the rules→judgement / rich-references agent-design
+  slide, 2026-08-11.)
 
 ## Compounding memory
 
@@ -230,3 +238,12 @@ Keeps the no-daemon soul — the container lives exactly as long as the lane doe
   verdicts → runs → log → archive, printed as file:line hits with a one-screen
   cap — the read-side twin of `status.sh`. First step: a 20-line script that
   greps the locations in fixed priority order.
+- **Capture-time auto-memory** — the standing principle, stated once: every
+  script that *learns* something records it as a side effect of running, never as
+  someone's discipline. status.sh already does it for facts; the verdict ledger,
+  GOTCHAS auto-append from `--note`, and the evidence jar are all instances. The
+  next cheap one: the runner writes a one-line per-card history
+  (`<date> attempt N verdict $cost`) into the card's own Notes at each terminal
+  state, so a card carries its full biography. First step: one `printf >> card`
+  in the runner's verdict block. (From the auto-memory agent-design slide,
+  2026-08-11.)
