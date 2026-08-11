@@ -126,3 +126,6 @@ v0.6.0 shipped: 4-agent verified fixes + field-report triage merged to main, tag
 - Attribution made structural, not historical: SPDX headers in every script (survives single-file reuse), LICENSE shipped inside template/ so installed workspaces carry it, README license section. Rejected the history-rewrite route (first-commit LICENSE injection): force-push breaks tags/clones/DECISIONS hashes and buys nothing — a re-user can rewrite history too; MIT's force is legal, not cryptographic.
 - FUTURE.md (renamed from TODO.md): ideas parking lot seeded with the never-auto-delete-worktrees constraint, Docker-isolated lanes, and a 4-agent idea fan-out (throughput/safety/DX/memory). Artifact: runs/2026-08-11-future-ideas-fanout.md
 - Default night budget raised $25 → $100 (HEARTBEAT template + dogfood + runner fallback).
+
+### Claude — 2026-08-11 (later) — failure-context retries + evidence refs shipped
+- Graduated from FUTURE.md after 2026 ecosystem research validated both (Ralph-loop re-feed mechanism; evidence preservation): runner red path now pins each attempt under refs/apsolut/attempts/ and feeds the failed diff + output tail into the next attempt prompt; backoff path salvages + pins before reset (a 429 no longer destroys work). Logic reviewed + syntax-checked, not yet night-tested — first real night validates.

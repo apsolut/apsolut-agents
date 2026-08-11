@@ -50,8 +50,12 @@ same night, they are one card. (Found the hard way in the v0 acceptance test.)
 claim (`mkdir claims/<id>` mutex → card rewrite with owner/status) → spawn worktree →
 run the agent's headless CLI with the card as prompt, hard timeout → salvage-commit
 any uncommitted work → run `green_cmd`; **the green check decides, never the LLM's
-own claim** → green: `status: review`, branch waits for morning · red: reset the
-worktree, retry once, then `status: blocked` + phone ping.
+own claim** → green: `status: review`, branch waits for morning · red: the attempt
+is pinned under `refs/apsolut/attempts/<id>-<n>` and its diff + output tail saved
+as `runs/<id>-attempt<n>.fail`, the worktree reset, and the next attempt gets that
+failure context in its prompt (a blind retry repeats the same dead end); retry
+once, then `status: blocked` + phone ping. Backoff resets salvage + pin the same
+way — a 429 never destroys work.
 
 ## Safety rails (structural)
 

@@ -235,8 +235,9 @@ while :; do
   N=$(( $(cat "$WS/runs/.attempts-$ID" 2>/dev/null || echo 0) + 1 ))
   CB=$(num_or "$(fm_get "$CARD" budget | tr -dc '0-9')" "$TIMEOUT_MIN")
   OUT="$WS/runs/$ID-attempt$N.out"
+  PREVFAIL="$WS/runs/$ID-attempt$(( N - 1 )).fail"
   PROMPT="You are agent '$AGENT' working alone, headless, in the isolated git worktree at $WT (your cwd), on branch $BR. Implement the task card below. Rules: commit your work in this worktree with clear messages; run the project's green check and iterate until it passes; do NOT touch any .apsolut-agents folder; do NOT push; do NOT switch branches. When done, stop.
-
+$( [ -f "$PREVFAIL" ] && printf '\n=== PREVIOUS ATTEMPT FAILED — read this, do NOT repeat the same approach ===\n%s\n' "$(command tail -120 "$PREVFAIL")" )
 === TASK CARD ===
 $(cat "$CARD")"
 
@@ -254,6 +255,15 @@ $(cat "$CARD")"
   # false-positives on commit SHAs and ordinary app output (found by adversarial review).
   if grep -qiE 'rate.?limit|quota exceeded|overloaded|too many requests|service.{0,15}unavailable|internal server error|bad gateway|gateway time.?out|(http|status( code)?|api.?error|error.?code)[^0-9A-Za-z]{0,4}(429|50[0-4]|529)([^0-9]|$)' "$OUT"; then
     tick "provider backoff on $ID (not a failure, not an attempt)"
+    # salvage + pin BEFORE the reset: a throttle is not the agent's failure, and
+    # destroying its uncommitted work on a 429 was pure evidence loss. The pinned
+    # ref is gc-proof and invisible to branch listings; humans list/delete
+    # refs/apsolut/* manually, same posture as worktree folders.
+    if [ -n "$(git -C "$WT" status --porcelain | grep -v '\.apsolut-agents' || true)" ]; then
+      git -C "$WT" add -A -- ':!.apsolut-agents' 2>/dev/null || git -C "$WT" add -A
+      git -C "$WT" commit -q -m "$ID: salvaged before throttle backoff (attempt $N)" || true
+    fi
+    [ "$(git -C "$WT" rev-parse HEAD)" != "$PRE" ] && git -C "$WT" update-ref "refs/apsolut/attempts/$ID-$N-backoff" HEAD 2>/dev/null || true
     git -C "$WT" reset --hard -q "$PRE" 2>/dev/null || true
     git -C "$WT" clean -fdq -e .apsolut-agents 2>/dev/null || true
     fm_set "$CARD" status waiting
@@ -283,6 +293,18 @@ $(cat "$CARD")"
     tick "green $ID"
   else
     FAILS=$(( FAILS + 1 ))
+    # preserve the evidence before the reset destroys it: pin the salvage commit
+    # under refs/apsolut/ (gc-proof), and keep the attempt's diff + output tail as
+    # failure context for the NEXT attempt — a blind retry repeats the same dead
+    # end at full token cost (the Ralph-loop lesson; delegate.sh already feeds
+    # humans the previous round via PREV/--note, this is the runner's equivalent).
+    [ "$(git -C "$WT" rev-parse HEAD)" != "$PRE" ] && git -C "$WT" update-ref "refs/apsolut/attempts/$ID-$N" HEAD 2>/dev/null || true
+    {
+      echo "attempt $N failed (rc=$RC). Diff it tried (vs $PRE):"
+      git -C "$WT" diff "$PRE" HEAD 2>/dev/null | head -400
+      echo; echo "Last output (incl. green_cmd):"
+      command tail -60 "$OUT"
+    } > "$WS/runs/$ID-attempt$N.fail" 2>/dev/null || true
     git -C "$WT" reset --hard -q "$PRE" 2>/dev/null || true
     git -C "$WT" clean -fdq -e .apsolut-agents 2>/dev/null || true
     if [ "$N" -ge "$MAX_ATTEMPTS" ]; then

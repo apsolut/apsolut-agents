@@ -55,13 +55,6 @@ Keeps the no-daemon soul — the container lives exactly as long as the lane doe
   branches. Morning semantics are stacked PRs: reject A and B falls with it, which
   the unmerged-branches rule already expresses. First step: teach `worktree.sh
   spawn` an optional base ref and `deps_met` the `stack:` case.
-- **Failure-context retries** — the runner's red path `reset --hard`s the salvage
-  commit and re-dispatches the identical prompt: attempt 2 pays full price to
-  rediscover attempt 1's dead end. Save `git diff` + green-output tail to
-  `runs/<id>-attempt<N>.fail` before the reset and inline its tail into the next
-  attempt's prompt. delegate.sh already does this for humans (`PREV` + `--note`);
-  the runner retry is the only blind round in the system. First step: write the
-  .fail file in the red branch and append it to the retry prompt.
 - **Warm worktree seeding** — every spawn pays the full `npm ci` / first-build tax
   inside the card's own time cap. A `seed_dirs:` HEARTBEAT key: when a sibling
   `*-wt-*` worktree already has the artifact dirs (`node_modules/`, `target/`,
@@ -73,7 +66,9 @@ Keeps the no-daemon soul — the container lives exactly as long as the lane doe
   mutex and worktree isolation already make this collision-safe; what serializes
   the night is only the shape of the `while` loop. Breaker + budget checks move
   to the harvest loop. First step: extract the card body into a function and run
-  two instances in a supervised `--once` pass.
+  two instances in a supervised `--once` pass. (Independently validated 2026:
+  Claude Code Agent Teams converged on the same shape — lead + shared task list +
+  self-claiming teammates.)
 - **Tiered green** — optional `green_fast_cmd:` (lint + targeted tests, seconds)
   runs before the full suite; fast-fail skips straight to retry with the fast
   output as context. Full `green_cmd` remains the only path to `status: review` —
@@ -111,13 +106,6 @@ Keeps the no-daemon soul — the container lives exactly as long as the lane doe
   anything beyond the script's own appends — mismatch → verdict `TAMPERED`, card
   blocked, branch quarantined unmerged. First step: hash HEARTBEAT.md + the spend
   file around the `wait` in delegate.sh and refuse a green verdict on mismatch.
-- **Evidence refs before every reset** — the red path orphans its own salvage
-  commit (`reset --hard` right after committing it), and the provider-backoff
-  path resets without salvaging at all — a 429 destroys uncommitted work. Before
-  any reset, salvage-commit and pin HEAD under `refs/apsolut/attempts/<id>/<n>`
-  (gc-proof, invisible to branch listings, human-deletable like worktrees).
-  First step: add the salvage call to the backoff path + one `git update-ref`
-  before each reset.
 - **Un-spoofable throttle + cost accounting** — the THROTTLED carve-out and the
   cost parser both grep the delegate's own stdout: printing "too many requests"
   buys a free un-charged retry, and the last `total_cost_usd` match wins, so a
@@ -179,7 +167,9 @@ Keeps the no-daemon soul — the container lives exactly as long as the lane doe
   evening card-writing time.
 - **Cross-night distillation** — a session that reads the last N night reports +
   run outputs and proposes updates to PROJECT.md hot-files/gotchas, so lessons
-  stop living only in `runs/` archaeology.
+  stop living only in `runs/` archaeology. (Caveat from 2026 field data:
+  LLM-generated agent-memory files measurably reduce success rates vs
+  human-curated ones — the human-approves gate is load-bearing, keep it.)
 - **Model routing by risk tags** — cards tagged `schema`/`money` go to the
   strongest model, `spike:` research cards to the cheapest; the roster table
   grows a routing column instead of a human deciding per card.
