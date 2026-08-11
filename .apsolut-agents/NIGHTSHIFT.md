@@ -36,7 +36,10 @@ non-destructive when a foreman is reading the output (`delegate.sh`).
 - Concrete **Goal** + **Done when** (vague cards produce confident garbage at 3am) —
   stating what must be true, not which commands to run, and no constraints the task
   doesn't actually have: the 3am agent treats every word on the card as law.
-- `files:` declared; cards touching `PROJECT.md` human-gate paths are never claimed.
+- `files:` declared **and tracked** — a worktree contains only tracked files, so a
+  gitignored input (or an untracked helper `green_cmd` relies on) is invisible to
+  the agent; `doctor.sh` flags both. Cards touching `PROJECT.md` human-gate paths
+  are never claimed.
 - Optional `after: [T-01]` dependency edges and `budget: 30` (minutes) override.
 
 **`after:` is sequencing, NOT code visibility.** Branches stay unmerged overnight, so
@@ -62,6 +65,9 @@ way — a 429 never destroys work.
 - Lane preflight: on boot the runner sends the CLI one "reply ok" probe from an empty
   temp dir and refuses to start the lane if it fails — bad auth or a refusing account
   costs one probe, not a whole board of burned attempts.
+- Baseline green: before the first dispatch the runner runs `green_cmd` on the
+  pristine worktree; if it fails there, the night refuses as a **harness** failure
+  (exit 4) instead of blocking good cards and tripping the breaker.
 - Runner cannot push and never merges — branches only. HOLD stays human.
 - Per-night **hard budget cap** (`night_budget_usd`), per-card time cap, lane circuit
   breaker (N consecutive failures → stop), provider 429/quota → backoff, not failure.

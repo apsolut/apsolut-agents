@@ -134,3 +134,7 @@ v0.6.0 shipped: 4-agent verified fixes + field-report triage merged to main, tag
 - scripts/doctor.sh: one-command preflight (tools, HEARTBEAT sanity, card contract + after: graph incl. cycles, claims, green on primary, rolling cost vs budget, opt-in live CLI probes; exit 1 on any FAIL). Tested on a scratch board with planted defects (bad filename, missing dep, cycle — all caught) and a clean board (exit 0).
 - Dogfood catch: doctor flagged that this workspace never defined green_cmd — now set to sh -n over all scripts; doctor exits 0 here.
 - VERSION 0.7.0, CHANGELOG, NIGHTSHIFT gate + README updated; doctor entry evicted from FUTURE.md.
+
+### Claude — 2026-08-11 (later) — field incident #2 fixed (v0.7.1)
+- Human night run: green_cmd was a relative path to an untracked helper — passed on primary, failed in every worktree, read as cards failing; breaker tripped, 3 cards never ran. Evidence refs held (first field validation — both branches restored from refs/apsolut/attempts/).
+- Shipped: runner baseline green on pristine worktree (harness failure = exit 4, no cards charged); doctor proves green in a throwaway worktree + flags untracked files: inputs + missing frontmatter keys; worktree.sh fm_set inserts missing keys (was silently dropping spawn records). End-to-end tested on scratch with a fake CLI lane, both paths. Artifact: runs/2026-08-11-field-incident-green-in-worktree.md

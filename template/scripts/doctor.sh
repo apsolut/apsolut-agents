@@ -14,6 +14,7 @@ if [ -f "$WS/.primary" ]; then
   echo "error: run from the primary worktree ($(cat "$WS/.primary"))" >&2; exit 1
 fi
 HB="$WS/HEARTBEAT.md"
+REPO=$(git -C "$WS" rev-parse --show-toplevel)
 TMPD=$(mktemp -d); trap 'rm -rf "$TMPD"' EXIT
 
 PASS=0; WARN=0; FAIL=0
@@ -25,6 +26,11 @@ cfg() { [ -f "$HB" ] && sed -n "s/^$1:[[:space:]]*//p" "$HB" | head -1 | tr -d '
 num_or() { case "$1" in ''|*[!0-9.]*|*.*.*) echo "$2";; *) echo "$1";; esac; }
 fm_get() { awk -v k="$2" 'NR==1&&$0~/^---\r?$/{f=1;next} f&&$0~/^---\r?$/{exit}
   f&&index($0,k":")==1{sub("^" k ":[ \t]*","");sub("[ \t]*#.*$","");sub(/\r$/,"");print;exit}' "$1"; }
+fm_list() { # $1=file $2=key — items of a frontmatter block list ("key:" then "- item" lines)
+  awk -v k="$2" 'NR==1&&$0~/^---\r?$/{f=1;next} f&&$0~/^---\r?$/{exit}
+    f&&index($0,k":")==1{l=1;next}
+    l&&/^[ \t]*-[ \t]/{sub(/^[ \t]*-[ \t]*/,"");sub(/[ \t]*#.*$/,"");sub(/\r$/,"");print;next}
+    l&&/^[A-Za-z_]/{l=0}' "$1"; }
 
 echo "doctor — $WS"
 
@@ -82,9 +88,20 @@ else
     st=$(fm_get "$f" status)
     case "$st" in waiting|writing|need-feedback|review|done|hold|blocked|abandoned) ;;
       *) warn "$i: unknown status '$st'";; esac
+    for k in status owner branch worktree updated; do
+      grep -q "^$k:" "$f" || warn "$i: frontmatter missing '$k:' — hand-written card? copy work/_TEMPLATE.md so scripts can record into it"
+    done
     if [ "$(fm_get "$f" spike)" != "true" ] && ! grep -qi "test" "$f"; then
       warn "$i: names no test and spike is not true — the night runner will refuse it (PLAYBOOK §2)"
     fi
+    # a worktree contains only TRACKED files: an untracked/gitignored card input is
+    # invisible to the agent (field incident 2026-08-11 — lane spawned without inputs)
+    for p in $(fm_list "$f" files); do
+      case "$p" in "<path/to/file>"|"") continue;; esac
+      if [ -e "$REPO/$p" ] && ! git -C "$REPO" ls-files --error-unmatch "$p" >/dev/null 2>&1; then
+        warn "$i: files: '$p' exists but is UNTRACKED/gitignored — worktrees contain only tracked files; the agent will not see it"
+      fi
+    done
     for d in $(fm_get "$f" after | tr -d '[]' | tr ',' ' '); do
       printf '%s %s\n' "$i" "$d" >> "$TMPD/edges"
     done
@@ -144,13 +161,29 @@ done
 # --- green on the primary ----------------------------------------------------------
 echo "[green]"
 if [ -n "$GREEN" ]; then
-  REPO=$(git -C "$WS" rev-parse --show-toplevel)
   T0=$(date +%s)
   if ( cd "$REPO" && sh -c "$GREEN" ) > "$TMPD/green.out" 2>&1; then
     ok "green_cmd passed on primary in $(( $(date +%s) - T0 ))s @ $(git -C "$REPO" rev-parse --short HEAD)"
   else
     fail "green_cmd FAILED on the primary checkout — a night would block every card. Tail:"
     command tail -5 "$TMPD/green.out" | sed 's/^/        /'
+  fi
+  # the runner executes green_cmd with cwd = the card's WORKTREE, which contains only
+  # tracked files — a green that passes on the primary but relies on untracked helpers
+  # or primary-only paths fails on every lane and reads as the cards failing (field
+  # incident 2026-08-11: cost 3 cards). Prove it in a real throwaway worktree.
+  DWT="$TMPD/wt-doctor"
+  if git -C "$REPO" worktree add --detach "$DWT" >/dev/null 2>&1; then
+    if ( cd "$DWT" && sh -c "$GREEN" ) > "$TMPD/green-wt.out" 2>&1; then
+      ok "green_cmd passed in a PRISTINE worktree (tracked files only)"
+    else
+      fail "green_cmd FAILED in a pristine worktree while cards run exactly there — it likely relies on untracked files or primary-only paths. Tail:"
+      command tail -5 "$TMPD/green-wt.out" | sed 's/^/        /'
+    fi
+    git -C "$REPO" worktree remove --force "$DWT" >/dev/null 2>&1 || true
+    git -C "$REPO" worktree prune >/dev/null 2>&1 || true
+  else
+    warn "could not create a temp worktree to test green_cmd where cards actually run"
   fi
 else
   warn "green check skipped (green_cmd unset)"

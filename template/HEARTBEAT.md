@@ -29,6 +29,10 @@ delegate_timeout_minutes: 45
 delegate_budget_usd: 25
 
 ## Verification — what "green" means for a card's worktree
+# green_cmd runs with cwd = the card's WORKTREE, which contains ONLY TRACKED files.
+# No untracked helper scripts, no paths that exist only in the primary checkout —
+# a green that passes on the primary but not on a fresh worktree blocks every card
+# as if the work failed. `doctor.sh` proves green in a throwaway worktree.
 green_cmd: echo "SET green_cmd IN HEARTBEAT.md" && false
 
 ## Notification (ntfy.sh topic URL, or leave empty for log-only)

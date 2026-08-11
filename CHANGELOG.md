@@ -3,6 +3,27 @@
 All notable changes to apsolut-agents. Pin a release with `install.sh --tag vX.Y.Z`;
 upgrade an installed workspace with `sh .apsolut-agents/scripts/upgrade.sh`.
 
+## v0.7.1 — 2026-08-11
+
+Field incident: green_cmd used a relative path to an untracked helper — it passed
+on the primary but failed in every worktree (cwd = worktree; worktrees contain
+only tracked files), blocking good cards and tripping the breaker.
+
+### Added
+- `runner.sh` **baseline green**: green runs once on the pristine worktree before
+  the first dispatch; failure ends the night as a HARNESS failure (exit 4) with
+  no cards charged — harness breakage no longer reads as cards failing.
+- `doctor.sh` proves green inside a throwaway worktree (not just the primary),
+  warns when a card's `files:` entries exist but are untracked/gitignored, and
+  flags cards missing required frontmatter keys.
+
+### Fixed
+- `worktree.sh` `fm_set` now inserts missing frontmatter keys instead of silently
+  dropping the value — spawn on a hand-written card without `branch:`/`worktree:`
+  keys used to record nothing, making the runner refuse the card.
+- HEARTBEAT.md and NIGHTSHIFT.md now state the contract where it bites: green and
+  card inputs live in the worktree, which contains only tracked files.
+
 ## v0.7.0 — 2026-08-11
 
 ### Added

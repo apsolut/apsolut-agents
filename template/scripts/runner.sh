@@ -188,6 +188,7 @@ finish() { # $1 reason, $2 exit code
 echo "runner[$AGENT]: timeout=${TIMEOUT_MIN}m attempts=$MAX_ATTEMPTS breaker=$MAX_FAILS budget=\$$BUDGET stop=$STOP"
 tick "night start (budget \$$BUDGET, stop $STOP)"
 FAILS=0
+BASELINE_OK=no
 
 while :; do
   if [ "$ARMED" = no ]; then in_stop_window || ARMED=yes
@@ -231,6 +232,24 @@ while :; do
        rm -rf "$WS/claims/$ID"; CURRENT_ID=""; FAILS=$((FAILS+1)); continue;;
   esac
   PRE=$(git -C "$WT" rev-parse HEAD)
+
+  # harness-vs-card attribution: green must pass on the PRISTINE worktree before any
+  # agent runs. A worktree contains only TRACKED files and green_cmd runs with cwd
+  # set to it — a relative path or untracked helper makes every card read as "card
+  # failed" while the harness is broken, blocking good work and tripping the breaker
+  # (field incident 2026-08-11: cost 3 cards). Checked once per night, first worktree.
+  if [ "$BASELINE_OK" != yes ]; then
+    if ( cd "$WT" && sh -c "$GREEN" ) > "$WS/runs/.baseline-$DATE.out" 2>&1; then
+      BASELINE_OK=yes
+      tick "baseline green ok on pristine worktree"
+    else
+      fm_set "$CARD" status waiting
+      rm -rf "$WS/claims/$ID"; CURRENT_ID=""
+      notify "HARNESS: green_cmd fails on a pristine worktree — night refused, no cards charged"
+      tick "HARNESS FAILURE: green_cmd red on pristine worktree $WT (not a card failure) — runs/.baseline-$DATE.out"
+      finish "harness: green_cmd red on pristine worktree" 4
+    fi
+  fi
 
   N=$(( $(cat "$WS/runs/.attempts-$ID" 2>/dev/null || echo 0) + 1 ))
   CB=$(num_or "$(fm_get "$CARD" budget | tr -dc '0-9')" "$TIMEOUT_MIN")

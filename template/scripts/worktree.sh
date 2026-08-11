@@ -21,11 +21,14 @@ NAME=$(basename "$REPO")
 LOG="$WS/agent-log.md"
 TODAY=$(date +%Y-%m-%d)
 
-fm_set() { # $1=file $2=key $3=value — replace one frontmatter value in place
+fm_set() { # $1=file $2=key $3=value — set (replace, or INSERT if missing) a frontmatter value.
+  # Insert-if-missing matters: hand-written cards often lack branch:/worktree: keys, and a
+  # replace-only fm_set silently drops the spawn record — the runner then refuses the card
+  # with "worktree path '' is not a spawned worktree" (found by the doctor test board).
   awk -v k="$2" -v v="$3" '
     NR==1 && $0=="---" { infm=1; print; next }
-    infm && $0=="---"  { infm=0; print; next }
-    infm && index($0, k ":") == 1 { print k ": " v; next }
+    infm && $0=="---"  { if (!done) print k ": " v; infm=0; print; next }
+    infm && index($0, k ":") == 1 { print k ": " v; done=1; next }
     { print }
   ' "$1" > "$1.tmp" && mv "$1.tmp" "$1"
 }
