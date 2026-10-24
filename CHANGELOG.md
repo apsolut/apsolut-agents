@@ -3,6 +3,32 @@
 All notable changes to apsolut-agents. Pin a release with `install.sh --tag vX.Y.Z`;
 upgrade an installed workspace with `sh .apsolut-agents/scripts/upgrade.sh`.
 
+## v0.8.0 — 2026-10-24
+
+Morning cleanup stays human. The runner still does not delete worktrees.
+
+### Added
+- `worktree.sh review` — read-only packet per sibling worktree: ahead/behind,
+  whether the branch is already in `HEAD`, dirty count, size, and the exact
+  `done` command. `review <id>` adds card status, diffstat, and the output tail.
+  `session-end.sh` runs it when a secondary worktree is still open.
+- `worktree.sh done --jar` and `done --reject "<why>"` — a person can remove a
+  dirty worktree after `runs/evidence/<id>/` is written. `--reject` also appends
+  `runs/verdicts-YYYY-MM.md` and sets the card to `abandoned`. Plain `done`
+  still refuses a dirty tree and now prints the paths. The branch is kept unless
+  `--merge` was passed.
+- Every `done` appends a verdict line (`merged`, `removed`, `jar`, `rejected`).
+  The log says `MERGED` only when a merge happened.
+- **Push seal at spawn.** `worktree.sh spawn` sets `extensions.worktreeConfig`
+  and `git config --worktree remote.<name>.pushurl no_push://refused` for each
+  remote. The primary checkout's push URL is not changed.
+
+### Fixed
+- `doctor.sh` fails a `HEARTBEAT.md` `cmd_` line that contains `--bare`.
+  `claude --bare` ignores the signed-in claude.ai account, so a runner or
+  delegate exits "Not logged in" while an interactive terminal is signed in.
+  Noted in `HEARTBEAT.md` and `DELEGATION.md`.
+
 ## v0.7.1 — 2026-08-11
 
 Field incident: green_cmd used a relative path to an untracked helper — it passed

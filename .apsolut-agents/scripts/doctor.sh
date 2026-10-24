@@ -53,6 +53,14 @@ else
   esac
   CMDS=$(sed -n 's/^cmd_\([A-Za-z0-9_]*\):.*/\1/p' "$HB" | tr '\n' ' ')
   [ -n "$CMDS" ] && ok "agent commands: $CMDS" || warn "no cmd_<agent>: lines — nothing can be dispatched"
+  # claude --bare ignores the signed-in claude.ai session (OAuth and keychain).
+  # A runner or delegate then exits "Not logged in" while an interactive terminal
+  # on the same account is signed in. Headless -p / exec does not need --bare.
+  bare_hit=$(grep -n '^cmd_.*--bare' "$HB" || true)
+  if [ -n "$bare_hit" ]; then
+    fail "a cmd_ line contains --bare — that drops the signed-in account when one agent calls another"
+    printf '%s\n' "$bare_hit" | sed 's/^/        /'
+  fi
   for k in card_timeout_minutes max_attempts_per_card max_consecutive_failures_lane \
            night_budget_usd cost_fallback_usd idle_poll_seconds stale_claim_minutes \
            delegate_max_depth delegate_max_concurrent delegate_max_rounds \

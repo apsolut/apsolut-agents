@@ -79,6 +79,13 @@ cmd_grok:   grok --always-approve --output-format json -p
 cmd_codex:  codex exec --dangerously-bypass-approvals-and-sandbox --json
 ```
 
+Do not add `--bare` to any of these. `claude --bare` ignores the signed-in claude.ai
+account: it skips OAuth and the keychain and accepts only an API key, so a delegate
+prints `Not logged in` while the human's own terminal on the same machine is signed
+in. Headless `-p` / `exec` is the right shape. Bypass-approval flags do not do this.
+`doctor.sh` fails a `cmd_` line that contains `--bare`. When one agent calls another,
+the callee must be able to see the account the human already signed in.
+
 `HEARTBEAT.md` is `kind=instance` — yours, never overwritten by an upgrade. **That file
 being the only place the flags live is the opt-in.** An agent cannot grant itself a
 looser posture, because it does not write `HEARTBEAT.md`; if `cmd_<agent>:` is missing,
@@ -95,7 +102,8 @@ to do by accident. The containment is structural, not advisory:
 | Rail | Enforced by |
 |---|---|
 | Delegates run only in a spawned worktree (`*-wt-*`), never the primary | `delegate.sh` refuses otherwise |
-| Never push, never merge | prompt contract + `worktree.sh done --merge` is the only merge path, run by you |
+| Never push | `worktree.sh spawn` sets `remote.<name>.pushurl` to `no_push://refused` on that worktree only (`git config --worktree`). The primary checkout still pushes. |
+| Never merge | prompt contract + `worktree.sh done --merge` is the only merge path, run by you |
 | Never write under `.apsolut-agents/` | prompt contract + `git add` pathspec excludes it |
 | Cannot spawn its own delegates | `APSOLUT_AGENT_DEPTH` + `delegate_max_depth` |
 | Bounded blast radius | one branch per card, unmerged until a human-or-foreman reads the diff |
@@ -172,5 +180,6 @@ morning — with the failure output from `runs/` in your `--note`.
 | `THROTTLED` verdict | Provider rate limit / 5xx / quota — not the delegate's fault | Nothing to fix. It did **not** consume a round (the counter is rolled back) and nothing was charged to the ledger. Wait and re-dispatch. |
 | Delegate wandered outside its worktree | Weak card, wide `files:` | Branch assert catches it (`rc=97`); tighten `files:` and re-dispatch. |
 | Nothing in the output, immediate exit | Wrong `cmd_<agent>` — usually a missing `-p`/`exec` or a prompt-position mismatch | The prompt is appended as the last argument; check the CLI's headless invocation. |
+| `Not logged in` from a delegate, while your own terminal is signed in | `cmd_` contains `--bare` (or another flag that skips OAuth / the keychain) | Remove it. `claude --bare` does not see the claude.ai login. `doctor.sh` flags `--bare`. |
 | `already claimed` | A runner lane or another delegation owns the card | `delegate.sh status`, then wait, stop it, or pick another card. |
 | Spend cap hit mid-afternoon | Delegating work that wasn't separable | The cap did its job. Ask the human before raising it. |

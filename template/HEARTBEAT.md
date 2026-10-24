@@ -42,7 +42,11 @@ notify_url:
 ## Used by BOTH runner.sh (night lanes) and delegate.sh (in-session delegation).
 ## This file is where the permission posture is decided: an agent cannot loosen its own,
 ## because agents never write this file. Bypass flags here are a deliberate human choice —
-## delegates are contained by worktree isolation + no-push, not by prompts (DELEGATION.md §3).
+## delegates are contained by worktree isolation + a sealed pushurl, not by prompts (DELEGATION.md §3).
+## Do not put --bare on a cmd_ line. claude --bare ignores the signed-in claude.ai
+## account (no OAuth, no keychain) and the delegate exits "Not logged in" even though
+## an interactive terminal on the same machine is signed in. Headless -p / exec is
+## enough. doctor.sh fails a cmd_ line that contains --bare.
 cmd_claude: claude -p --dangerously-skip-permissions --output-format json
 cmd_grok: grok --always-approve --output-format json -p
 cmd_agy: agy --dangerously-skip-permissions --output-format json -p

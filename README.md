@@ -86,9 +86,12 @@ sh .apsolut-agents/scripts/delegate.sh stop T-014                # kill + salvag
 
 Delegates run with whatever permission posture you put in `HEARTBEAT.md` — including
 fully bypassed approvals, which is what makes headless rounds work at all. What keeps
-that safe is structural, not a prompt: a delegate lives in its own worktree, cannot
-push, cannot merge, cannot write to the coordination folder, and cannot spawn delegates
-of its own (depth cap). Every round is one unmerged branch and one `git diff` away from
+that safe is structural, not a prompt: a delegate lives in its own worktree, its
+remote push URL is sealed at spawn (`no_push://refused`, that worktree only), it
+cannot merge, cannot write to the coordination folder, and cannot spawn delegates
+of its own (depth cap). Do not put `claude --bare` on a `cmd_` line in
+`HEARTBEAT.md`: that flag ignores the signed-in account, so the delegate reports
+"Not logged in" while your own terminal is signed in. Every round is one unmerged branch and one `git diff` away from
 being discarded. Rounds, fan-out, and daily spend are all capped; agents can't raise a
 cap. Protocol: [`template/DELEGATION.md`](template/DELEGATION.md).
 

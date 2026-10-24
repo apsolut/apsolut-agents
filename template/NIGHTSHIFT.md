@@ -68,7 +68,7 @@ way — a 429 never destroys work.
 - Baseline green: before the first dispatch the runner runs `green_cmd` on the
   pristine worktree; if it fails there, the night refuses as a **harness** failure
   (exit 4) instead of blocking good cards and tripping the breaker.
-- Runner cannot push and never merges — branches only. HOLD stays human.
+- Runner cannot push (spawn seals that worktree's pushurl) and never merges — branches only. HOLD stays human.
 - Per-night **hard budget cap** (`night_budget_usd`), per-card time cap, lane circuit
   breaker (N consecutive failures → stop), provider 429/quota → backoff, not failure.
 - Boot recovery: stale claims (dead pid + old) are released on every start.
@@ -78,8 +78,10 @@ way — a 429 never destroys work.
 ## Morning ritual
 
 Read `runs/night-<date>.md` (what finished, what blocked, spend, per-branch
-diffstat) → `worktree.sh done <id> --merge` for the branches you accept → delete the
-rest. Reassigning a blocked card to the other model is a **human** decision, made
+diffstat) → `worktree.sh review` → `worktree.sh done <id> --merge` for the branches
+you accept. A dirty folder stays until you run `done <id> --jar` (branch already
+in `HEAD`) or `done <id> --reject "<why>"`. Nothing prunes worktrees for you.
+Reassigning a blocked card to the other model is a **human** decision, made
 here, with the attempt output in front of you.
 
 ## Phase gates (don't skip)

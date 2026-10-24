@@ -83,17 +83,43 @@ git merge --no-ff agent/<agent>/<id>
 If the project has a remote + PR flow, open a PR instead. Merge conflicts on hot
 files → normal 3-round log negotiation → human.
 
-**Cleanup:**
+**Spawn also seals push.** After `git worktree add`, spawn sets
+`extensions.worktreeConfig` (shared; it only allows a per-worktree config file)
+and then `git config --worktree remote.<name>.pushurl no_push://refused` for every
+remote. A push from inside that sibling fails at the transport. The primary
+checkout is untouched — a plain `git config remote.origin.pushurl` without
+`--worktree` would have blocked it, so the script never does that.
+
+**Morning review** (read-only, deletes nothing):
+
+```
+sh .apsolut-agents/scripts/worktree.sh review          # every sibling
+sh .apsolut-agents/scripts/worktree.sh review <task-id>
+```
+
+One block per sibling: ahead/behind, whether the branch is already in `HEAD`,
+dirty-file count, size, and the exact `done` command to run if you accept it.
+`session-end.sh` prints this when any secondary worktree is still open.
+
+**Cleanup** is a human command. The runner and delegate never call it.
 
 ```
 sh .apsolut-agents/scripts/worktree.sh done <task-id> [--merge]
+sh .apsolut-agents/scripts/worktree.sh done <task-id> --jar
+sh .apsolut-agents/scripts/worktree.sh done <task-id> --reject "<why>"
 ```
 
-verifies the branch worktree is clean → optional merge → `git worktree remove` →
-delete the branch → set the work file `status: done` + `commit:` hash → `MERGED:`
-line in the log. A worktree whose agent went silent: anyone may run `done` (without
-`--merge`) after a one-line note in the log — a dead session never blocks a task
-forever.
+Plain `done` refuses a dirty tree and prints the paths. `--merge` merges, then
+removes the worktree and deletes the branch. Without `--merge` the branch stays.
+
+`--jar` and `--reject` are how a dirty folder is removed without pretending the
+dirt was committed. Both write `runs/evidence/<id>/` first (`status.txt`,
+`diff.patch`, untracked files up to 1 MB each). `--reject "<why>"` also appends a
+line to `runs/verdicts-YYYY-MM.md` and sets the card to `abandoned`. `--jar` is
+the one `review` suggests when the branch is already contained in `HEAD` and only
+uncommitted files are holding the folder. Neither merges, and neither deletes the
+branch. Every `done` records a verdict line (`merged`, `removed`, `jar`, or
+`rejected`) and the log line is `MERGED` only when a merge happened.
 
 ## 4. Coordination commits
 

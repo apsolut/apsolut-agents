@@ -267,7 +267,7 @@ This is delegation round $ROUND of at most $MAXROUNDS. Time cap: ${CB} minutes.
 
 Hard rules — the foreman is accountable for you:
 - Work ONLY in this worktree. Never cd out of it, never switch branches.
-- Commit your work here with clear messages. Do NOT push. Do NOT merge.
+- Commit your work here with clear messages. Do NOT push (this worktree's pushurl is sealed). Do NOT merge.
 - Do NOT write anything under any .apsolut-agents/ folder — the foreman logs for you.
 - Run the project's green check and iterate until it passes.
 - Do NOT spawn further agents: you are already a delegate (depth cap).
@@ -370,7 +370,8 @@ $(cat "$CARD")"
   echo "  output:  runs/$(basename "$OUT")"
   echo "  branch:  $BR  (unmerged — nothing was pushed)"
   case "$VERDICT" in
-    green)      echo "  next:    review the diff, then: sh .apsolut-agents/scripts/worktree.sh done $ID --merge" ;;
+    green)      echo "  next:    sh .apsolut-agents/scripts/worktree.sh review $ID"
+                echo "           then, if you accept it: sh .apsolut-agents/scripts/worktree.sh done $ID --merge" ;;
     unverified) echo "  next:    green_cmd is unset in HEARTBEAT.md — verify by hand before merging" ;;
     *)          echo "  next:    read the output, then either re-run with a correction:"
                 echo "             sh .apsolut-agents/scripts/delegate.sh run $AGENT $ID --note \"...\""

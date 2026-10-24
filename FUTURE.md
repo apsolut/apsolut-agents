@@ -15,12 +15,13 @@ each agent reasoning over the scripts before proposing.
 
 **Agents never delete worktree folders.** The runner and delegate leave every
 worktree and branch alive for morning review; the only deletion path is a human
-invoking `worktree.sh done <id>` (and even that refuses paths not matching
-`*-wt-*`). This is a security posture, not laziness: a worktree is the complete
-evidence of what a bypass-permissions agent actually did — the diff, the salvage
-commits, the reflog. Auto-cleanup destroys evidence exactly when you'd want it
-most. Cleanup stays a manual act, performed by someone who read the diff first.
-The one environment where this rule can relax is full isolation (next section).
+invoking `worktree.sh done` (and even that refuses paths not matching
+`*-wt-*`). Plain `done` still refuses a dirty tree. `done --jar` and
+`done --reject "<why>"` (v0.8.0) may remove a dirty tree only after writing
+`runs/evidence/<id>/`, and `--reject` also appends `runs/verdicts-YYYY-MM.md`.
+Nothing in the runner or delegate calls them. Auto-cleanup is still refused:
+a worktree is the evidence of what a bypass-permissions agent did. `worktree.sh
+review` is the read-only list that makes the human step obvious.
 
 ## The big one: Docker-isolated lanes
 
@@ -92,13 +93,10 @@ Keeps the no-daemon soul — the container lives exactly as long as the lane doe
 
 ## Safer (containment & audit)
 
-- **Structural no-push** — "never push" is the only rail in DELEGATION.md's
-  containment table enforced by prompt instead of script. Close it at spawn:
-  `worktree.sh spawn` sets a per-worktree pushurl blackhole
-  (`git config --worktree remote.<name>.pushurl no_push://refused`) so a push
-  from inside any `*-wt-*` checkout fails at the transport no matter what the
-  agent decides, while the primary pushes normally. First step: two config lines
-  in spawn + a refusal test.
+- **Structural no-push** — shipped in v0.8.0. `worktree.sh spawn` sets
+  `extensions.worktreeConfig` and then `git config --worktree remote.<name>.pushurl
+  no_push://refused` for every remote. The primary checkout is not sealed.
+  The prompt still says do not push.
 - **Round-boundary tamper canary** — the caps and ledgers are plain files a
   bypass delegate can rewrite via `.primary` (HEARTBEAT.md, spend file, claims/,
   its own card, the log). Prevention needs Docker; detection needs a checksum:
@@ -132,12 +130,10 @@ Keeps the no-daemon soul — the container lives exactly as long as the lane doe
   at each card completion: `<id> green|red, $X/$CAP, N cards left` — one glance
   at 3am says whether the night is worth its budget. First step: one `notify`
   line after the green/red decision.
-- **Morning triage walker (`worktree.sh review <id>`)** — the accept/reject
-  decision means hand-assembling five artifacts per branch (card Done-when, green
-  stamp, diff, attempt tail, spend). One read-only command prints them together
-  and ends with the exact `done <id> --merge` line to run if accepted. Distinct
-  from the merge-train, which handles branches already accepted. First step: a
-  `review` subcommand that cats card + diffstat + green stamp + output tail.
+- **Morning triage walker (`worktree.sh review <id>`)** — first step shipped in
+  v0.8.0: a read-only block per sibling (ahead/behind, contained in HEAD, dirty
+  count, size, exact `done` command). `review <id>` adds card status, diffstat,
+  and the output tail. Still not built: green-stamp and spend on the same page.
 - **Upgrade aftercare report** — two documented silent drifts (stale wired
   CLAUDE.md block; new HEARTBEAT keys never appearing in `kind=instance` files)
   are both mechanically detectable via the markers and the `key:` format.
@@ -186,14 +182,11 @@ Keeps the no-daemon soul — the container lives exactly as long as the lane doe
 
 ## Compounding memory
 
-- **Verdict ledger** — morning review ends in a merge or a deletion, and the
-  *why* of every rejection evaporates into log prose that compaction buries.
-  `worktree.sh done <id> --reject "<reason>"` (accepts recorded symmetrically)
-  appends one fixed-shape line to `runs/verdicts-<month>.md`: id, agent, risk
-  tags, verdict, reason, commit. Weeks of these are the ground truth that learned
-  card sizing and model routing silently presuppose — and a per-agent
-  green-and-merged rate becomes derivable, never hand-written. First step: the
-  `--reject` flag that appends the line before anything is deleted.
+- **Verdict ledger** — first step shipped in v0.8.0. Every `worktree.sh done`
+  appends `runs/verdicts-YYYY-MM.md` (`merged`, `removed`, `jar`, `rejected`).
+  `--reject "<why>"` archives `runs/evidence/<id>/` first, then removes the
+  worktree and sets the card `abandoned`. The branch is kept. Risk tags and a
+  per-agent green-and-merged rate are not derived yet.
 - **Scar injection at dispatch** — cards declare `files:` and `risk:`; decisions
   declare "applies to"; a `GOTCHAS.md` of `glob: one-line lesson` entries closes
   the triangle. At dispatch the runner greps GOTCHAS + DECISIONS for lines whose

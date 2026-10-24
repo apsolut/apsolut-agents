@@ -40,6 +40,10 @@ notify_url:
 ## Agent commands — how each agent runs headless (prompt is appended as last arg)
 ## Used by BOTH runner.sh (night lanes) and delegate.sh (in-session delegation).
 ## Permission posture is decided HERE and nowhere else — agents never write this file.
+## Do not put --bare on a cmd_ line. claude --bare ignores the signed-in claude.ai
+## account (no OAuth, no keychain) and the delegate exits "Not logged in" even though
+## an interactive terminal on the same machine is signed in. Headless -p / exec is
+## enough. doctor.sh fails a cmd_ line that contains --bare.
 cmd_claude: claude -p --dangerously-skip-permissions --output-format json
 cmd_grok: grok --always-approve --output-format json -p
 cmd_agy: agy --dangerously-skip-permissions --output-format json -p

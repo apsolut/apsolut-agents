@@ -177,7 +177,7 @@ finish() { # $1 reason, $2 exit code
       echo "| $id | $st | $at | $br | ${ds:-—} |"
     done
     echo
-    echo "Branches are UNMERGED by design — review and merge selectively (\`worktree.sh done <id> --merge\`)."
+    echo "Branches are UNMERGED by design — \`worktree.sh review\`, then \`done <id> --merge\` for the ones you accept."
   } > "$REPORT"
   tick "night end: $1 (report: runs/$(basename "$REPORT"))"
   notify "ended: $1 — spend \$$(spent). Report ready."
@@ -255,7 +255,7 @@ while :; do
   CB=$(num_or "$(fm_get "$CARD" budget | tr -dc '0-9')" "$TIMEOUT_MIN")
   OUT="$WS/runs/$ID-attempt$N.out"
   PREVFAIL="$WS/runs/$ID-attempt$(( N - 1 )).fail"
-  PROMPT="You are agent '$AGENT' working alone, headless, in the isolated git worktree at $WT (your cwd), on branch $BR. Implement the task card below. Rules: commit your work in this worktree with clear messages; run the project's green check and iterate until it passes; do NOT touch any .apsolut-agents folder; do NOT push; do NOT switch branches. When done, stop.
+  PROMPT="You are agent '$AGENT' working alone, headless, in the isolated git worktree at $WT (your cwd), on branch $BR. Implement the task card below. Rules: commit your work in this worktree with clear messages; run the project's green check and iterate until it passes; do NOT touch any .apsolut-agents folder; do NOT push (this worktree's pushurl is sealed); do NOT switch branches. When done, stop.
 $( [ -f "$PREVFAIL" ] && printf '\n=== PREVIOUS ATTEMPT FAILED — read this, do NOT repeat the same approach ===\n%s\n' "$(command tail -120 "$PREVFAIL")" )
 === TASK CARD ===
 $(cat "$CARD")"

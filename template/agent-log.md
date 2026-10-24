@@ -11,7 +11,8 @@ Entry shape (keep it short — link to commits/files for detail):
 - <what you did / are asking / decided>
 - INTENT: <agent> editing <path> for <why>        # Tier 2 — before a large hot-file edit
 - SPAWN: <agent> → <branch> at <path>             # written by worktree.sh spawn
-- MERGED: <branch> → <default> (<hash>)           # written by worktree.sh done
+- MERGED: <branch> → <default> (<hash>)           # done --merge only
+- REMOVED / JAR / REJECTED: <branch> …            # done without a merge
 
 ### <Agent> — <date> — PUSHED | HOLD | FAILED     # session end: token in the heading
 <freeform prose: what you did, what's next for whom>

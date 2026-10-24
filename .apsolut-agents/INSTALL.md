@@ -155,7 +155,7 @@ locally and never pushes it — the next agent (and prod) never sees it.
 | `HEARTBEAT.md` | 2 | instance | Night Shift + delegation policy: budgets, timeouts, agent commands |
 | `STATUS.md` | 2 | generated | At-a-glance board — rendered by `status.sh` |
 | `work/_TEMPLATE.md` | 2 | doc | One file per task — the ownership atom |
-| `scripts/worktree.sh` | 2 | doc | Spawn / list / merge+cleanup agent worktrees |
+| `scripts/worktree.sh` | 2 | doc | Spawn (push sealed) / review / list / human cleanup |
 | `scripts/runner.sh` | 2 | doc | Night Shift single-lane runner (see `NIGHTSHIFT.md`) |
 | `scripts/delegate.sh` | 2 | doc | `run`/`status`/`tail`/`stop` a delegated peer agent (see `DELEGATION.md`) |
 | `reference/multi-agent-cli-foundations.md` | 1 | doc | Someday-maybe inbox/orchestrator architecture — reference only |

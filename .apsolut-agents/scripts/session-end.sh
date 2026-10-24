@@ -87,6 +87,9 @@ fi
 # 5. Checklist.
 echo "session-end: token=$TOKEN ✓ · facts regenerated ✓"
 OPEN=$(git -C "$REPO" worktree list --porcelain | grep -c '^worktree ' || true)
-[ "$OPEN" -gt 1 ] && echo "note: $((OPEN - 1)) secondary worktree(s) still open — worktree.sh list"
+if [ "$OPEN" -gt 1 ]; then
+  echo "note: $((OPEN - 1)) secondary worktree(s) still open — worktree.sh review (read-only)"
+  sh "$WS/scripts/worktree.sh" review || true
+fi
 [ "$TOKEN" = HOLD ] && echo "note: HOLD stands — only the human lifts it"
 exit 0
