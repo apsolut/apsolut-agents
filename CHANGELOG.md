@@ -3,6 +3,26 @@
 All notable changes to apsolut-agents. Pin a release with `install.sh --tag vX.Y.Z`;
 upgrade an installed workspace with `sh .apsolut-agents/scripts/upgrade.sh`.
 
+## v0.8.2 — 2026-10-24
+
+`done --merge` refuses a check that changes the merge it just proved.
+
+### Changed
+- After `green_cmd` exits 0, the agent worktree must still be on that merge
+  commit, with no staged, unstaged, or new non-ignored files. Ignored output
+  such as `node_modules` is allowed. A fixer (`lint --fix`, `prettier --write`)
+  now refuses the merge instead of landing a different tree. The same check
+  runs before `green_cmd`, so `done --merge --jar` cannot carry uncommitted
+  files into the result. The primary branch is not moved. Stray edits are
+  copied to `runs/<id>-merge-stray.diff`.
+- `worktree.sh review <id>` prints a committed-tree conflict preview. The
+  all-sibling list does not. A clean preview is not `green_cmd`. A configured
+  custom merge driver skips the preview, because merge-tree can run it. The
+  preview may write an unreferenced tree object; it changes no ref, index, or
+  file.
+- `WORKTREES.md` says a dev server needs an explicit port and must not fall
+  back to another one.
+
 ## v0.8.1 — 2026-10-24
 
 `done --merge` no longer lands the merge on the primary branch and hopes.

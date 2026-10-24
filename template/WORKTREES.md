@@ -78,8 +78,9 @@ worktree (the one that already has `node_modules` / `.venv`) at the primary comm
 merges the agent branch there, and runs `green_cmd` in that directory. Only a passing
 check fast-forwards the primary branch to that commit. A red check leaves the primary
 branch where it was, puts the agent worktree back on its branch, and keeps the merge
-commit at `refs/apsolut/merges/<id>`. A brand-new worktree is the wrong place to run
-this check: it has no installs, so green fails for setup reasons.
+commit at `refs/apsolut/merges/<id>`. A check that edits, stages, or commits is refused
+the same way: that command has to leave the merge commit unchanged. A brand-new worktree
+is the wrong place to run this check: it has no installs, so green fails for setup reasons.
 
 If the project has a remote + PR flow, open a PR instead. Merge conflicts on hot
 files → normal 3-round log negotiation → human.
@@ -100,6 +101,9 @@ sh .apsolut-agents/scripts/worktree.sh review <task-id>
 
 One block per sibling: ahead/behind, whether the branch is already in `HEAD`,
 dirty-file count, size, and the exact `done` command to run if you accept it.
+`review <id>` also names committed-tree conflicts (`git merge-tree`). A clean
+preview is not `green_cmd`. The preview may write an unreferenced tree object;
+it changes no ref, no index, and no file. The all-sibling list does not run it.
 `session-end.sh` prints this when any secondary worktree is still open.
 
 **Cleanup** is a human command. The runner and delegate never call it.
@@ -128,7 +132,10 @@ branch. Every `done` records a verdict line (`merged`, `removed`, `jar`, or
 A new worktree is a checkout of tracked files. `node_modules`, virtualenvs, and
 build directories do not come with it, so each agent installs before its own tests
 mean anything. Two agents still share one machine: the same port, the same local
-database. Git will not notice that collision.
+database. Git will not notice that collision. Give each dev server an explicit
+port and make it exit if that port is taken; a fallback port can serve another
+agent's tree. Writing a port down reserves nothing, because only the process
+bound to the socket holds it.
 
 Some files are touched by almost every task even when the plan never names them.
 Put these on the hot-files list in `PROJECT.md` and declare `INTENT` before editing

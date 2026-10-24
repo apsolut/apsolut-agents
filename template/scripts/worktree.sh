@@ -181,6 +181,101 @@ restore_agent_branch() {
   return 0
 }
 
+# The merge commit is still the tree that would land. Ignored files may change.
+# .primary is the spawn pointer; every other non-ignored path is stray.
+candidate_clean() {
+  git -C "$WT" update-index -q --refresh >/dev/null 2>&1 || true
+  [ "$(git -C "$WT" rev-parse HEAD 2>/dev/null || echo missing)" = "$MSHA" ] || return 1
+  git -C "$WT" diff --quiet HEAD || return 1
+  git -C "$WT" diff --cached --quiet || return 1
+  stray=$(git -C "$WT" ls-files --others --exclude-standard | grep -vxF '.apsolut-agents/.primary' || true)
+  [ -z "$stray" ] || return 1
+  return 0
+}
+
+record_stray() {
+  mkdir -p "$WS/runs"
+  git -C "$WT" diff HEAD > "$WS/runs/$ID-merge-stray.diff" 2>/dev/null || true
+  git -C "$WT" diff --cached >> "$WS/runs/$ID-merge-stray.diff" 2>/dev/null || true
+  git -C "$WT" ls-files --others --exclude-standard | grep -vxF '.apsolut-agents/.primary' > "$WS/runs/$ID-merge-stray.untracked" || true
+}
+
+# Checkout can refuse when green_cmd left tracked edits. Reset only this
+# detached worktree back to the merge commit. The primary branch is not reset.
+# Ignored files (node_modules) are left in place. git clean is not used.
+unfrozen_restore() {
+  git -C "$WT" merge --abort >/dev/null 2>&1 || true
+  if git -C "$WT" checkout "$BRANCH" >/dev/null 2>&1; then
+    return 0
+  fi
+  git -C "$WT" reset --hard "$MSHA" >/dev/null 2>&1 || true
+  if [ -f "$WS/runs/$ID-merge-stray.untracked" ]; then
+    while IFS= read -r f; do
+      [ -n "$f" ] || continue
+      [ "$f" = ".apsolut-agents/.primary" ] && continue
+      case "$f" in
+        /*|../*|*/../*) continue ;;
+      esac
+      rm -f "$WT/$f"
+    done < "$WS/runs/$ID-merge-stray.untracked"
+  fi
+  if ! git -C "$WT" checkout "$BRANCH" >/dev/null 2>&1; then
+    echo "error: agent worktree was left off $BRANCH — \`git -C \"$WT\" checkout $BRANCH\`" >&2
+    return 1
+  fi
+  return 0
+}
+
+refuse_unfrozen() { # $1=short reason
+  record_stray
+  git -C "$REPO" update-ref "refs/apsolut/merges/$ID" "$MSHA"
+  now=$(git -C "$WT" rev-parse HEAD 2>/dev/null || echo unknown)
+  echo "error: $1 Primary branch was not moved." >&2
+  echo "  merge commit kept at refs/apsolut/merges/$ID" >&2
+  if [ "$now" != "$MSHA" ]; then
+    echo "  HEAD moved to $now" >&2
+  fi
+  echo "  stray edits: runs/$ID-merge-stray.diff" >&2
+  printf '\n### worktree.sh — %s\n- MERGE-UNFROZEN: %s %s (%s)\n' \
+    "$TODAY" "$BRANCH" "$1" "$(git -C "$REPO" rev-parse --short "$MSHA")" >> "$LOG"
+  unfrozen_restore || true
+  exit 1
+}
+
+# Committed-tree conflict list. Does not update a ref, the index, or a file.
+# merge-tree may write an unreferenced tree object. A clean result is not green_cmd.
+emit_preview() { # $1=branch
+  br=$1
+  if git -C "$REPO" merge-base --is-ancestor "$br" HEAD 2>/dev/null; then
+    echo "  preview: already in HEAD"
+    return 0
+  fi
+  if git -C "$REPO" config --get-regexp '^merge\..*\.driver$' >/dev/null 2>&1; then
+    echo "  preview skipped: a custom merge driver is configured; merge-tree can run it"
+    return 0
+  fi
+  mt=$(mktemp)
+  set +e
+  git -C "$REPO" merge-tree --write-tree --name-only --no-messages HEAD "$br" >"$mt" 2>/dev/null
+  rc=$?
+  set -e
+  if [ "$rc" -eq 0 ]; then
+    echo "  preview: clean (committed trees only; this is not green_cmd)"
+  elif [ "$rc" -eq 1 ]; then
+    names=$(awk 'NR==1 && $0 ~ /^[0-9a-f]{40,64}$/ { next } NF { print }' "$mt" | sort -u)
+    if [ -z "$names" ]; then
+      echo "  preview: conflicts, no single path"
+    else
+      echo "  preview conflicts:"
+      printf '%s\n' "$names" | sed 's/^/    /'
+    fi
+  else
+    echo "  preview: unavailable"
+  fi
+  rm -f "$mt"
+  return 0
+}
+
 # Build the merge in the agent worktree (it already has node_modules / .venv),
 # run green_cmd there, and only then fast-forward the primary branch.
 # A fresh throwaway worktree is the wrong place: it has no installs, so green
@@ -218,6 +313,9 @@ prove_merge() {
   mkdir -p "$WS/runs"
   GOUT="$WS/runs/$ID-merge-green.out"
   echo "green_cmd @ $MSHA (agent worktree, before primary moves)" > "$GOUT"
+  if ! candidate_clean; then
+    refuse_unfrozen "merge tree was dirty before green_cmd."
+  fi
   if ! ( cd "$WT" && sh -c "$GREEN" ) >> "$GOUT" 2>&1; then
     git -C "$REPO" update-ref "refs/apsolut/merges/$ID" "$MSHA"
     echo "error: green_cmd failed on the merge ($MSHA). Primary branch was not moved." >&2
@@ -228,6 +326,9 @@ prove_merge() {
       "$TODAY" "$BRANCH" "$(git -C "$REPO" rev-parse --short "$MSHA")" >> "$LOG"
     restore_agent_branch || true
     exit 1
+  fi
+  if ! candidate_clean; then
+    refuse_unfrozen "green_cmd changed the merge tree."
   fi
   echo "green: $MSHA"
   if ! git -C "$REPO" merge --ff-only "$MSHA"; then
@@ -312,11 +413,12 @@ review)
   git -C "$REPO" worktree list --porcelain | awk '/^worktree /{print substr($0,10)}' > "$paths"
   if [ -n "$ID" ]; then
     found=0
+    hit=""
     while IFS= read -r path; do
       [ -n "$path" ] || continue
       base=$(basename "$path")
       case "$base" in
-        "$NAME-wt-"*"-$ID") emit_wt "$path"; found=1 ;;
+        "$NAME-wt-"*"-$ID") emit_wt "$path"; found=1; hit=$path ;;
       esac
     done < "$paths"
     rm -f "$paths"
@@ -327,6 +429,12 @@ review)
       if [ -n "$br" ] && [ "$br" != "null" ] && git -C "$REPO" rev-parse --verify --quiet "$br" >/dev/null; then
         echo "  diffstat vs HEAD:"
         git -C "$REPO" diff --stat "HEAD...$br" 2>/dev/null | tail -8 | sed 's/^/    /' || true
+        emit_preview "$br"
+        if [ -n "$hit" ] && [ -d "$hit" ] && [ "$(dirty_count "$hit")" -gt 0 ]; then
+          echo "  preview ignores uncommitted files"
+        elif [ -n "$(git -C "$REPO" status --porcelain | grep -v "^.. $(basename "$WS")/" || true)" ]; then
+          echo "  preview ignores uncommitted files"
+        fi
       fi
     fi
     out=$(ls -t "$WS"/runs/"$ID"-*.out 2>/dev/null | head -1 || true)

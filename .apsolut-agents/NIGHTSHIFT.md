@@ -80,7 +80,7 @@ way — a 429 never destroys work.
 Read `runs/night-<date>.md` (what finished, what blocked, spend, per-branch
 diffstat) → `worktree.sh review` → `worktree.sh done <id> --merge` for the branches
 you accept. `--merge` runs `green_cmd` in the agent worktree and moves the primary
-branch only if that passes. A dirty folder stays until you run `done <id> --jar` (branch already
+branch only if that passes and leaves the merge commit unchanged. A dirty folder stays until you run `done <id> --jar` (branch already
 in `HEAD`) or `done <id> --reject "<why>"`. Nothing prunes worktrees for you.
 Reassigning a blocked card to the other model is a **human** decision, made
 here, with the attempt output in front of you.

@@ -36,6 +36,9 @@ delegate_budget_usd: 25
 # done --merge runs this same command inside the agent's EXISTING worktree, on a
 # detached merge into the primary commit, before the primary branch moves. It does
 # not use a fresh worktree: that checkout has no node_modules or virtualenv.
+# green_cmd must not edit, stage, or commit. done --merge refuses when this
+# command changes that merge. Ignored output is allowed. A fixer (lint --fix,
+# prettier --write) belongs in the agent worktree before --merge.
 green_cmd: echo "SET green_cmd IN HEARTBEAT.md" && false
 
 ## Notification (ntfy.sh topic URL, or leave empty for log-only)
