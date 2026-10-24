@@ -82,6 +82,10 @@ Keeps the no-daemon soul — the container lives exactly as long as the lane doe
 - **Speculative duel** — dispatch the same card to two models in two worktrees,
   first green branch wins, loser is killed and its round refunded. Costs ~2× per
   card, buys the best-of-both quality and a live capability benchmark for free.
+- **Single-branch merge gate** — shipped in v0.8.1. `done --merge` builds the
+  merge inside the agent worktree, runs `green_cmd` there, and fast-forwards the
+  primary branch only if it passes. A fresh worktree is not used (no installs).
+  The primary branch is never reset.
 - **Morning merge-train** — take the accepted branches in dependency order,
   rebase each onto the accumulating result, re-run green per step, stop on the
   first conflict for the human. Turns N manual merges into one supervised pass.

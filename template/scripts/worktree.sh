@@ -166,6 +166,82 @@ archive_evidence() { # $1=worktree $2=id — copy status, diff, and small untrac
   printf '%s\n' "$ev"
 }
 
+hb_get() { # $1=key from HEARTBEAT.md (comments must stay on their own line)
+  [ -f "$WS/HEARTBEAT.md" ] || return 0
+  sed -n "s/^$1:[[:space:]]*//p" "$WS/HEARTBEAT.md" | head -1 | tr -d '\r'
+}
+
+# Put the worktree back on its agent branch after a detached merge attempt.
+restore_agent_branch() {
+  git -C "$WT" merge --abort >/dev/null 2>&1 || true
+  if ! git -C "$WT" checkout "$BRANCH" >/dev/null 2>&1; then
+    echo "error: agent worktree was left off $BRANCH — \`git -C \"$WT\" checkout $BRANCH\`" >&2
+    return 1
+  fi
+  return 0
+}
+
+# Build the merge in the agent worktree (it already has node_modules / .venv),
+# run green_cmd there, and only then fast-forward the primary branch.
+# A fresh throwaway worktree is the wrong place: it has no installs, so green
+# fails for setup reasons and a good merge looks red (field incident #2).
+# The primary branch is not moved, and is never reset, if green fails.
+prove_merge() {
+  GREEN=$(hb_get green_cmd)
+  case "$GREEN" in
+    ''|*"SET green_cmd"*)
+      echo "error: --merge needs a real green_cmd in HEARTBEAT.md — the primary branch does not move until that check passes" >&2
+      exit 1 ;;
+  esac
+  if [ ! -d "$WT" ]; then
+    echo "error: --merge needs the agent worktree at $WT (a fresh worktree would not have its installs)" >&2
+    exit 1
+  fi
+  PSHA=$(git -C "$REPO" rev-parse HEAD)
+  ASHA=$(git -C "$WT" rev-parse HEAD)
+  PBR=$(git -C "$REPO" rev-parse --abbrev-ref HEAD)
+  if [ "$PBR" = "HEAD" ]; then
+    echo "error: primary checkout is detached — check out a branch before --merge" >&2
+    exit 1
+  fi
+  if ! git -C "$WT" checkout --detach "$PSHA" >/dev/null 2>&1; then
+    echo "error: could not detach $WT at primary $PSHA — primary was not moved" >&2
+    restore_agent_branch || true
+    exit 1
+  fi
+  if ! git -C "$WT" merge --no-ff "$ASHA" -m "merge $BRANCH ($ID)"; then
+    echo "error: merging $BRANCH into the primary tree conflicted inside the agent worktree — primary was not moved" >&2
+    restore_agent_branch || true
+    exit 1
+  fi
+  MSHA=$(git -C "$WT" rev-parse HEAD)
+  mkdir -p "$WS/runs"
+  GOUT="$WS/runs/$ID-merge-green.out"
+  echo "green_cmd @ $MSHA (agent worktree, before primary moves)" > "$GOUT"
+  if ! ( cd "$WT" && sh -c "$GREEN" ) >> "$GOUT" 2>&1; then
+    git -C "$REPO" update-ref "refs/apsolut/merges/$ID" "$MSHA"
+    echo "error: green_cmd failed on the merge ($MSHA). Primary branch was not moved." >&2
+    echo "  output: runs/$(basename "$GOUT")" >&2
+    echo "  merge commit kept at refs/apsolut/merges/$ID" >&2
+    tail -20 "$GOUT" >&2 || true
+    printf '\n### worktree.sh — %s\n- MERGE-RED: %s green_cmd failed, primary not moved (%s)\n' \
+      "$TODAY" "$BRANCH" "$(git -C "$REPO" rev-parse --short "$MSHA")" >> "$LOG"
+    restore_agent_branch || true
+    exit 1
+  fi
+  echo "green: $MSHA"
+  if ! git -C "$REPO" merge --ff-only "$MSHA"; then
+    git -C "$REPO" update-ref "refs/apsolut/merges/$ID" "$MSHA"
+    echo "error: merge is green at $MSHA but the primary branch could not fast-forward. It was not moved." >&2
+    echo "  commit kept at refs/apsolut/merges/$ID" >&2
+    restore_agent_branch || true
+    exit 1
+  fi
+  git -C "$REPO" update-ref -d "refs/apsolut/merges/$ID" >/dev/null 2>&1 || true
+  HASH=$(git -C "$REPO" rev-parse --short HEAD)
+  echo "merged: $BRANCH → $PBR ($HASH) after green_cmd"
+}
+
 record_verdict() { # $1=verdict $2=reason $3=commit
   vf="$WS/runs/verdicts-$(date +%Y-%m).md"
   mkdir -p "$WS/runs"
@@ -333,9 +409,7 @@ done)
       echo "error: primary worktree has uncommitted non-workspace changes — commit or stash before merging" >&2
       exit 1
     fi
-    git -C "$REPO" merge --no-ff "$BRANCH" -m "merge $BRANCH ($ID)"
-    HASH=$(git -C "$REPO" rev-parse --short HEAD)
-    echo "merged: $BRANCH → $(git -C "$REPO" rev-parse --abbrev-ref HEAD) ($HASH)"
+    prove_merge
   fi
 
   if [ -n "$WT" ] && [ "$WT" != "null" ] && [ -d "$WT" ]; then

@@ -33,6 +33,9 @@ delegate_budget_usd: 25
 # No untracked helper scripts, no paths that exist only in the primary checkout —
 # a green that passes on the primary but not on a fresh worktree blocks every card
 # as if the work failed. `doctor.sh` proves green in a throwaway worktree.
+# done --merge runs this same command inside the agent's EXISTING worktree, on a
+# detached merge into the primary commit, before the primary branch moves. It does
+# not use a fresh worktree: that checkout has no node_modules or virtualenv.
 green_cmd: echo "SET green_cmd IN HEARTBEAT.md" && false
 
 ## Notification (ntfy.sh topic URL, or leave empty for log-only)

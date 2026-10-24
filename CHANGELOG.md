@@ -3,6 +3,21 @@
 All notable changes to apsolut-agents. Pin a release with `install.sh --tag vX.Y.Z`;
 upgrade an installed workspace with `sh .apsolut-agents/scripts/upgrade.sh`.
 
+## v0.8.1 — 2026-10-24
+
+`done --merge` no longer lands the merge on the primary branch and hopes.
+
+### Changed
+- `worktree.sh done --merge` detaches the agent worktree at the primary commit,
+  merges the agent branch there, and runs `green_cmd` in that directory. The
+  primary branch fast-forwards to that commit only when the check passes. A red
+  check leaves the primary branch unmoved, returns the worktree to its branch,
+  and keeps the commit at `refs/apsolut/merges/<id>`. The agent worktree is used
+  because it already has `node_modules` / `.venv`. A fresh worktree does not.
+- `WORKTREES.md` notes what a worktree does not isolate: installs, ports, the
+  local database, and the shared files that belong on the `PROJECT.md` hot-files
+  list (route table, `.env.example`, migrations directory, dependency manifest).
+
 ## v0.8.0 — 2026-10-24
 
 Morning cleanup stays human. The runner still does not delete worktrees.

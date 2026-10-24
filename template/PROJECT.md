@@ -52,8 +52,10 @@ Shared, high-collision files. Before a big edit to any of these, drop an `INTENT
 in `agent-log.md` (see `WORKTREES.md §5`).
 
 - `<e.g. src/lib/db.ts — everything imports it>`
-- `<e.g. config / schema / migrations>`
-- `<e.g. shared types / the main router>`
+- `<e.g. the migrations directory>`
+- `<e.g. the route table>`
+- `<e.g. .env.example>`
+- `<e.g. package.json / pyproject.toml / Cargo.toml — the dependency manifest>`
 
 ## Human gates (never auto-decide these)
 

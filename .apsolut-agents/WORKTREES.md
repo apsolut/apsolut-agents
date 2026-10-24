@@ -72,13 +72,14 @@ prompt to paste into the new agent's session.
 **While working** (secondary agent): code + commit on your branch; talk in the
 **primary** log (via `.primary`); update your own `work/<id>.md` status there too.
 
-**Merge:** when green (per `PROJECT.md`), the owner sets `status: review` + a log
-line. The **primary agent or human** merges from the primary worktree — after making
-sure its own tree is clean (commit or stash first):
-
-```
-git merge --no-ff agent/<agent>/<id>
-```
+**Merge:** when the card is in `review`, a person runs `worktree.sh done <id> --merge`.
+That command does not merge onto the primary branch first. It detaches the **agent**
+worktree (the one that already has `node_modules` / `.venv`) at the primary commit,
+merges the agent branch there, and runs `green_cmd` in that directory. Only a passing
+check fast-forwards the primary branch to that commit. A red check leaves the primary
+branch where it was, puts the agent worktree back on its branch, and keeps the merge
+commit at `refs/apsolut/merges/<id>`. A brand-new worktree is the wrong place to run
+this check: it has no installs, so green fails for setup reasons.
 
 If the project has a remote + PR flow, open a PR instead. Merge conflicts on hot
 files → normal 3-round log negotiation → human.
@@ -109,8 +110,9 @@ sh .apsolut-agents/scripts/worktree.sh done <task-id> --jar
 sh .apsolut-agents/scripts/worktree.sh done <task-id> --reject "<why>"
 ```
 
-Plain `done` refuses a dirty tree and prints the paths. `--merge` merges, then
-removes the worktree and deletes the branch. Without `--merge` the branch stays.
+Plain `done` refuses a dirty tree and prints the paths. `--merge` runs the check
+above, then removes the worktree and deletes the branch only if the primary branch
+actually moved. Without `--merge` the branch stays.
 
 `--jar` and `--reject` are how a dirty folder is removed without pretending the
 dirt was committed. Both write `runs/evidence/<id>/` first (`status.txt`,
@@ -120,6 +122,18 @@ the one `review` suggests when the branch is already contained in `HEAD` and onl
 uncommitted files are holding the folder. Neither merges, and neither deletes the
 branch. Every `done` records a verdict line (`merged`, `removed`, `jar`, or
 `rejected`) and the log line is `MERGED` only when a merge happened.
+
+## 3b. What a worktree does not isolate
+
+A new worktree is a checkout of tracked files. `node_modules`, virtualenvs, and
+build directories do not come with it, so each agent installs before its own tests
+mean anything. Two agents still share one machine: the same port, the same local
+database. Git will not notice that collision.
+
+Some files are touched by almost every task even when the plan never names them.
+Put these on the hot-files list in `PROJECT.md` and declare `INTENT` before editing
+them: the route table, `.env.example`, the migrations directory, and the dependency
+manifest (`package.json`, `pyproject.toml`, `Cargo.toml`, or whatever this repo uses).
 
 ## 4. Coordination commits
 

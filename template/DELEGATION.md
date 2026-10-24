@@ -103,7 +103,7 @@ to do by accident. The containment is structural, not advisory:
 |---|---|
 | Delegates run only in a spawned worktree (`*-wt-*`), never the primary | `delegate.sh` refuses otherwise |
 | Never push | `worktree.sh spawn` sets `remote.<name>.pushurl` to `no_push://refused` on that worktree only (`git config --worktree`). The primary checkout still pushes. |
-| Never merge | prompt contract + `worktree.sh done --merge` is the only merge path, run by you |
+| Never merge | prompt contract + `worktree.sh done --merge` is the only merge path, run by you. It fast-forwards the primary branch only after `green_cmd` passes in the agent worktree |
 | Never write under `.apsolut-agents/` | prompt contract + `git add` pathspec excludes it |
 | Cannot spawn its own delegates | `APSOLUT_AGENT_DEPTH` + `delegate_max_depth` |
 | Bounded blast radius | one branch per card, unmerged until a human-or-foreman reads the diff |
