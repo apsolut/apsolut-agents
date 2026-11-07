@@ -138,3 +138,10 @@ v0.6.0 shipped: 4-agent verified fixes + field-report triage merged to main, tag
 ### Claude — 2026-08-11 (later) — field incident #2 fixed (v0.7.1)
 - Human night run: green_cmd was a relative path to an untracked helper — passed on primary, failed in every worktree, read as cards failing; breaker tripped, 3 cards never ran. Evidence refs held (first field validation — both branches restored from refs/apsolut/attempts/).
 - Shipped: runner baseline green on pristine worktree (harness failure = exit 4, no cards charged); doctor proves green in a throwaway worktree + flags untracked files: inputs + missing frontmatter keys; worktree.sh fm_set inserts missing keys (was silently dropping spawn records). End-to-end tested on scratch with a fake CLI lane, both paths. Artifact: runs/2026-08-11-field-incident-green-in-worktree.md
+
+### Claude — 2026-11-07 — v0.8.x tagged, state caught up
+- v0.8.0 / v0.8.1 / v0.8.2 (2026-10-24: `worktree.sh review`, `done --jar/--reject` + verdicts, push seal at spawn, doctor `--bare` check, proven `done --merge` that never moves primary on red, refusal when green_cmd mutates the merge) were pushed to main but never tagged — `install.sh --tag` users were pinned to v0.7.1. Tagged on their release commits and pushed.
+- PROJECT_STATE narrative refreshed (no-push item done; tamper canary is next Safer). The 2026-08-11 HANDOFF.md was stale and untracked; its live content is folded into PROJECT_STATE, so it was dropped rather than published.
+
+### claude — 2026-11-07 — PUSHED
+v0.8.x tagged; state caught up before machine reinstall.

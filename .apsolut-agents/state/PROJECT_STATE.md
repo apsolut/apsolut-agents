@@ -11,24 +11,24 @@ anything no longer true (git keeps history), keep the whole file to ~1 screen.
 ## Facts (generated)
 
 <!-- facts:begin -->
-_Generated 2026-08-11 01:44 by status.sh — do not hand-edit this block._
+_Generated 2026-11-07 16:05 by status.sh — do not hand-edit this block._
 
 | | |
 |--|--|
 | Branch | `main` |
 | Ahead/behind upstream | 0 ahead / 0 behind upstream |
-| Dirty files | 1 |
+| Dirty files | 3 |
 | Worktrees | 1 (incl. primary) |
-| Last session token | claude — 2026-08-11 — PUSHED |
-| agent-log.md | 123 lines |
+| Last session token | claude — 2026-11-07 — PUSHED |
+| agent-log.md | 147 lines |
 
 Recent commits:
 ```
-771d128 feat: v0.6.0 — field-report fixes, lane preflight, filename contract, MIT license, CI
-e949e61 agents: claude PUSHED token — HOLD lifted by human
-dde25e4 agents: claude session end 2026-07-31 (PUSHED)
-1661789 feat: green output stamps exact commit (delegate.sh, runner.sh); protocol norms from buzz review (D-006)
-1ab218d feat: agent-drives-agent delegation; fix: install.sh exited 1 on success
+f0fb80c feat: v0.8.2 — refuse a check that changes the merge
+5329c33 feat: v0.8.1 — prove the merge before the primary branch moves
+445b244 feat: v0.8.0 — review leftover worktrees, seal delegate push
+5ad36fb fix: v0.7.1 — harness failures no longer read as card failures (field incident #2)
+29d5e9b feat: v0.7.0 — scripts/doctor.sh one-command workspace preflight
 ```
 <!-- facts:end -->
 
@@ -40,7 +40,7 @@ no — HOLD lifted 2026-07-29: human provided the remote (github.com/apsolut/aps
 
 | Task / id | Owner | Status |
 |---|---|---|
-| v0.6.0 (delegation + field-report fixes) | Claude | done — merged to main 2026-08-11 |
+| v0.8.0–v0.8.2 (worktree review, push seal, proven merge) | Claude | done — on main, tagged 2026-11-07 |
 
 ## Blockers
 
@@ -48,9 +48,9 @@ no — HOLD lifted 2026-07-29: human provided the remote (github.com/apsolut/aps
 
 ## Top 3 next actions
 
-1. Night-test the new runner paths (failure-context retries, evidence refs, preflight probe) with a real supervised `--once` run — logic is reviewed but not field-proven. — human + any agent
-2. Second-data-point items from the field report: refusal classification, rolling per-card cost fallback, pre-card budget check, `files:` post-card enforcement (backlog in `runs/2026-08-11-field-report-and-pre-merge-review.md`). — any agent
-3. Structural no-push at worktree spawn (per-worktree pushurl blackhole — closes the one prompt-only containment rail; see FUTURE.md Safer). — any agent
+1. Night-test the runner paths with a real supervised `--once` run on a live project: baseline green (v0.7.1), failure-context retries, evidence refs, preflight probe, and the v0.8.1/0.8.2 proven `done --merge`. Scratch-tested with a fake CLI lane only. — human + any agent
+2. Second-data-point items from the field report: refusal/infra classification, rolling per-card cost fallback, pre-card budget check, `files:` post-card enforcement (backlog in `runs/2026-08-11-field-report-and-pre-merge-review.md`; field incident #2 is a data point for harness-vs-card attribution). — any agent
+3. Next Safer item from FUTURE.md: round-boundary tamper canary (structural no-push shipped in v0.8.0). Installed copies elsewhere (e.g. the n8n project) need `sh .apsolut-agents/scripts/upgrade.sh` to pick up v0.8.2. — any agent
 
 ## Do-not-undo
 
@@ -61,4 +61,4 @@ no — HOLD lifted 2026-07-29: human provided the remote (github.com/apsolut/aps
 ## Active docs
 
 - Talk: `agent-log.md` · Rules: `PROTOCOL.md` · Stack: `PROJECT.md` · Concurrency: `WORKTREES.md`
-- Decisions: `decisions/DECISIONS.md` (D-001…D-003)
+- Decisions: `decisions/DECISIONS.md` (D-001…D-007) · Ideas: `../FUTURE.md` · Releases: `../CHANGELOG.md`
