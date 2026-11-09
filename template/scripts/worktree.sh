@@ -1,7 +1,7 @@
 #!/bin/sh
 # apsolut-agents: tier=2 kind=doc
 # SPDX-License-Identifier: MIT — (c) 2026 apsolut — https://github.com/apsolut/apsolut-agents
-# worktree.sh spawn <agent> <task-id> — isolated checkout + branch for an agent
+# worktree.sh spawn <agent> <task-id> [--base <ref>] — isolated checkout + branch for an agent
 # worktree.sh review [task-id] — read-only morning packet (never deletes)
 # worktree.sh done  <task-id> [--merge|--jar|--reject <reason>] — human cleanup
 # worktree.sh list — worktree table
@@ -11,7 +11,7 @@
 set -eu
 
 usage() {
-  echo "usage: worktree.sh spawn <agent> <task-id> | review [task-id] | list" >&2
+  echo "usage: worktree.sh spawn <agent> <task-id> [--base <ref>] | review [task-id] | list" >&2
   echo "       worktree.sh done <task-id> [--merge] [--jar] [--reject <reason>]" >&2
   exit 2
 }
@@ -358,8 +358,13 @@ record_verdict() { # $1=verdict $2=reason $3=commit
 
 case "$CMD" in
 spawn)
-  [ $# -eq 2 ] || usage
-  AGENT=$1; ID=$2
+  [ $# -eq 2 ] || [ $# -eq 4 ] || usage
+  AGENT=$1; ID=$2; BASE=""
+  if [ $# -eq 4 ]; then
+    [ "$3" = "--base" ] || usage
+    BASE=$4
+    git -C "$REPO" rev-parse --verify --quiet "$BASE^{commit}" >/dev/null || { echo "error: --base '$BASE' is not a commit" >&2; exit 1; }
+  fi
   BRANCH="agent/$AGENT/$ID"
   WT="$REPO/../$NAME-wt-$AGENT-$ID"
   WORK="$WS/work/$ID.md"
@@ -379,7 +384,8 @@ spawn)
     fm_set "$WORK" updated "$TODAY"
   fi
 
-  git -C "$REPO" worktree add "$WT" -b "$BRANCH"
+  # --base: start from another branch (the night integration branch) instead of HEAD
+  git -C "$REPO" worktree add "$WT" -b "$BRANCH" ${BASE:+"$BASE"}
   WTABS=$(cd "$WT" && pwd -P)
   fm_set "$WORK" branch "$BRANCH"
   fm_set "$WORK" worktree "$WTABS"

@@ -3,6 +3,67 @@
 All notable changes to apsolut-agents. Pin a release with `install.sh --tag vX.Y.Z`;
 upgrade an installed workspace with `sh .apsolut-agents/scripts/upgrade.sh`.
 
+## v0.9.0 — 2026-11-09
+
+The goal loop. A night can now run until a checkable "final product" predicate
+passes, not just until the card list is empty. Patterns adapted from the Cursor
+plugin set (pstack, orchestrate, advisor, thermos, dyl-stack, agent-compatibility,
+pr-review-canvas; MIT). Credits and mapping: `template/prompts/README.md`.
+
+### Added
+- **`GOAL.md`** (instance): `goal:`, `done_cmd:` (the finish predicate),
+  `verify_level:`, `max_plan_rounds:`, `max_cards_per_round:`, `planner_agent:`, and
+  prose for what the final product means, what is out of scope, and what must not
+  change. While `done_cmd:` is empty, the runner behaves as before.
+- **Goal loop in `runner.sh`.** Verified cards merge onto one night branch
+  (`agent/night/NIGHT-<date>`, a card-shaped worktree) with `--no-ff`, and green runs
+  again after each merge. Later cards spawn from that branch, so `after:` clears on
+  integration. When the board runs dry, `done_cmd` runs on the night branch. If it is
+  red, a planner writes the next cards, the runner validates them, and the loop
+  continues. Stops: goal met (0); STUCK, plateau (two rounds land nothing) or rounds
+  used up (6); Andon or tamper (5). The default branch never moves. In the morning,
+  `worktree.sh done NIGHT-<date> --merge` lands the night as one proven merge.
+- **Role prompts** in `prompts/` (worker, verifier, planner, advisor, review), rendered
+  through files, so a card or diff of any size or byte content survives.
+- **Structured handoffs** (`runs/handoffs/<id>-attempt<n>.md`: Status, Root cause,
+  What I did, Verification, Notes, Suggested follow-ups). A missing handoff gets a
+  synthetic one naming the failure mode. `Status: blocked` blocks at once, with no
+  retry burned.
+- **Independent verifier** (`verifier_agent:`): read-only (HEAD and `git status` are
+  checked, and edits are reset). It returns a verdict on the ladder `live-verified |
+  test-verified | typecheck-only | verifier-blocked | verifier-failed`. Below the
+  card's `verify:` level, the attempt is red, and the verdict goes into the retry
+  context. `verifier-blocked` waits in review as unverified and never integrates.
+- **Advisor** (`advisor_agent:`): before a retry, a second model diagnoses the failed
+  attempt, and its diagnosis goes into the retry prompt. `CARD IS WRONG:` blocks
+  instead of retrying.
+- **Morning reviewer** (`review_agent:`): audits the trail at night end and appends
+  `## Attention` (🟢/🟡/🔴) and `## Waiting on the human` to the night report.
+- **Decision trail** `runs/trail-<date>.tsv` (one row per decision) and
+  `scripts/trail.sh`.
+- **`scripts/andon.sh raise|clear|status`**: any agent stops every lane, and only the
+  human clears it. `status.sh` and `doctor.sh` flag it.
+- **Tamper canary**: `HEARTBEAT.md`, `GOAL.md`, `prompts/` and `scripts/` are
+  checksummed around every agent call. A change raises the Andon and ends the night.
+- `worktree.sh spawn <agent> <id> --base <ref>`.
+- `doctor.sh [goal loop]` checks the Andon, prompts, and role `cmd_` lines. It warns
+  on no verifier or a same-lane verifier, validates `GOAL.md`, and proves `done_cmd`
+  runs in a pristine worktree.
+- `tests/goal-loop.sh` + `tests/fake-agent.sh` run seven end-to-end scenarios
+  (goal met via a planner round, verifier reject + advisor retry, Andon, tamper,
+  STUCK, agent dead end, plain mode unchanged) against a scripted fake CLI. Wired
+  into CI as `goal-loop`.
+
+### Changed
+- The night report now has Goal, a card table with verdict and integration columns,
+  Waiting on you, the trail pointer and Attention.
+- The lane preflight probes every role CLI, not only the lane's own.
+- Night agents run with `APSOLUT_AGENT_DEPTH=1`.
+- The card template gains `verify:`, `verified:` and `integrated:`. HEARTBEAT gains
+  `verifier_agent:`, `advisor_agent:`, `review_agent:`, `verify_level:` and
+  `helper_timeout_minutes:`. Existing `HEARTBEAT.md` files are instance files, so
+  `upgrade.sh` keeps them. Add the keys by hand to switch roles on.
+
 ## v0.8.2 — 2026-10-24
 
 `done --merge` refuses a check that changes the merge it just proved.

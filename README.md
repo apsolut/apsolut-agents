@@ -99,6 +99,31 @@ Unattended variant — write cards in the evening, review branches in the mornin
 [`template/NIGHTSHIFT.md`](template/NIGHTSHIFT.md) (`runner.sh`). Same cards, same claim
 mutex, same spend ledger, so the two never collide.
 
+### Run the night until the final product (v0.9 goal loop)
+
+Write what "done" means as a command that can fail, in `GOAL.md`:
+
+```
+goal: a signed-in user can export their library as a zip
+done_cmd: pnpm --filter web e2e journeys/export.spec.ts
+```
+
+The runner then works the board through a per-card pipeline. A **worker** writes
+the test first and the root cause before any fix, and ends with a structured
+handoff. `green_cmd` runs. An **independent verifier** on another model runs the
+change and returns `live / test / typecheck / blocked / failed`. On a retry, an
+**advisor** diagnoses the failure first. Verified cards merge onto one **night
+branch**, and later cards build on it. When the board runs dry, the runner checks
+`done_cmd` there. If it is red, a **planner** writes the next cards from the gap.
+The night ends when the goal is met, the planner says a human is needed (`STUCK.md`),
+two rounds in a row land nothing (plateau), or a cap trips. Every decision is a row
+in `runs/trail-<date>.tsv`. In the morning, a **reviewer** puts an *Attention*
+section at the top of the night report, and one `worktree.sh done NIGHT-<date>
+--merge` lands the night. The default branch never moves on its own. Any agent can
+pull the **Andon** (`andon.sh raise`), and only you clear it. An agent that edits
+its own rules trips the tamper canary. Details: [`template/NIGHTSHIFT.md`](template/NIGHTSHIFT.md).
+Proven end to end in CI against a scripted fake CLI (`tests/goal-loop.sh`).
+
 **Run the v0 gate first.** `scripts/doctor.sh <agent>` preflights everything in one
 command — tools, config sanity, every card's contract and `after:` graph, green on
 the primary, rolling cost vs budget, plus a live probe of the agent's CLI. Then a
