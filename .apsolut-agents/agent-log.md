@@ -145,3 +145,12 @@ v0.6.0 shipped: 4-agent verified fixes + field-report triage merged to main, tag
 
 ### claude — 2026-11-07 — PUSHED
 v0.8.x tagged; state caught up before machine reinstall.
+
+### claude — 2026-11-09 — v0.9.0 goal loop (branch v0.9-goal-loop, not pushed)
+- Read cursor/plugins pstack, orchestrate, advisor, thermos, dyl-stack, agent-compatibility and pr-review-canvas. Kept only what a script here can enforce or a one-line prompt rule can carry. Mapping and credits: template/prompts/README.md.
+- Shipped in a6c812a: GOAL.md (done_cmd predicate), the goal loop in runner.sh (night integration branch, planner rounds, plateau/STUCK stops), role prompts (worker, verifier, planner, advisor, review), structured handoffs, the verifier verdict ladder, advisor retries, a morning Attention section, the trail TSV + trail.sh, andon.sh, the tamper canary, `spawn --base`, and the doctor [goal loop] checks.
+- Verified: tests/goal-loop.sh, 28/28 checks over 7 scenarios against a scripted fake CLI. shellcheck -S error is clean, and install parity holds. A 0.8.2→0.9.0 refresh keeps HEARTBEAT.md and runs plain mode. NOT yet run against a real model night. The first supervised `runner.sh <agent> --once` with real cmd_ lines is the v0 gate.
+- Decision for the human: the goal loop merges onto a night branch overnight, which loosens "no overnight merges" (the default branch still never moves). It only happens when GOAL.md done_cmd is set.
+
+### claude — 2026-11-09 — HOLD
+v0.9.0 is committed on branch v0.9-goal-loop and not pushed. The human reviews it, merges to main, and tags v0.9.0. Next: a supervised real-model `--once` goal night on a small repo.
