@@ -74,10 +74,15 @@ Each agent's headless invocation lives in `HEARTBEAT.md` as `cmd_<agent>:`, incl
 whatever permission posture the human chose:
 
 ```
-cmd_claude: claude -p --dangerously-skip-permissions --output-format json
-cmd_grok:   grok --always-approve --output-format json -p
-cmd_codex:  codex exec --dangerously-bypass-approvals-and-sandbox --json
+cmd_claude: claude -p --dangerously-skip-permissions --disallowedTools Agent,Task --max-budget-usd $APSOLUT_CALL_BUDGET_USD --output-format json
+cmd_grok:   grok --always-approve --no-subagents --output-format json -p
+cmd_codex:  codex exec --dangerously-bypass-approvals-and-sandbox --disable multi_agent --json -
 ```
+
+The extra flags switch off each CLI's own subagents and cap one call's spend. A
+delegate that spawns its own helpers works outside the depth cap, the round clock and
+the spend ledger. `HEARTBEAT.md` explains each flag, and `doctor.sh` warns about a
+`cmd_` line that lacks them.
 
 Do not add `--bare` to any of these. `claude --bare` ignores the signed-in claude.ai
 account: it skips OAuth and the keychain and accepts only an API key, so a delegate

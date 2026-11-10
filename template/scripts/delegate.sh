@@ -294,6 +294,12 @@ $(cat "$CARD")"
   (
     cd "$WT"
     APSOLUT_AGENT_DEPTH=$((DEPTH+1)); export APSOLUT_AGENT_DEPTH
+    # the same three values runner.sh exports to a cmd_ line (see HEARTBEAT.md)
+    APSOLUT_CALL_MINUTES=$CB
+    APSOLUT_SOFT_TIMEOUT_MIN=$(( CB > 1 ? CB - 1 : 1 ))
+    cbud=$(cfg call_budget_usd); case "$cbud" in ''|*[!0-9.]*|*.*.*) cbud=0;; esac
+    APSOLUT_CALL_BUDGET_USD=$(awk -v b="$BUDGET" -v s="$(spent)" -v c="$cbud" 'BEGIN{r=b-s; if(c>0&&c<r)r=c; if(r<0.01)r=0.01; printf "%.2f", r}')
+    export APSOLUT_CALL_MINUTES APSOLUT_SOFT_TIMEOUT_MIN APSOLUT_CALL_BUDGET_USD
     if [ "$PMODE" = stdin ]; then
       exec timeout -k 30 $(( CB * 60 )) sh -c "$CMD" < "$PFILE"
     else
@@ -353,7 +359,15 @@ $(cat "$CARD")"
   fi
 
   COST=$(grep -oE '"(total_cost_usd|costUSD|total_cost)"[: ]*[0-9.]+' "$OUT" | tail -1 | grep -o '[0-9.]*$' || true)
-  add_spend "${COST:-$FALLBACK_COST}"
+  # cost_fallback_usd_<agent> prices a CLI that never prints a cost (codex --json, agy)
+  AFB=$(cfg "cost_fallback_usd_$AGENT"); case "$AFB" in ''|*[!0-9.]*|*.*.*) AFB=$FALLBACK_COST;; esac
+  add_spend "${COST:-$AFB}"
+
+  # a CLI can exit 0 without finishing the turn (grok "stopReason":"cancelled", agy
+  # "denied_actions", any is_error:true). That round is red, not a green candidate.
+  if [ "$RC" -eq 0 ] && command tail -40 "$OUT" | grep -qE '"is_error"[[:space:]]*:[[:space:]]*true|"stopReason"[[:space:]]*:[[:space:]]*"cancelled"|"denied_actions"[[:space:]]*:[[:space:]]*\[\{|"subtype"[[:space:]]*:[[:space:]]*"error_'; then
+    RC=98; echo "delegate: the CLI exited 0 but reported it did not finish the turn" >> "$OUT"
+  fi
 
   NOWBR=$(git -C "$WT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo '?')
   [ "$NOWBR" = "$BR" ] || { RC=97; echo "delegate: branch assert failed ($NOWBR != $BR)" >> "$OUT"; }

@@ -50,9 +50,13 @@ notify_url:
 ## account (no OAuth, no keychain) and the delegate exits "Not logged in" even though
 ## an interactive terminal on the same machine is signed in. Headless -p / exec is
 ## enough. doctor.sh fails a cmd_ line that contains --bare.
-cmd_claude: claude -p --dangerously-skip-permissions --output-format json
-cmd_grok: grok --always-approve --output-format json -p
-cmd_agy: agy --dangerously-skip-permissions --output-format json -p
+## v0.11: the flags are explained in template/HEARTBEAT.md ("What the flags below are for").
+prompt_claude: stdin
+cmd_claude: claude -p --dangerously-skip-permissions --disallowedTools Agent,Task --max-budget-usd $APSOLUT_CALL_BUDGET_USD --output-format json
+cmd_grok: grok --always-approve --no-subagents --output-format json -p
+cmd_agy: agy --dangerously-skip-permissions --output-format json --print-timeout ${APSOLUT_SOFT_TIMEOUT_MIN}m -p
+prompt_codex: stdin
+cmd_codex: codex exec --dangerously-bypass-approvals-and-sandbox --disable multi_agent --json -
 
 ## Notes
 - Runner and delegates inherit your user environment: provider API keys ARE available to

@@ -286,3 +286,43 @@ Raised by the blind review (Claude, Codex, Grok, agy), left out of v0.10 on purp
   cross-model retry) and the plateau rule. Grok would cut the morning reviewer and
   `spike: true`. agy would remove plain board mode and always integrate. Each came
   from one reviewer only, so none changed.
+
+## From the v0.11 three-model consult (2026-11-10) — raised, not shipped
+
+Claude, Grok and agy judged six proposals against the code
+(`.apsolut-agents/runs/2026-11-10-lane-caps-consult.md`). Four shipped in v0.11.
+These did not.
+
+- **Native sandboxes before Docker lanes (2 for, 1 against).** `codex exec -s
+  workspace-write`, `grok --sandbox`, `agy --sandbox`. agy's objection is a fact
+  about git: a worktree's `.git` is a file pointing at `<repo>/.git/worktrees/<name>`,
+  and objects live in `<repo>/.git/objects`, so a sandbox limited to the worktree
+  blocks the worker's own commit. The reviewer also reads the report, the trail and
+  the repo outside its cwd. First step, if any: the read-only roles (verifier,
+  advisor), with the git directory added as a second allowed path. Needs one trial
+  per CLI on Windows. claude has no `--sandbox` flag.
+- **Schema-enforced final output (0 for, 3 against). Do not re-raise without new
+  facts.** The handoff is a file, and a file survives a timeout kill; `--json-schema`
+  output exists only when the CLI finishes. One `cmd_` line serves every role and
+  the preflight probe, which expects the word `ok`. The envelope differs per vendor
+  and the scripts have no JSON parser.
+- **A vendor-native goal loop (0 for, 3 against).** Claude `/goal` and workflows,
+  Codex goals, Grok leader/worker and agy remote agents all keep author and judge
+  inside one vendor. The runner's point is that the judge is a script and the
+  verifier is another model family.
+- **claude loads the signed-in account's MCP servers and claude.ai connectors in
+  headless runs** (checked: 25+ servers in a `claude -p` init event, none with
+  `--strict-mcp-config`). With permissions bypassed a worker can call them, and
+  worktree isolation does not contain that. Raised by one reviewer, so it is a
+  `doctor.sh` warning and a documented flag, not a default: the flag also drops a
+  project `.mcp.json`.
+- **agy has no flag to switch off its subagents or daemon tasks**, and it writes
+  plans and scratch files under `~/.gemini/antigravity-cli/brain/<conversation>/`,
+  outside the worktree. A handoff written there is never collected.
+- **Does grok's `total_cost_usd` include its subagents' spend?** Unknown. v0.11
+  switches them off, which avoids the question.
+- **claude's result `subtype`** has more values than the runner reads
+  (`error_during_execution`, `error_max_structured_output_retries`). They arrive
+  with `is_error:true`, so they are red already; only the label is generic.
+- **codex and agy print no cost.** v0.11 lets each have its own fallback and
+  per-minute rate. Pricing from the token counts they do print would be exact.

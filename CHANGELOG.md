@@ -3,6 +3,57 @@
 All notable changes to apsolut-agents. Pin a release with `install.sh --tag vX.Y.Z`;
 upgrade an installed workspace with `sh .apsolut-agents/scripts/upgrade.sh`.
 
+## v0.11.0 — 2026-11-10
+
+Lane caps for CLIs that grew their own agents. claude, codex, grok and agy now ship
+native subagents, goal loops and spend or time flags. Claude, Grok and agy each judged
+six proposals against the code; four shipped, with their corrections, and every CLI
+behaviour below was checked with a real call first. Record:
+`.apsolut-agents/runs/2026-11-10-lane-caps-consult.md`.
+
+### Fixed
+- **Exit 0 was read as "finished".** A CLI can exit 0 without completing its turn:
+  grok with a tool it could not get approved (`"stopReason":"cancelled"`), agy with
+  `"denied_actions"`, any CLI with `is_error:true`. The runner sent that to
+  `green_cmd`, and in plain board mode with no verifier a card that did nothing went
+  to `review`. It is now a red attempt. The preflight probe, `doctor.sh` and
+  `delegate.sh` read the same signals.
+- **A CLI's own timeout was a generic failure.** agy's `"finished_reason":
+  "print_timeout"` (exit 3) now reads as a timeout: "the card is probably too big".
+
+### Added
+- **A per-call budget.** `call_budget_usd`, never more than what is left of the
+  night, is exported to every `cmd_` line as `$APSOLUT_CALL_BUDGET_USD`, with
+  `$APSOLUT_CALL_MINUTES` and `$APSOLUT_SOFT_TIMEOUT_MIN`. `claude --max-budget-usd`
+  takes the first, `agy --print-timeout` the last. `night_budget_usd` was only
+  checked between cards. A worker that hits the cap is blocked, not retried: a retry
+  at the same size pays the cap twice. claude checks its cap between turns, so one
+  call can still pass it by a turn.
+- **Lanes do not fan out by themselves.** New default `cmd_` lines switch off native
+  subagents: `claude --disallowedTools Agent,Task`, `grok --no-subagents`, `codex
+  --disable multi_agent`. agy has no flag for it.
+- **A Codex lane.** `cmd_codex: codex exec … --json -` with `prompt_codex: stdin`.
+- **Per-agent cost rates.** `cost_fallback_usd_<agent>` and
+  `cost_per_minute_usd_<agent>`, for the CLIs that print no cost (codex, agy).
+- **`doctor.sh` reads the `cmd_` lines.** `HEARTBEAT.md` is yours and no upgrade
+  rewrites it, so doctor warns about a line that lacks the flags above and about a
+  headless claude that can reach the signed-in account's MCP servers and connectors
+  (`--strict-mcp-config`). It fails a line whose last flag takes a list (`claude
+  --disallowedTools X "<prompt>"` would swallow the prompt) and one that uses an
+  unknown `$APSOLUT_` variable.
+
+### Upgrading
+`upgrade.sh` does not touch your `HEARTBEAT.md`. Run `doctor.sh`, then copy the
+`cmd_` lines you use from `template/HEARTBEAT.md`. The claude line needs
+`prompt_claude: stdin` beside it.
+
+### Not shipped
+Native sandboxes (2 for, 1 against: a sandbox limited to the worktree blocks the
+worker's commit) and schema-enforced output (0 for, 3 against). Reasons in `FUTURE.md`.
+
+Tests: `tests/goal-loop.sh` 48/48 (three new scenarios). All four `cmd_` lines
+answer a live `doctor.sh` probe. Not yet run against a real model night.
+
 ## v0.10.0 — 2026-11-10
 
 Hardening from a blind four-model review. Claude, Codex, Grok and agy each read v0.9

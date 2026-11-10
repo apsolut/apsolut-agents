@@ -81,6 +81,7 @@ SETUP=$(cfg setup_cmd)
 PER_MIN=$(num_or "$(cfg cost_per_minute_usd)" 0.15)
 MAX_BACKOFF=$(num_or "$(cfg max_backoffs_per_card)" 3)
 ARG_MAX_B=$(num_or "$(cfg prompt_arg_max_bytes)" 6000)
+CALL_BUDGET=$(num_or "$(cfg call_budget_usd)" 0)
 # added lines matching this ERE turn an attempt red (symptom patches). Empty = off.
 if grep -q '^forbid_added:' "$HB"; then FORBID=$(cfg forbid_added)
 else FORBID='\.skip\(|\.only\(|(^|[^[:alnum:]_])x(it|describe)\(|@ts-ignore|@ts-nocheck|eslint-disable'; fi
@@ -159,10 +160,52 @@ add_spend() { # lanes share the ledger: read-modify-write under a mutex
 # $1 = CLI output file, $2 = minutes the call ran → its reported cost; with none (a
 # timeout, a CLI that prints no cost) the larger of cost_fallback_usd and
 # minutes × cost_per_minute_usd, so a 45-minute timeout is not booked as $2.
+# $3 = the agent that ran: cost_fallback_usd_<agent> and cost_per_minute_usd_<agent>
+# override the two rates for a CLI that never prints a cost (codex --json, agy).
 charge() {
   c=$(grep -oE '"(total_cost_usd|costUSD|total_cost)"[: ]*[0-9.]+' "$1" 2>/dev/null | tail -1 | grep -o '[0-9.]*$' || true)
-  [ -n "$c" ] || c=$(awk -v f="$FALLBACK_COST" -v m="$(num_or "${2:-0}" 0)" -v r="$PER_MIN" 'BEGIN{x=m*r; printf "%.2f", (x>f?x:f)}')
+  if [ -z "$c" ]; then
+    cf=$FALLBACK_COST; cr=$PER_MIN
+    if [ -n "${3:-}" ]; then
+      cf=$(num_or "$(cfg "cost_fallback_usd_$3")" "$cf"); cr=$(num_or "$(cfg "cost_per_minute_usd_$3")" "$cr")
+    fi
+    c=$(awk -v f="$cf" -v m="$(num_or "${2:-0}" 0)" -v r="$cr" 'BEGIN{x=m*r; printf "%.2f", (x>f?x:f)}')
+  fi
   add_spend "$c"
+}
+# What one CLI call may spend: call_budget_usd, and never more than what is left of
+# the night. night_budget_usd is only checked between cards, so without a per-call
+# cap one card can overshoot it. A cmd_ line passes it on to a CLI that has a spend
+# flag (claude --max-budget-usd $APSOLUT_CALL_BUDGET_USD).
+call_budget() {
+  awk -v b="$BUDGET" -v s="$(spent)" -v c="$CALL_BUDGET" 'BEGIN{r=b-s; if(c>0&&c<r)r=c; if(r<0.01)r=0.01; printf "%.2f", r}'
+}
+# Exported to every cmd_ line (it runs through sh -c, so it can use them):
+#   APSOLUT_CALL_MINUTES      the hard cap `timeout` enforces on this call
+#   APSOLUT_SOFT_TIMEOUT_MIN  one minute less, for a CLI that can stop itself and
+#                             still print its JSON (agy --print-timeout)
+#   APSOLUT_CALL_BUDGET_USD   call_budget() above
+call_env() { # $1 minutes
+  APSOLUT_CALL_MINUTES=$1
+  APSOLUT_SOFT_TIMEOUT_MIN=$(( $1 > 1 ? $1 - 1 : 1 ))
+  APSOLUT_CALL_BUDGET_USD=$(call_budget)
+  export APSOLUT_CALL_MINUTES APSOLUT_SOFT_TIMEOUT_MIN APSOLUT_CALL_BUDGET_USD
+}
+# Why a CLI stopped by its own hand, read from its JSON: budget | turns | timeout |
+# cancelled | error, or nothing. A CLI can exit 0 without finishing the turn: grok
+# with a tool it could not get approved ("stopReason":"cancelled"), agy with
+# "denied_actions". Exit codes alone read those as a normal run. Only the last lines
+# count, and the keys are matched unescaped, so a copy quoted inside a model's
+# answer (escaped there) never matches.
+cli_stop() { # $1 output file
+  t=$(command tail -40 "$1" 2>/dev/null || true)
+  case "$t" in
+    *'"subtype":"error_max_budget_usd"'*|*'"subtype": "error_max_budget_usd"'*) echo budget ;;
+    *'"subtype":"error_max_turns"'*|*'"subtype": "error_max_turns"'*) echo turns ;;
+    *'"finished_reason":"print_timeout"'*|*'"finished_reason": "print_timeout"'*) echo timeout ;;
+    *'"stopReason":"cancelled"'*|*'"stopReason": "cancelled"'*|*'"denied_actions":[{'*|*'"denied_actions": [{'*) echo cancelled ;;
+    *) if printf '%s' "$t" | grep -q '"is_error"[[:space:]]*:[[:space:]]*true'; then echo error; fi ;;
+  esac
 }
 T0=0; t_start() { T0=$(date +%s); }
 t_min() { echo $(( ( $(date +%s) - T0 + 59 ) / 60 )); }
@@ -224,10 +267,10 @@ run_cli() { # $1 agent, $2 cwd, $3 minutes, $4 prompt file, $5 output file → C
   t_start
   set +e
   if [ "$mode" = stdin ]; then
-    ( cd "$2" && APSOLUT_AGENT_DEPTH=1 && export APSOLUT_AGENT_DEPTH && \
+    ( cd "$2" && APSOLUT_AGENT_DEPTH=1 && export APSOLUT_AGENT_DEPTH && call_env "$3" && \
       timeout -k 30 $(( $3 * 60 )) sh -c "$c" ) < "$4" > "$5" 2>&1
   else
-    ( cd "$2" && APSOLUT_AGENT_DEPTH=1 && export APSOLUT_AGENT_DEPTH && \
+    ( cd "$2" && APSOLUT_AGENT_DEPTH=1 && export APSOLUT_AGENT_DEPTH && call_env "$3" && \
       timeout -k 30 $(( $3 * 60 )) sh -c "$c \"\$1\"" runner "$arg" ) < /dev/null > "$5" 2>&1
   fi
   rc=$?
@@ -367,14 +410,15 @@ for r in $ROLES; do
   PROBE_DIR=$(mktemp -d); PROBE_OUT=""; rc=0
   rcmd=$(cfg "cmd_$r")
   if [ "$(cfg "prompt_$r")" = stdin ]; then
-    PROBE_OUT=$( cd "$PROBE_DIR" && printf 'Reply with the single word: ok\n' | timeout -k 10 180 sh -c "$rcmd" 2>&1 ) || rc=$?
+    PROBE_OUT=$( cd "$PROBE_DIR" && call_env 3 && printf 'Reply with the single word: ok\n' | timeout -k 10 180 sh -c "$rcmd" 2>&1 ) || rc=$?
   else
-    PROBE_OUT=$( cd "$PROBE_DIR" && timeout -k 10 180 sh -c "$rcmd \"\$1\"" runner "Reply with the single word: ok" < /dev/null 2>&1 ) || rc=$?
+    PROBE_OUT=$( cd "$PROBE_DIR" && call_env 3 && timeout -k 10 180 sh -c "$rcmd \"\$1\"" runner "Reply with the single word: ok" < /dev/null 2>&1 ) || rc=$?
   fi
   rm -rf "$PROBE_DIR"
   why=""
   [ "$rc" -ne 0 ] && why="exited non-zero"
   [ -z "$why" ] && printf '%s' "$PROBE_OUT" | grep -q '"is_error"[[:space:]]*:[[:space:]]*true' && why="returned is_error:true"
+  [ -z "$why" ] && printf '%s' "$PROBE_OUT" | grep -qE '"stopReason"[[:space:]]*:[[:space:]]*"cancelled"|"denied_actions"[[:space:]]*:[[:space:]]*\[\{' && why="ended the turn early (cancelled, or a tool was denied)"
   [ -z "$why" ] && { printf '%s' "$PROBE_OUT" | grep -qiw 'ok' || why="returned no 'ok'"; }
   if [ -n "$why" ]; then
     echo "error: preflight probe for '$r' $why — refusing to start the lane" >&2
@@ -576,7 +620,7 @@ NONE of these reached the night branch. Attack the premise the last round shared
   PF="$STAGE/.prompt.md"; p_render planner "$PF"
   guard_begin; tick "plan round $R ($PLANNER)"
   prc=0; run_cli "$PLANNER" "$PSNAP" "$HELPER_MIN" "$PF" "$STAGE/.out" || prc=$?
-  charge "$STAGE/.out" "$(t_min)"
+  charge "$STAGE/.out" "$(t_min)" "$PLANNER"
   guard_end "planner $PLANNER" || finish "andon: tamper by the planner" 5
   for f in "$PSTAGE"/*.md; do [ -f "$f" ] && cp "$f" "$STAGE/"; done
   [ -n "$(git -C "$PSNAP" status --porcelain -uno 2>/dev/null)" ] && \
@@ -695,7 +739,7 @@ finish() { # $1 reason, $2 exit code
     st0=$(tree_state "$RD"); at=$(git -C "$RD" rev-parse HEAD 2>/dev/null || true)
     guard_begin
     run_cli "$REVIEWER" "$RD" "$HELPER_MIN" "$WS/runs/.review-$DATE.prompt" "$WS/runs/.review-$DATE.out" || true
-    charge "$WS/runs/.review-$DATE.out" "$(t_min)"
+    charge "$WS/runs/.review-$DATE.out" "$(t_min)" "$REVIEWER"
     guard_end "reviewer $REVIEWER" || true
     collect "$APW" "$AP"
     [ -n "$at" ] && [ "$(tree_state "$RD")" != "$st0" ] && restore_tree "$RD" "$at" "$WS/runs/.review-$DATE.stray.diff"
@@ -918,7 +962,7 @@ while :; do
     p_render advisor "$WS/runs/$ID-advice$N.prompt"
     st0=$(tree_state "$WT"); guard_begin
     run_cli "$ADVISOR" "$WT" "$HELPER_MIN" "$WS/runs/$ID-advice$N.prompt" "$WS/runs/$ID-advice$N.out" || true
-    charge "$WS/runs/$ID-advice$N.out" "$(t_min)"
+    charge "$WS/runs/$ID-advice$N.out" "$(t_min)" "$ADVISOR"
     guard_end "advisor $ADVISOR" || finish "andon: tamper by the advisor" 5
     collect "$APW" "$AP"
     [ "$(tree_state "$WT")" != "$st0" ] && restore_tree "$WT" "$PRE" "$WS/runs/$ID-advice$N.stray.diff"
@@ -957,7 +1001,7 @@ while :; do
   guard_begin
   RC=0; run_cli "$AGENT" "$WT" "$CB" "$WS/runs/$ID-attempt$N.prompt" "$OUT" || RC=$?
   guard_end "worker $AGENT on $ID" || { RC=96; fm_set "$CARD" status blocked; finish "andon: tamper by the worker on $ID" 5; }
-  charge "$OUT" "$(t_min)"
+  charge "$OUT" "$(t_min)" "$AGENT"
   collect "$HFW" "$HF"
 
   GD=$(git -C "$WT" rev-parse --git-dir 2>/dev/null || true)
@@ -987,6 +1031,14 @@ while :; do
   fi
   echo "$N" > "$WS/runs/.attempts-$DATE-$ID"
 
+  # a CLI that stopped itself: its own timeout is a timeout whatever it exited with,
+  # and "exit 0, turn never finished" is a failure, never a green candidate
+  STOPWHY=$(cli_stop "$OUT")
+  case "$STOPWHY" in
+    timeout) case "$RC" in 124|137) ;; *) RC=124;; esac ;;
+    cancelled|error|turns) [ "$RC" -ne 0 ] || RC=98 ;;
+  esac
+
   # agent must still be on its card branch — anything else is a hard fail
   NOWBR=$(git -C "$WT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "?")
   [ "$NOWBR" = "$BR" ] || { RC=97; echo "runner: branch assert failed ($NOWBR != $BR)" >> "$OUT"; }
@@ -1012,7 +1064,12 @@ while :; do
       0) fm="finished without writing a handoff" ;;
       *) fm="CLI exited $RC" ;;
     esac
-    grep -q '"is_error"[[:space:]]*:[[:space:]]*true' "$OUT" 2>/dev/null && fm="CLI reported is_error:true"
+    case "$STOPWHY" in
+      error) fm="CLI reported is_error:true" ;;
+      cancelled) fm="the CLI ended the turn early (cancelled, or a tool it needed was denied) with no completed answer" ;;
+      turns) fm="the CLI hit its own turn limit before finishing" ;;
+      budget) fm="hit the per-call budget cap" ;;
+    esac
     { printf '## Status\n(none — synthetic handoff written by runner.sh)\n\n## Failure mode\n%s\n\n## Notes\n- output: runs/%s\n\n## Output tail\n' "$fm" "$(basename "$OUT")"
       command tail -40 "$OUT"; } > "$HF"
   fi
@@ -1020,6 +1077,13 @@ while :; do
 
   if [ "$HSTAT" = blocked ]; then
     red "the agent reported a dead end: $(md_body "$HF" Notes 1)" block
+    release; continue
+  fi
+
+  # a card that used up a whole call budget is too big for one call: a retry at the
+  # same size pays the cap a second time, so it goes to the human instead
+  if [ "$STOPWHY" = budget ]; then
+    red "hit the per-call budget cap — split the card or raise call_budget_usd" block
     release; continue
   fi
 
@@ -1072,7 +1136,7 @@ while :; do
     p_render verifier "$WS/runs/$ID-verify$N.prompt"
     st0=$(tree_state "$WT"); guard_begin
     rcv=0; run_cli "$VERIFIER" "$WT" "$HELPER_MIN" "$WS/runs/$ID-verify$N.prompt" "$WS/runs/$ID-verify$N.out" || rcv=$?
-    charge "$WS/runs/$ID-verify$N.out" "$(t_min)"
+    charge "$WS/runs/$ID-verify$N.out" "$(t_min)" "$VERIFIER"
     guard_end "verifier $VERIFIER on $ID" || finish "andon: tamper by the verifier on $ID" 5
     collect "$VPW" "$VP"
     # evidence outlives the worktree cleanup: screenshots, logs, repro scripts
@@ -1087,7 +1151,8 @@ while :; do
       VLEVEL=verifier-blocked; why="the verifier CLI exited $rcv$(throttled "$WS/runs/$ID-verify$N.out" "$rcv" && echo " (provider throttle)")"
     else
       VLEVEL=$(h_level "$VP"); why=$(md_body "$VP" Findings 1)
-      [ -n "$VLEVEL" ] || { VLEVEL=verifier-blocked; why="the verifier wrote no verdict"; }
+      [ -n "$VLEVEL" ] || { VLEVEL=verifier-blocked; vs=$(cli_stop "$WS/runs/$ID-verify$N.out")
+        why="the verifier wrote no verdict${vs:+ (its CLI stopped: $vs)}"; }
     fi
     git -C "$WT" clean -fdq -e .apsolut-agents 2>/dev/null || true
     if [ "$VLEVEL" = verifier-blocked ]; then

@@ -14,6 +14,11 @@ max_consecutive_failures_lane: 3
 # by roughly one card's cost before it trips. (Keep comments on their own line: the
 # scripts grep `key: value` and an inline comment would corrupt the value.)
 night_budget_usd: 100
+# call_budget_usd caps ONE CLI call. The scripts export the smaller of this and what is
+# left of the night as $APSOLUT_CALL_BUDGET_USD, and a cmd_ line hands it to a CLI that
+# has a spend flag (claude --max-budget-usd). A worker that hits it is blocked, not
+# retried: a retry at the same size pays the cap twice. Empty = what is left of the night.
+call_budget_usd:
 # cost_fallback_usd is charged per card when the CLI emits no cost output — exactly when
 # you are flying blind. Field-observed real cards ran $6–10; tune this up, not down.
 cost_fallback_usd: 2.00
@@ -28,6 +33,9 @@ check_timeout_minutes: 30
 # with no cost in the CLI output (a timeout, a CLI that prints none), charge the larger
 # of cost_fallback_usd and minutes x this rate
 cost_per_minute_usd: 0.15
+# Both rates can be set per agent for a CLI that never prints a cost (codex --json and
+# agy print token counts only): cost_fallback_usd_<agent>, cost_per_minute_usd_<agent>.
+#   cost_per_minute_usd_codex: 0.25
 # a provider throttle (a FAILED call whose last lines say 429/quota/overloaded; never
 # our own timeout) is not an attempt, up to this many per card per night
 max_backoffs_per_card: 3
@@ -96,9 +104,35 @@ notify_url:
 ## account (no OAuth, no keychain) and the delegate exits "Not logged in" even though
 ## an interactive terminal on the same machine is signed in. Headless -p / exec is
 ## enough. doctor.sh fails a cmd_ line that contains --bare.
-cmd_claude: claude -p --dangerously-skip-permissions --output-format json
-cmd_grok: grok --always-approve --output-format json -p
-cmd_agy: agy --dangerously-skip-permissions --output-format json -p
+##
+## A cmd_ line runs through `sh -c`, with three values exported for it:
+##   $APSOLUT_CALL_BUDGET_USD    call_budget_usd, never more than what is left of the night
+##   $APSOLUT_CALL_MINUTES       the hard time cap `timeout` enforces on this call
+##   $APSOLUT_SOFT_TIMEOUT_MIN   one minute less, for a CLI that can stop itself in time
+## What the flags below are for (checked against claude 2.1.322, codex 0.167.0,
+## grok 1.0.70, agy 1.5.3; `doctor.sh <agent>` proves a line still answers):
+## - No native subagents. Every CLI can now fan out by itself, and that work is outside
+##   the depth cap, the card clock and the spend ledger. claude --disallowedTools
+##   Agent,Task · grok --no-subagents · codex --disable multi_agent. agy has no flag.
+## - claude --max-budget-usd stops one call at the per-call budget.
+## - agy --print-timeout makes agy stop itself and still print its JSON
+##   ("finished_reason":"print_timeout"), which the runner reads as a timeout. Without
+##   it a headless agy waits for its background tasks until `timeout` kills it.
+## - A list flag (claude --disallowedTools, --allowedTools, --tools, --add-dir,
+##   --mcp-config) swallows the next word. Never leave one last on an arg-mode line:
+##   it would eat the prompt. doctor.sh fails such a line.
+## - Optional, claude: add --strict-mcp-config. A headless claude loads the MCP servers
+##   and claude.ai connectors of the signed-in account (mail, chat, CRM, ...), and with
+##   permissions bypassed a worker can call them. The flag drops all of them, including
+##   a project .mcp.json, so leave it out if your cards need a project MCP server.
+## - codex prints no cost and no is_error: a failed call is its exit code, and its
+##   spend is cost_fallback_usd / cost_per_minute_usd (settable per agent, see Limits).
+prompt_claude: stdin
+cmd_claude: claude -p --dangerously-skip-permissions --disallowedTools Agent,Task --max-budget-usd $APSOLUT_CALL_BUDGET_USD --output-format json
+cmd_grok: grok --always-approve --no-subagents --output-format json -p
+cmd_agy: agy --dangerously-skip-permissions --output-format json --print-timeout ${APSOLUT_SOFT_TIMEOUT_MIN}m -p
+prompt_codex: stdin
+cmd_codex: codex exec --dangerously-bypass-approvals-and-sandbox --disable multi_agent --json -
 
 ## Notes
 - Runner and delegates inherit your user environment: provider API keys ARE available to

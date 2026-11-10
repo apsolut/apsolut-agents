@@ -133,6 +133,12 @@ timeout. `setup_cmd` bootstraps fresh worktrees. Prompts go by stdin or by a fil
 pointer, so they survive Windows' command-line limit. A card that conflicts on the
 night branch retries from the night tip instead of stranding.
 
+**v0.11: caps for CLIs that grew their own agents.** claude, codex, grok and agy now
+ship native subagents and goal loops. The default `cmd_` lines switch those off, so
+a lane stays inside the card clock and the spend ledger. One call cannot outspend
+the night (`call_budget_usd`). A CLI that exits 0 without finishing its turn is
+red. Codex is a lane. `doctor.sh` warns when your own `HEARTBEAT.md` lacks the caps.
+
 **Run the v0 gate first.** `scripts/doctor.sh <agent>` preflights everything in one
 command — tools, config sanity, every card's contract and `after:` graph, green on
 the primary, rolling cost vs budget, plus a live probe of the agent's CLI. Then a

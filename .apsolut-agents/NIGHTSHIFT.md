@@ -79,6 +79,9 @@ the Cursor plugins: every rule a script can check moved out of the prompts.
 | the judge is not the worker's | `protect:` pathspecs (HEARTBEAT + GOAL.md): a card diff touching one is red; a night diff touching one cannot meet the goal. The card is snapshotted at claim, so a worker editing its own `verify:` or Done-when changes nothing. |
 | test first | `check:` runs before (must fail) and after (must pass) |
 | no symptom patches | `forbid_added:` regex over added lines (`.skip(`, `.only(`, `@ts-ignore`, `eslint-disable`, …) → red |
+| one call cannot outspend the night (v0.11) | `$APSOLUT_CALL_BUDGET_USD` (`call_budget_usd`, never more than what is left of the night) goes to a CLI with a spend flag; a worker that hits it is blocked, not retried |
+| exit 0 is not "finished" (v0.11) | a CLI that reports `is_error`, a cancelled turn, a denied tool or its own turn limit is red whatever it exited with; its own timeout reads as a timeout |
+| lanes do not fan out by themselves (v0.11) | the `cmd_` lines switch off each CLI's native subagents; `doctor.sh` warns about a line that does not |
 | a throttle is a failed call | only a non-zero exit or `is_error`, judged on the last 40 lines; every call is charged; `max_backoffs_per_card` then it counts as an attempt |
 | nothing hangs the night | `check_timeout_minutes` caps setup, green, check and done_cmd |
 | fresh worktrees are usable | `setup_cmd` runs once per worktree, outside the attempt clock |

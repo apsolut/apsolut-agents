@@ -201,6 +201,28 @@ run --once
 check "exit 0 after one card" '[ "$RC" -eq 0 ] && grep -q "reason: once" "$W/runs/night-$(D).md"'
 check "T-01 blocked from the printed handoff, T-02 untouched" 'grep -q "^status: blocked" "$W/work/T-01.md" && grep -q "dead end" "$W/work/T-01.md" && grep -q "^status: waiting" "$W/work/T-02.md"'
 
+echo "[13] a call that hits its budget cap is blocked, not retried; the cap reaches the CLI"
+setup "" '' "call_budget_usd: 3"
+card T-01 "make: a.txt
+budget-stop: yes"
+run
+check "blocked after one attempt, naming the cap" 'grep -q "^status: blocked" "$W/work/T-01.md" && grep -q "per-call budget cap" "$W/work/T-01.md" && [ "$(cat "$W/runs/.attempts-$(D)-T-01")" = 1 ]'
+check "the cmd_ line saw the call budget and both time caps" 'grep -q "^env: budget=3.00 soft=1 cap=2$" "$W/runs/T-01-attempt1.out"'
+
+echo "[14] exit 0 without a finished turn is red, not a green candidate; per-agent cost rate"
+setup "" '' "cost_fallback_usd_fake: 0.77"
+sed -i 's/^verifier_agent: fakev$//' "$W/HEARTBEAT.md"
+card T-01 "cancelled: yes"
+run
+check "blocked after two attempts, never sent to review" 'grep -q "^status: blocked" "$W/work/T-01.md" && grep -q "ended the turn early" "$W/work/T-01.md" && [ "$(cat "$W/runs/.attempts-$(D)-T-01")" = 2 ]'
+check "both attempts charged at the agent rate" 'awk "BEGIN{exit !($(cat "$W/runs/.spend-$(D)") >= 1.54)}"'
+
+echo "[15] a CLI that stops at its own timeout reads as a timeout"
+setup "" ''
+card T-01 "print-timeout: yes"
+run
+check "failure names the timeout" 'grep -q "^status: blocked" "$W/work/T-01.md" && grep -q "timeout after" "$W/work/T-01.md"'
+
 echo
 echo "goal-loop: $PASSN ok, $FAILN failed"
 [ -z "${KEEP:-}" ] || echo "kept fixtures:$TMPS"

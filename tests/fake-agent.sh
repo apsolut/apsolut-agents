@@ -14,6 +14,9 @@
 #   cheat: yes           make the green script always pass (a protected path)
 #   skip: yes            add a skipped test (a forbidden symptom patch)
 #   stdout-handoff: yes  print the handoff instead of writing the file
+#   budget-stop: yes     stop like claude at --max-budget-usd (is_error, exit 1)
+#   cancelled: yes       stop like grok on a denied tool (stopReason cancelled, exit 0)
+#   print-timeout: yes   stop like agy at --print-timeout (finished_reason, exit 3)
 # and the goal steers the planner: "stuck-please" → STUCK.md.
 set -eu
 if [ $# -ge 1 ]; then P=$1; else P=$(cat); fi
@@ -97,6 +100,15 @@ EOF
   hf=$(printf '%s\n' "$P" | sed -n 's/.*do not commit it): //p' | head -1)
   f=$(printf '%s\n' "$P" | sed -n 's/^make: //p' | head -1)
   has "tamper: yes" && echo "tampered: yes" >> "$(cat .apsolut-agents/.primary)/HEARTBEAT.md"
+  echo "env: budget=${APSOLUT_CALL_BUDGET_USD:-unset} soft=${APSOLUT_SOFT_TIMEOUT_MIN:-unset} cap=${APSOLUT_CALL_MINUTES:-unset}"
+  # the three ways a real CLI stops itself (shapes captured from claude, grok, agy)
+  if has "budget-stop: yes"; then
+    echo '{"type":"result","subtype":"error_max_budget_usd","is_error":true,"total_cost_usd":0.50}'; exit 1
+  fi
+  if has "cancelled: yes"; then echo '{"text":"","stopReason":"cancelled","num_turns":1}'; exit 0; fi
+  if has "print-timeout: yes"; then
+    echo '{"status":"ERROR","response":"","finished_reason":"print_timeout"}'; exit 3
+  fi
   if has "blocked: yes"; then
     printf '## Status\nblocked\n\n## Notes\n- needs a credential nobody gave me\n' > "$hf"; exit 0
   fi

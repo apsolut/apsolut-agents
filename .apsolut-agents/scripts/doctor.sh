@@ -64,6 +64,39 @@ else
     fail "a cmd_ line contains --bare — that drops the signed-in account when one agent calls another"
     printf '%s\n' "$bare_hit" | sed 's/^/        /'
   fi
+  # A flag that takes a list (claude --disallowedTools/--allowedTools/--tools/
+  # --add-dir/--mcp-config) swallows whatever follows it. In arg mode the prompt is
+  # appended last, so such a flag at the end of the line eats the prompt.
+  for a in $CMDS; do
+    [ "$(cfg "prompt_$a")" = stdin ] && continue
+    lastflag=$(cfg "cmd_$a" | tr ' ' '\n' | grep '^--' | command tail -1)
+    lastword=$(cfg "cmd_$a" | awk '{print $NF}')
+    case "$lastflag" in --disallowedTools|--disallowed-tools|--allowedTools|--allowed-tools|--tools|--add-dir|--mcp-config)
+      case "$lastword" in --*) ;; *)
+        fail "cmd_$a ends with $lastflag <list> — it would swallow the prompt; move it before another flag or set prompt_$a: stdin";;
+      esac ;;
+    esac
+  done
+  # HEARTBEAT.md is yours and no upgrade rewrites it, so an older cmd_ line keeps
+  # running without the caps newer CLIs need. Judged by the binary, not the lane name.
+  for a in $CMDS; do
+    cl=$(cfg "cmd_$a")
+    case "$(printf '%s' "$cl" | awk '{print $1}')" in
+      claude)
+        case "$cl" in *--disallowedTools*|*--disallowed-tools*) ;; *) warn "cmd_$a: no --disallowedTools Agent,Task — claude can spawn its own subagents, outside the card clock and the spend ledger";; esac
+        case "$cl" in *--max-budget-usd*) ;; *) warn "cmd_$a: no --max-budget-usd \$APSOLUT_CALL_BUDGET_USD — one card can overshoot night_budget_usd";; esac
+        case "$cl" in *--strict-mcp-config*) ;; *) warn "cmd_$a: no --strict-mcp-config — a headless claude can call the signed-in account's MCP servers and claude.ai connectors (fine if your cards need a project MCP server)";; esac ;;
+      grok)
+        case "$cl" in *--no-subagents*) ;; *) warn "cmd_$a: no --no-subagents — grok starts background subagents the runner neither waits for nor charges";; esac ;;
+      agy)
+        case "$cl" in *--print-timeout*) ;; *) warn "cmd_$a: no --print-timeout \${APSOLUT_SOFT_TIMEOUT_MIN}m — a headless agy waits for its background tasks until the hard timeout kills it";; esac ;;
+      codex)
+        case "$cl" in *multi_agent*) ;; *) warn "cmd_$a: no --disable multi_agent — codex can spawn its own subagents";; esac ;;
+    esac
+  done
+  # a cmd_ line can use the three values the scripts export (see HEARTBEAT.md)
+  unk=$(grep '^cmd_' "$HB" | grep -o 'APSOLUT_[A-Z_]*' | sort -u | grep -vxE 'APSOLUT_(CALL_MINUTES|SOFT_TIMEOUT_MIN|CALL_BUDGET_USD|AGENT_DEPTH)' | tr '\n' ' ' || true)
+  [ -z "$unk" ] || fail "a cmd_ line uses an unknown variable: $unk"
   for k in card_timeout_minutes max_attempts_per_card max_consecutive_failures_lane \
            night_budget_usd cost_fallback_usd idle_poll_seconds stale_claim_minutes \
            delegate_max_depth delegate_max_concurrent delegate_max_rounds \
@@ -300,6 +333,9 @@ if [ $# -gt 0 ]; then
     CMD=$(cfg "cmd_$AG")
     if [ -z "$CMD" ]; then fail "$AG: no cmd_$AG: in HEARTBEAT.md"; continue; fi
     PD=$(mktemp -d)
+    # the values runner.sh and delegate.sh export to a cmd_ line
+    APSOLUT_CALL_MINUTES=3; APSOLUT_SOFT_TIMEOUT_MIN=2; APSOLUT_CALL_BUDGET_USD=1.00
+    export APSOLUT_CALL_MINUTES APSOLUT_SOFT_TIMEOUT_MIN APSOLUT_CALL_BUDGET_USD
     if [ "$(cfg "prompt_$AG")" = stdin ]; then
       PCMD() { printf 'Reply with the single word: ok\n' | timeout -k 10 180 sh -c "$CMD"; }
     else
@@ -309,6 +345,8 @@ if [ $# -gt 0 ]; then
       rm -rf "$PD"
       if printf '%s' "$OUTP" | grep -q '"is_error"[[:space:]]*:[[:space:]]*true'; then
         fail "$AG: CLI answered but is_error:true (refusal/infra?) — a lane would burn the board"
+      elif printf '%s' "$OUTP" | grep -qE '"stopReason"[[:space:]]*:[[:space:]]*"cancelled"|"denied_actions"[[:space:]]*:[[:space:]]*\[\{'; then
+        fail "$AG: CLI exited 0 but ended the turn early (cancelled, or a tool was denied) — its permission flags do not cover headless runs"
       else
         case "$OUTP" in *[Oo][Kk]*) ok "$AG: CLI answered";; *) warn "$AG: answered but no 'ok' in reply";; esac
       fi
