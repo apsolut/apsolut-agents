@@ -300,7 +300,12 @@ if [ $# -gt 0 ]; then
     CMD=$(cfg "cmd_$AG")
     if [ -z "$CMD" ]; then fail "$AG: no cmd_$AG: in HEARTBEAT.md"; continue; fi
     PD=$(mktemp -d)
-    if OUTP=$( cd "$PD" && timeout -k 10 180 sh -c "$CMD \"\$1\"" doctor "Reply with the single word: ok" 2>&1 ); then
+    if [ "$(cfg "prompt_$AG")" = stdin ]; then
+      PCMD() { printf 'Reply with the single word: ok\n' | timeout -k 10 180 sh -c "$CMD"; }
+    else
+      PCMD() { timeout -k 10 180 sh -c "$CMD \"\$1\"" doctor "Reply with the single word: ok" < /dev/null; }
+    fi
+    if OUTP=$( cd "$PD" && PCMD 2>&1 ); then
       rm -rf "$PD"
       if printf '%s' "$OUTP" | grep -q '"is_error"[[:space:]]*:[[:space:]]*true'; then
         fail "$AG: CLI answered but is_error:true (refusal/infra?) — a lane would burn the board"
