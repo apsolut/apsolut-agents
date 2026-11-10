@@ -251,7 +251,10 @@ if [ -n "$GREEN" ]; then
   if git -C "$REPO" worktree add --detach "$DWT" >/dev/null 2>&1; then
     SETUP=$(cfg setup_cmd)
     if [ -n "$SETUP" ]; then
-      if ( cd "$DWT" && sh -c "$SETUP" ) > "$TMPD/setup-wt.out" 2>&1; then ok "setup_cmd bootstraps a pristine worktree"
+      if ( cd "$DWT" && sh -c "$SETUP" ) > "$TMPD/setup-wt.out" 2>&1; then
+        if [ -n "$(git -C "$DWT" status --porcelain -uno)" ]; then
+          fail "setup_cmd changed TRACKED files in a pristine worktree (a lockfile rewrite?) — the runner refuses that as a harness failure"
+        else ok "setup_cmd bootstraps a pristine worktree"; fi
       else fail "setup_cmd FAILED in a pristine worktree — every card would stop the night as a harness failure. Tail:"
            command tail -5 "$TMPD/setup-wt.out" | sed 's/^/        /'; fi
     fi

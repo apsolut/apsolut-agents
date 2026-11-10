@@ -33,16 +33,18 @@ mkdir -p "$WS/claims" "$WS/runs"
 # The night's identity outlives a crash: a runner restarted after midnight keeps the
 # night that is still open (same branch, same spend ledger, same round count) instead
 # of opening a fresh night from the default branch. finish() closes it.
+# File format: "<date> <start epoch>". The age counts from the night's START, not the
+# last launch, and finish() removes the file once no other lane is still running.
 NIGHTF="$WS/runs/.night-current"
-DATE=$(date +%Y-%m-%d)
+DATE=$(date +%Y-%m-%d); NOW=$(date +%s); REUSED=no
 if [ -f "$NIGHTF" ]; then
-  nd=$(head -1 "$NIGHTF" | tr -d '\r')
-  nft=$(date -r "$NIGHTF" +%s 2>/dev/null || echo 0)
+  nd=$(awk 'NR==1{print $1}' "$NIGHTF" | tr -d '\r'); ne=$(awk 'NR==1{print $2}' "$NIGHTF" | tr -d '\r')
+  case "$ne" in ''|*[!0-9]*) ne=0;; esac
   case "$nd" in [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9])
-    [ $(( $(date +%s) - nft )) -lt 64800 ] && DATE=$nd ;;
+    [ $(( NOW - ne )) -lt 64800 ] && { DATE=$nd; REUSED=yes; } ;;
   esac
 fi
-echo "$DATE" > "$NIGHTF"
+[ "$REUSED" = yes ] || echo "$DATE $NOW" > "$NIGHTF"
 REPORT="$WS/runs/night-$DATE.md"; SPENDF="$WS/runs/.spend-$DATE"
 HO="$WS/runs/handoffs"; EVD="$WS/runs/evidence"
 mkdir -p "$HO" "$EVD"
@@ -103,7 +105,7 @@ PLANNER=$(gcfg planner_agent); PLANNER=${PLANNER:-$AGENT}
 # protect: git pathspecs no card may change (the judge: the predicate's script, the
 # acceptance tests, the green script, CI config). HEARTBEAT applies to every night,
 # GOAL.md adds goal-specific ones. A card diff touching one is red.
-PROTECT="$(cfg protect) $(gcfg protect)"; PROTECT=$(printf '%s' "$PROTECT" | tr ',' ' ' | xargs 2>/dev/null || true)
+PROTECT=$(printf '%s %s' "$(cfg protect)" "$(gcfg protect)" | tr ',\t' '  ' | tr -s ' ' | sed 's/^ //; s/ $//')
 NIGHT_ID="NIGHT-$DATE"; NIGHT_CARD="$WS/work/$NIGHT_ID.md"; NIGHT_BR=""; NIGHT_WT=""; NIGHT_BASE=""
 # keep role output folders out of git in every worktree (info/exclude is shared)
 EXCL="$(git -C "$REPO" rev-parse --git-common-dir)/info/exclude"
@@ -169,6 +171,7 @@ t_min() { echo $(( ( $(date +%s) - T0 + 59 ) / 60 )); }
 # count: a card about rate limiting, or a test log that prints "Internal Server
 # Error", must never read as provider trouble (that reset good work in a loop).
 throttled() { # $1 output file, $2 rc
+  case "${2:-0}" in 124|137) return 1;; esac   # our own timeout kill, not the provider
   [ "${2:-0}" -ne 0 ] || grep -q '"is_error"[[:space:]]*:[[:space:]]*true' "$1" 2>/dev/null || return 1
   command tail -40 "$1" 2>/dev/null | grep -qiE 'rate.?limit|quota exceeded|overloaded|too many requests|service.{0,15}unavailable|internal server error|bad gateway|gateway time.?out|(http|status( code)?|api.?error|error.?code)[^0-9A-Za-z]{0,4}(429|50[0-4]|529)([^0-9]|$)'
 }
@@ -211,7 +214,12 @@ run_cli() { # $1 agent, $2 cwd, $3 minutes, $4 prompt file, $5 output file → C
   arg=""
   if [ "$mode" != stdin ]; then
     if [ "$(wc -c < "$4")" -le "$ARG_MAX_B" ]; then arg=$(cat "$4")
-    else arg="Your complete instructions are in the file $4 — read the whole file now and follow it exactly. It is long on purpose; do not skip any part."; fi
+    else
+      # a RELATIVE path inside the cwd: a native Windows CLI cannot open an MSYS
+      # /c/... path written into a sentence, and a sandboxed one may not read outside
+      mkdir -p "$2/$OUTD"; cp "$4" "$2/$OUTD/prompt.md"
+      arg="Your complete instructions are in the file $OUTD/prompt.md (relative to your current directory) — read the whole file now and follow it exactly. It is long on purpose; do not skip any part."
+    fi
   fi
   t_start
   set +e
@@ -277,13 +285,23 @@ md_section() { # $1 file, $2 heading, $3 max lines → section body
 }
 md_first() { md_section "$1" "$2" 1; }
 md_body() { md_section "$1" "$2" "$3"; }
-h_status() { md_section "$1" Status 3 | grep -oiE 'success|partial|blocked' | head -1 | tr 'A-Z' 'a-z' || true; }
-h_level() { md_section "$1" Verification 3 | grep -oiE 'live-verified|test-verified|typecheck-only|verifier-blocked|verifier-failed|not-verified' | head -1 | tr 'A-Z' 'a-z' || true; }
+# the token must be the FIRST word of a line ("blocked — needs a key" counts,
+# "not blocked" does not), after list markers, emphasis and backticks are stripped
+first_token() { # $1 = ERE of allowed tokens; stdin = section lines
+  awk -v re="^($1)\$" '{ l = tolower($0); gsub(/[`*_]/, "", l); sub(/^[ \t>-]*/, "", l)
+    split(l, w, /[^a-z-]+/); if (w[1] ~ re) { print w[1]; exit } }'
+}
+h_status() { md_section "$1" Status 3 | first_token 'success|partial|blocked' || true; }
+h_level() { md_section "$1" Verification 3 | first_token 'live-verified|test-verified|typecheck-only|verifier-blocked|verifier-failed|not-verified' || true; }
 # protected paths a diff touched (empty = none); $1 dir, $2 from, $3 to
 protected_hits() {
   [ -n "$PROTECT" ] || return 0
+  # set -f: `protect: tests/*.sh` must reach git as a pathspec, not be expanded by
+  # the shell against whatever files the runner's cwd happens to hold
+  set -f
   # shellcheck disable=SC2086
   git -C "$1" diff --name-only "$2" "$3" -- $PROTECT 2>/dev/null | head -5 | tr '\n' ' '
+  set +f
 }
 forbidden_hits() { # symptom patches on added lines; $1 dir, $2 from, $3 to
   [ -n "$FORBID" ] || return 0
@@ -348,12 +366,16 @@ unlock() { rm -rf "${WS:?}/claims/$1"; }
 for r in $ROLES; do
   PROBE_DIR=$(mktemp -d); PROBE_OUT=""; rc=0
   rcmd=$(cfg "cmd_$r")
-  PROBE_OUT=$( cd "$PROBE_DIR" && timeout -k 10 180 sh -c "$rcmd \"\$1\"" runner "Reply with the single word: ok" 2>&1 ) || rc=$?
+  if [ "$(cfg "prompt_$r")" = stdin ]; then
+    PROBE_OUT=$( cd "$PROBE_DIR" && printf 'Reply with the single word: ok\n' | timeout -k 10 180 sh -c "$rcmd" 2>&1 ) || rc=$?
+  else
+    PROBE_OUT=$( cd "$PROBE_DIR" && timeout -k 10 180 sh -c "$rcmd \"\$1\"" runner "Reply with the single word: ok" < /dev/null 2>&1 ) || rc=$?
+  fi
   rm -rf "$PROBE_DIR"
   why=""
   [ "$rc" -ne 0 ] && why="exited non-zero"
   [ -z "$why" ] && printf '%s' "$PROBE_OUT" | grep -q '"is_error"[[:space:]]*:[[:space:]]*true' && why="returned is_error:true"
-  [ -z "$why" ] && case "$PROBE_OUT" in *[Oo][Kk]*) ;; *) why="returned no 'ok'";; esac
+  [ -z "$why" ] && { printf '%s' "$PROBE_OUT" | grep -qiw 'ok' || why="returned no 'ok'"; }
   if [ -n "$why" ]; then
     echo "error: preflight probe for '$r' $why — refusing to start the lane" >&2
     printf '%s\n' "$PROBE_OUT" | command tail -5 >&2
@@ -416,7 +438,7 @@ setup_wt() { # $1 worktree → 0 ok
   [ -z "$(git -C "$1" status --porcelain -uno | grep -v '\.apsolut-agents' || true)" ] || {
     echo "setup_cmd changed tracked files — refusing" >> "$sf"; return 1; }
 }
-integrate() { # $1 id, $2 branch, $3 log → 0 merged and green on the night branch
+integrate() { # $1 id, $2 branch, $3 log, $4 card check (optional) → 0 merged, green (and checked) on the night branch
   lock .integrate || return 1
   pre=$(git -C "$NIGHT_WT" rev-parse HEAD); ok=yes
   echo "=== integrate $1 into $NIGHT_BR @ $pre ===" >> "$3"
@@ -426,8 +448,16 @@ integrate() { # $1 id, $2 branch, $3 log → 0 merged and green on the night bra
     echo "green_cmd @ $(git -C "$NIGHT_WT" rev-parse HEAD) (night)" >> "$3"
     run_check "$NIGHT_WT" "$GREEN" "$3" || { ok=no; echo "GREEN RED on the night branch after the merge" >> "$3"; }
   fi
-  [ "$ok" = yes ] && [ -n "$(git -C "$NIGHT_WT" status --porcelain | grep -v '\.apsolut-agents' || true)" ] && {
-    echo "green_cmd changed the night tree — refusing" >> "$3"; ok=no; }
+  # another lane may have landed something that merges cleanly but breaks this card
+  if [ "$ok" = yes ] && [ -n "${4:-}" ]; then
+    echo "check @ merge candidate: $4" >> "$3"
+    run_check "$NIGHT_WT" "$4" "$3" || { ok=no; echo "GREEN RED on the night branch: the card's check fails after the merge" >> "$3"; }
+  fi
+  # untracked output (coverage/, .tsbuildinfo, a sqlite file) is fine; edits to
+  # tracked files mean green is not a pure check
+  [ "$ok" = yes ] && [ -n "$(git -C "$NIGHT_WT" status --porcelain -uno | grep -v '\.apsolut-agents' || true)" ] && {
+    echo "GREEN RED on the night branch: green_cmd changed tracked files" >> "$3"; ok=no; }
+  [ "$ok" = yes ] && git -C "$NIGHT_WT" clean -fdq -e .apsolut-agents 2>/dev/null || true
   if [ "$ok" = no ]; then
     git -C "$NIGHT_WT" merge --abort >/dev/null 2>&1 || true
     git -C "$NIGHT_WT" reset --hard -q "$pre" 2>/dev/null || true
@@ -675,6 +705,11 @@ finish() { # $1 reason, $2 exit code
       printf '\n## Attention\nreviewer %s produced no attention file — see runs/.review-%s.out\n' "$REVIEWER" "$DATE" >> "$REPORT"
     fi
   fi
+  others=no
+  for l in "$WS"/claims/.lane-*; do
+    [ -d "$l" ] && [ "$l" != "$LANE" ] && kill -0 "$(cat "$l/pid" 2>/dev/null || echo 0)" 2>/dev/null && others=yes
+  done
+  [ "$others" = no ] && rm -f "$NIGHTF"
   tick "night end: $1 (report: runs/$(basename "$REPORT"))"
   notify "ended: $1 — spend \$$(spent). Report ready."
   sh "$WS/scripts/status.sh" >/dev/null 2>&1 || true
@@ -701,6 +736,7 @@ red() {
   git -C "$WT" reset --hard -q "$PRE" 2>/dev/null || true
   git -C "$WT" clean -fdq -e .apsolut-agents 2>/dev/null || true
   if [ "${2:-}" = block ] || [ "$N" -ge "$MAX_ATTEMPTS" ]; then
+    rm -f "$CARDSNAP"   # unblocking means a human edits the card: judge the new one
     fm_set "$CARD" status blocked
     fm_set "$CARD" updated "$DATE"
     # the agent's Notes say what would unblock only when the agent itself stopped
@@ -781,26 +817,27 @@ while :; do
   CURRENT_ID=$ID
   echo $$ > "$WS/claims/$ID/pid"
   CARD="$WS/work/$ID.md"
-  CHK=$(fm_get "$CARD" check)
+  # The card as FIRST claimed tonight is what gets judged, on every attempt. A worker
+  # that edits its own card (a lower verify:, a softer check: or Done-when) changes
+  # nothing: verify:, check: and the text the verifier reads all come from here.
+  CARDSNAP="$WS/runs/.card-$DATE-$ID.md"
+  [ -f "$CARDSNAP" ] || cp "$CARD" "$CARDSNAP"
+  CHK=$(fm_get "$CARDSNAP" check)
 
   # test-first gate (PLAYBOOK §2): a check: command the runner runs, or a test named
   # on the card, or spike: true. (A word match, so "latest" no longer counts.)
-  if [ -z "$CHK" ] && [ "$(fm_get "$CARD" spike)" != "true" ] && ! grep -qiwE 'tests?|specs?' "$CARD"; then
+  if [ -z "$CHK" ] && [ "$(fm_get "$CARDSNAP" spike)" != "true" ] && ! grep -qiwE 'tests?|specs?' "$CARDSNAP"; then
     fm_set "$CARD" status blocked
     printf '\nAttempted: claim by runner\nFailed because: no check: command, no test named on the card, and spike is not true (PLAYBOOK §2)\nWould unblock: add check: <command that fails now and passes when done>, or a failing-test criterion in Done-when\n' >> "$CARD"
     tick "refused $ID: test-first gate (PLAYBOOK §2)"
     trail claim "refused $ID" "test-first gate: no check, no test named, not a spike" "work/$ID.md" blocked
-    release; continue
+    rm -f "$CARDSNAP"; release; continue
   fi
   fm_set "$CARD" owner "$AGENT"
   fm_set "$CARD" status writing
   fm_set "$CARD" claimed "$(date -u +%Y-%m-%dT%H:%M:%SZ) pid:$$"
   fm_set "$CARD" updated "$DATE"
   DID_ONE=yes
-  # The card as claimed is what gets judged. A worker that edits its own card (a
-  # lower verify:, a softer Done-when) changes nothing: verify:, check: and the text
-  # the verifier reads all come from this snapshot.
-  CARDSNAP="$WS/runs/.card-$DATE-$ID.md"; cp "$CARD" "$CARDSNAP"
 
   BR=$(fm_get "$CARD" branch); WT=$(fm_get "$CARD" worktree)
   if [ -z "$BR" ] || [ "$BR" = "null" ] || [ ! -d "${WT:-/nonexistent}" ]; then
@@ -858,7 +895,7 @@ while :; do
     echo "check @ $PRE (must FAIL before the change): $CHK" > "$WS/runs/$ID-check-pre.out"
     if run_check "$WT" "$CHK" "$WS/runs/$ID-check-pre.out"; then
       git -C "$WT" reset --hard -q "$PRE"; git -C "$WT" clean -fdq -e .apsolut-agents 2>/dev/null || true
-      fm_set "$CARD" status blocked; fm_set "$CARD" updated "$DATE"
+      fm_set "$CARD" status blocked; fm_set "$CARD" updated "$DATE"; rm -f "$CARDSNAP"
       printf '\nAttempted: claim by runner, night %s\nFailed because: check: already passes before any change (runs/%s-check-pre.out)\nWould unblock: a check that fails until the card is done, or close the card\n' "$DATE" "$ID" >> "$CARD"
       trail claim "refused $ID" "its check: passes before any change, so it proves nothing" "runs/$ID-check-pre.out" blocked
       release; continue
@@ -889,7 +926,7 @@ while :; do
       ADVICE=$(head -60 "$AP")
       trail advise "advisor $ADVISOR read the failure of $ID" "retry gets a second model's diagnosis" "runs/handoffs/$ID-advice$N.md" advised
       if grep -qE '^[[:space:]*_>-]*CARD IS WRONG:' "$AP"; then
-        fm_set "$CARD" status blocked; fm_set "$CARD" updated "$DATE"
+        fm_set "$CARD" status blocked; fm_set "$CARD" updated "$DATE"; rm -f "$CARDSNAP"
         printf '\nAttempted: %s attempt(s), then advisor %s\nFailed because: advisor says the card is wrong — %s\nWould unblock: a human rewrites the card (runs/handoffs/%s)\n' \
           "$(( N - 1 ))" "$ADVISOR" "$(grep -m1 'CARD IS WRONG:' "$AP" | sed 's/.*CARD IS WRONG:[[:space:]]*//')" "$ID-advice$N.md" >> "$CARD"
         trail card "blocked $ID without a retry" "the advisor says the card itself is wrong" "runs/handoffs/$ID-advice$N.md" blocked
@@ -928,7 +965,7 @@ while :; do
 
   if throttled "$OUT" "$RC"; then
     BOF="$WS/runs/.backoff-$DATE-$ID"; bo=$(( $(cat "$BOF" 2>/dev/null || echo 0) + 1 )); echo "$bo" > "$BOF"
-    if [ "$bo" -lt "$MAX_BACKOFF" ]; then
+    if [ "$bo" -le "$MAX_BACKOFF" ]; then
       tick "provider backoff on $ID ($bo/$MAX_BACKOFF, not an attempt)"
       trail card "backed off $ID ($bo/$MAX_BACKOFF)" "provider throttle, not the agent's failure" "runs/$(basename "$OUT")" backoff
       # salvage + pin BEFORE the reset: a throttle is not the agent's failure, and
@@ -943,7 +980,7 @@ while :; do
       git -C "$WT" reset --hard -q "$PRE" 2>/dev/null || true
       git -C "$WT" clean -fdq -e .apsolut-agents 2>/dev/null || true
       fm_set "$CARD" status waiting
-      release
+      release; DID_ONE=no   # --once means one card with an outcome, not one backoff
       sleep 900; continue
     fi
     echo "runner: provider throttled $bo times on this card tonight — counting it as a failed attempt" >> "$OUT"
@@ -963,7 +1000,9 @@ while :; do
   # message (JSON-escaped newlines undone), else a synthetic one naming the failure
   if [ ! -s "$HF" ] && grep -qE '#+ *Status' "$OUT" 2>/dev/null; then
     sed 's/\\n/\
-/g' "$OUT" | awk '/^#+ *Status/{buf=""; f=1} f{buf=buf $0 "\n"} END{printf "%s", buf}' | head -80 > "$HF"
+/g; s/\\"/"/g; s/\\t/	/g' "$OUT" | awk '
+      match($0, /#+ *[Ss]tatus/) { buf = substr($0, RSTART) "\n"; f = 1; next }
+      f { buf = buf $0 "\n" } END { printf "%s", buf }' | sed '$ s/"[,}].*$//' | head -80 > "$HF"
     [ -n "$(h_status "$HF")" ] || rm -f "$HF"
   fi
   if [ ! -s "$HF" ]; then
@@ -1080,14 +1119,14 @@ while :; do
   fm_set "$CARD" status review
   INTEG=""
   if [ -n "$NIGHT_BR" ] && [ "$PASS" = yes ]; then
-    if integrate "$ID" "$BR" "$OUT"; then
+    if integrate "$ID" "$BR" "$OUT" "$CHK"; then
       fm_set "$CARD" integrated "$NIGHT_BR"; INTEG=", integrated into $NIGHT_BR"
       trail integrate "merged $ID into the night branch" "green and verified ($VLEVEL)" "$NIGHT_BR @ $(git -C "$NIGHT_WT" rev-parse --short HEAD)" integrated
     else
       # merges are tasks: a card that cannot land is red, and its retry starts
       # from the current night tip with the conflict or the red output in its prompt
       trail integrate "kept $ID off the night branch" "merge conflict or green red after the merge" "runs/$(basename "$OUT")" refused
-      red "could not land on the night branch ($(grep -E '^(MERGE CONFLICT|GREEN RED)' "$OUT" | tail -1 | cut -c1-160)) — retry from the current night tip"
+      red "could not land on the night branch ($(grep -E '^(MERGE CONFLICT|GREEN RED)' "$OUT" | tail -1 | cut -c1-160 || echo 'see the output')) — retry from the current night tip"
       release; continue
     fi
   fi

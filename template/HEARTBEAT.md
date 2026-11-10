@@ -28,7 +28,8 @@ check_timeout_minutes: 30
 # with no cost in the CLI output (a timeout, a CLI that prints none), charge the larger
 # of cost_fallback_usd and minutes x this rate
 cost_per_minute_usd: 0.15
-# a provider throttle is not an attempt, up to this many per card per night
+# a provider throttle (a FAILED call whose last lines say 429/quota/overloaded; never
+# our own timeout) is not an attempt, up to this many per card per night
 max_backoffs_per_card: 3
 
 ## Roles (v0.9) — each names an agent that has a cmd_<agent> line below; empty = off

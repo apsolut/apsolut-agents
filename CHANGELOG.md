@@ -18,8 +18,9 @@ reviewers and checked against the code first.
   the work was reset, no attempt was counted, no spend was charged, and the loop
   repeated until stop time. Now only a failed call (non-zero exit or `is_error`)
   can be a throttle, judged on its last 40 lines. Every call is charged, and after
-  `max_backoffs_per_card` (3) throttles the card counts the attempt. The same fix
-  is in `delegate.sh`.
+  `max_backoffs_per_card` (3) throttles the card counts the attempt. `delegate.sh`
+  gets the same detection fix (a failed call, judged on its last lines); its
+  rounds are still not charged on a throttle.
 - **Stranded cards.** A card that conflicted with the night branch, or went red
   there after the merge, used to stay in `review` and never landed, and its
   dependents never ran. "Merges are tasks": it is now a red attempt, and every
@@ -53,6 +54,21 @@ reviewers and checked against the code first.
   the advisor's text, even when quoted. The test-first gate matched words like
   "latest". When the runner detects a red, the worker's notes are no longer shown
   as "Would unblock".
+
+- Second review round (Codex and Grok on this diff) found seven more, fixed before
+  release. The preflight probe now uses the lane's own prompt transport, so
+  `prompt_<agent>: stdin` CLIs can start. The card snapshot is kept across retries
+  (it used to be retaken on each claim, so attempt 1 could weaken attempt 2's
+  contract) and dropped when the card blocks. `protect:` globs reach git literally
+  instead of being expanded by the shell. The night file records its start time
+  portably (`date -r` differs on macOS), and the last lane out closes it. A handoff
+  printed inside a JSON envelope is recovered. The card's `check:` runs again on
+  the merge candidate. The prompt pointer names a copy inside the cwd
+  (`.apsolut-out/prompt.md`), because a native Windows CLI cannot open an MSYS
+  `/c/...` path written in a sentence. Integration accepts untracked green output.
+  "not blocked" no longer reads as `blocked` (the token must be the first word).
+  A timeout is never a throttle. `doctor.sh` fails a `setup_cmd` that edits tracked
+  files.
 
 ### Added
 - **`protect:`** (HEARTBEAT and GOAL.md): git pathspecs no card may change, meaning

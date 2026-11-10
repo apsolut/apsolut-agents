@@ -18,7 +18,8 @@
 set -eu
 if [ $# -ge 1 ]; then P=$1; else P=$(cat); fi
 case "$P" in "Your complete instructions are in the file "*)
-  f=$(printf '%s\n' "$P" | sed -n 's/^Your complete instructions are in the file \(.*\) — read the whole file.*/\1/p')
+  f=$(printf '%s\n' "$P" | sed -n 's/^Your complete instructions are in the file \([^ ]*\) .*/\1/p')
+  case "$f" in /*) echo "fake-agent: pointer must be relative to the cwd: $f" >&2; exit 3;; esac
   P=$(cat "$f");;
 esac
 after() { printf '%s\n' "$P" | sed -n "s/.*$1[[:space:]]*//p" | head -1; }
@@ -108,7 +109,10 @@ EOF
   git add -A -- ':!.apsolut-agents' && git commit -q -m "add $f"
   H=$(printf '## Status\nsuccess\n\n## Root cause\nn/a (new behaviour)\n\n## What I did\n- added %s\n\n## Verification\ntest-verified\n- sh run-tests.sh -> pass\n\n## Notes\n- fake worker made %s\n\n## Suggested follow-ups\n- (none)\n' "$f" "$f")
   if has "stdout-handoff: yes"; then
-    printf '%s\n' "$H" | sed 's/^success$/blocked/'
+    # the way a JSON-output CLI prints it: one line, escaped newlines, in an envelope
+    printf '{"type":"result","result":"%s","total_cost_usd":0.05}\n' \
+      "$(printf '%s\n' "$H" | sed 's/^success$/blocked/' | awk '{printf "%s\n", $0}')"
+    exit 0
   else
     printf '%s\n' "$H" > "$hf"
   fi
