@@ -253,3 +253,36 @@ Keeps the no-daemon soul — the container lives exactly as long as the lane doe
 - **Swarm verify for risky cards.** When cards are tagged `schema`/`api-contract`,
   run two verifiers on different models and integrate only on two passes (pstack
   autopilot-full). Cost is about 2×, so make it tag-gated, not default.
+
+## From the v0.10 four-model review (2026-11-10) — raised, not shipped
+
+Raised by the blind review (Claude, Codex, Grok, agy), left out of v0.10 on purpose.
+
+- **Process-group containment.** `timeout` kills the CLI, not the dev server or test
+  watcher it started. Under Git Bash, native children can outlive it and hold
+  ports, so the next verifier comes back `verifier-blocked`. Needs `setsid`/process
+  groups on POSIX and Job Objects on Windows. Docker lanes solve it outright.
+- **Real isolation.** Worktrees plus a sealed pushurl do not stop a
+  bypass-permission process from writing the primary checkout or shared git
+  metadata. The tamper canary detects; it does not prevent. Same answer: Docker lanes.
+- **A score ratchet.** An optional `score_cmd` that prints a number (acceptance
+  tests passing, TODOs left). `integrate()` would refuse a merge that lowers it, and a
+  flat score across rounds would define the plateau. Raised by three reviewers in
+  three shapes (Claude's score, agy's metrics_cmd, Codex's measurements); needs one
+  design.
+- **Failure-mode routing.** A timeout should go back to the planner as "split
+  <id>", not retry at the same size. A CLI or tool error should retry on a
+  `fallback_agent` from another family (orchestrate's loop-hygiene). Today every
+  red is the same retry.
+- **A project control recipe for `live-verified`.** pstack's
+  create-verification-skill: launch, readiness, drive, evidence, teardown. Without
+  it, a generic verifier falls back to reading tests.
+- **Advisor before the first "done" on risky cards**, not only after a failure
+  (advisor's stop-hook checkpoint). Tag-gated, like swarm verify.
+- **A stall detector.** Kill an attempt whose output has not grown and whose
+  worktree has not changed for `stall_minutes`, instead of letting it burn the full
+  card cap.
+- **Disagreements, not adopted.** Claude would cut the advisor (fold it into a
+  cross-model retry) and the plateau rule. Grok would cut the morning reviewer and
+  `spike: true`. agy would remove plain board mode and always integrate. Each came
+  from one reviewer only, so none changed.

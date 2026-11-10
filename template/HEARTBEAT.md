@@ -22,6 +22,14 @@ idle_poll_seconds: 300
 stale_claim_minutes: 5
 # per-call cap for the read-only roles below (verifier, advisor, planner, reviewer)
 helper_timeout_minutes: 20
+# hard cap for every check the runner runs itself: setup_cmd, green_cmd, a card's
+# check:, done_cmd. A hung e2e must not eat the night.
+check_timeout_minutes: 30
+# with no cost in the CLI output (a timeout, a CLI that prints none), charge the larger
+# of cost_fallback_usd and minutes x this rate
+cost_per_minute_usd: 0.15
+# a provider throttle is not an attempt, up to this many per card per night
+max_backoffs_per_card: 3
 
 ## Roles (v0.9) — each names an agent that has a cmd_<agent> line below; empty = off
 # verifier_agent runs every green card for real and returns a verdict
@@ -58,11 +66,27 @@ delegate_budget_usd: 25
 # command changes that merge. Ignored output is allowed. A fixer (lint --fix,
 # prettier --write) belongs in the agent worktree before --merge.
 green_cmd: echo "SET green_cmd IN HEARTBEAT.md" && false
+# setup_cmd runs ONCE in every fresh worktree (cards and the night branch), outside
+# the attempt clock: install deps, or link a seeded node_modules/.venv. It may write
+# ignored files only. Empty = none (then green_cmd has to install for itself).
+#   setup_cmd: pnpm install --frozen-lockfile --prefer-offline
+setup_cmd:
+# protect: git pathspecs no card may change, on every night (GOAL.md protect: adds
+# the goal's own). A card diff touching one is red. Put the judge here: the green
+# script, test config, CI config.   protect: run-tests.sh .github/ vitest.config.ts
+protect:
+# added lines matching this extended regex turn an attempt red (symptom patches).
+# Delete the line to use the default; leave the value empty to switch it off.
+forbid_added: \.skip\(|\.only\(|(^|[^[:alnum:]_])x(it|describe)\(|@ts-ignore|@ts-nocheck|eslint-disable
 
 ## Notification (ntfy.sh topic URL, or leave empty for log-only)
 notify_url:
 
 ## Agent commands — how each agent runs headless (prompt is appended as last arg)
+## prompt_<agent>: stdin sends the prompt on stdin instead (claude -p and `codex exec -`
+## read it there). With the default (arg), a prompt bigger than prompt_arg_max_bytes
+## (6000) is replaced by a one-line pointer to the prompt file, because Windows caps a
+## command line near 8-32 KB.   prompt_claude: stdin
 ## Used by BOTH runner.sh (night lanes) and delegate.sh (in-session delegation).
 ## This file is where the permission posture is decided: an agent cannot loosen its own,
 ## because agents never write this file. Bypass flags here are a deliberate human choice —

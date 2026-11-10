@@ -283,10 +283,22 @@ $(cat "$CARD")"
     "$DATE" "$AGENT" "$ID" "$ROUND" "$BR" "$(basename "$OUT")" >> "$LOG"
   echo "dispatching $AGENT on $ID (round $ROUND, cap ${CB}m) → ${OUT##*/}"
 
+  # same prompt delivery as runner.sh: prompt_<agent>: stdin, else argv while it
+  # fits prompt_arg_max_bytes, else a one-line pointer to the saved prompt file
+  PFILE="$WS/runs/$ID-delegate-r$ROUND.prompt"; printf '%s\n' "$PROMPT" > "$PFILE"
+  PMODE=$(cfg "prompt_$AGENT"); AMAX=$(cfg prompt_arg_max_bytes); AMAX=${AMAX:-6000}
+  case "$AMAX" in *[!0-9]*|'') AMAX=6000;; esac
+  if [ "$PMODE" = stdin ]; then PARG=""
+  elif [ "$(wc -c < "$PFILE")" -le "$AMAX" ]; then PARG=$PROMPT
+  else PARG="Your complete instructions are in the file $PFILE — read the whole file now and follow it exactly. It is long on purpose; do not skip any part."; fi
   (
     cd "$WT"
     APSOLUT_AGENT_DEPTH=$((DEPTH+1)); export APSOLUT_AGENT_DEPTH
-    exec timeout -k 30 $(( CB * 60 )) sh -c "$CMD \"\$1\"" delegate "$PROMPT"
+    if [ "$PMODE" = stdin ]; then
+      exec timeout -k 30 $(( CB * 60 )) sh -c "$CMD" < "$PFILE"
+    else
+      exec timeout -k 30 $(( CB * 60 )) sh -c "$CMD \"\$1\"" delegate "$PARG" < /dev/null
+    fi
   ) > "$OUT" 2>&1 &
   APID=$!
   echo "$APID" > "$CLAIM/agent.pid"
@@ -314,7 +326,16 @@ $(cat "$CARD")"
   # same carve-out runner.sh makes, so a rate limit can't consume the correction budget.
   # Status codes only count NEXT TO an http/status/error marker: a bare (429|50x) match
   # false-positives on commit SHAs and ordinary app output (found by adversarial review).
-  if grep -qiE 'rate.?limit|quota exceeded|overloaded|too many requests|service.{0,15}unavailable|internal server error|bad gateway|gateway time.?out|(http|status( code)?|api.?error|error.?code)[^0-9A-Za-z]{0,4}(429|50[0-4]|529)([^0-9]|$)' "$OUT"; then
+  # Only a FAILED call can be throttled, judged on its last lines: a delegate that
+  # works on rate limiting, or a test log printing "Internal Server Error", must not
+  # have its round thrown away.
+  THR=no
+  if [ "$RC" -ne 0 ] || grep -q '"is_error"[[:space:]]*:[[:space:]]*true' "$OUT" 2>/dev/null; then
+    command tail -40 "$OUT" > "$OUT.tail"
+    grep -qiE 'rate.?limit|quota exceeded|overloaded|too many requests|service.{0,15}unavailable|internal server error|bad gateway|gateway time.?out|(http|status( code)?|api.?error|error.?code)[^0-9A-Za-z]{0,4}(429|50[0-4]|529)([^0-9]|$)' "$OUT.tail" && THR=yes
+    rm -f "$OUT.tail"
+  fi
+  if [ "$THR" = yes ]; then
     salvage
     printf '%s\n' "$(( ROUND - 1 ))" > "$WS/runs/.rounds-$ID"
     fm_set "$CARD" status waiting

@@ -15,7 +15,9 @@ prompt.
 | `planner.md` | writes the next cards toward `GOAL.md` | in the night worktree, when the board is dry and the predicate is red | `runs/plan-<date>-r<n>/<id>.md` or `STUCK.md` |
 | `review.md` | morning audit of the trail, read-only | at night end | `runs/night-<date>-attention.md` |
 
-The runner enforces "read-only" and "writes only": a role that changes the worktree
+Roles write their output inside their cwd, under `.apsolut-out/` (git-excluded),
+because a CLI sandboxed to its worktree cannot write anywhere else. The runner
+collects it into the `runs/` paths above. The runner enforces "read-only" and "writes only": a role that changes the worktree
 gets reset and its output discarded, and a role that touches `HEARTBEAT.md`,
 `GOAL.md`, `prompts/` or `scripts/` raises the Andon.
 

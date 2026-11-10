@@ -17,7 +17,8 @@ clean `--no-ff` merge candidate; rejecting one card = simply not merging its bra
 ```
 sh .apsolut-agents/scripts/runner.sh claude        # terminal 1 (whole night)
 sh .apsolut-agents/scripts/runner.sh grok          # terminal 2 (v2 — after solo nights are boring)
-sh .apsolut-agents/scripts/runner.sh claude --once # supervised single pass (v0 gate runs)
+sh .apsolut-agents/scripts/runner.sh claude --once # ONE card through the pipeline, then stop (v0 gate)
+sh .apsolut-agents/scripts/runner.sh claude --drain # until the board is empty / goal met, no idle wait
 ```
 
 Config lives in `HEARTBEAT.md` (instance file — yours): timeouts, budget, breaker
@@ -35,6 +36,11 @@ non-destructive when a foreman is reading the output (`delegate.sh`).
   `work/<id>.md` from the `id:` field; the runner refuses to start the lane if any
   card's filename disagrees with its `id:` (a mismatch used to half-work, then
   silently miss everything downstream).
+- **`check:`** — one command the runner itself runs: it must FAIL before the change
+  (else the card is refused: it is done already, or the check proves nothing) and
+  PASS after. This is test-first enforced by a script, not asked of a model. Cards
+  without `check:` must name a test in Done-when, or be `spike: true`. Planner cards
+  always carry one.
 - Concrete **Goal** + **Done when** (vague cards produce confident garbage at 3am) —
   stating what must be true, not which commands to run, and no constraints the task
   doesn't actually have: the 3am agent treats every word on the card as law.
@@ -44,11 +50,12 @@ non-destructive when a foreman is reading the output (`delegate.sh`).
   are never claimed.
 - Optional `after: [T-01]` dependency edges and `budget: 30` (minutes) override.
 
-**`after:` is sequencing, NOT code visibility.** Branches stay unmerged overnight, so
-a dependent card branches from the default branch and **cannot see its dependency's
-code**. The runner therefore only treats `after:` deps as satisfied once the dep is
-`done` (i.e. **merged**) — `review` is not enough. If card B needs card A's code the
-same night, they are one card. (Found the hard way in the v0 acceptance test.)
+**`after:` without a goal is sequencing, NOT code visibility.** In plain board mode
+branches stay unmerged overnight, so a dependent card branches from the default
+branch and **cannot see its dependency's code**. The runner only treats the dep as
+satisfied once it is `done` (merged). **In goal mode it is code visibility:** a dep
+clears when it is integrated onto the night branch, every attempt starts from the
+night tip, and the worker's prompt carries the dep's handoff.
 
 ## The loop (per card)
 
@@ -62,6 +69,28 @@ failure context in its prompt (a blind retry repeats the same dead end); retry
 once, then `status: blocked` + phone ping. Backoff resets salvage + pin the same
 way — a 429 never destroys work.
 
+## What the runner enforces, not asks (v0.10)
+
+Distilled from a blind four-model review (Claude, Codex, Grok, agy) of v0.9 against
+the Cursor plugins: every rule a script can check moved out of the prompts.
+
+| rule | how |
+|---|---|
+| the judge is not the worker's | `protect:` pathspecs (HEARTBEAT + GOAL.md): a card diff touching one is red; a night diff touching one cannot meet the goal. The card is snapshotted at claim, so a worker editing its own `verify:` or Done-when changes nothing. |
+| test first | `check:` runs before (must fail) and after (must pass) |
+| no symptom patches | `forbid_added:` regex over added lines (`.skip(`, `.only(`, `@ts-ignore`, `eslint-disable`, …) → red |
+| a throttle is a failed call | only a non-zero exit or `is_error`, judged on the last 40 lines; every call is charged; `max_backoffs_per_card` then it counts as an attempt |
+| nothing hangs the night | `check_timeout_minutes` caps setup, green, check and done_cmd |
+| fresh worktrees are usable | `setup_cmd` runs once per worktree, outside the attempt clock |
+| prompts always arrive | `prompt_<agent>: stdin`, or argv up to `prompt_arg_max_bytes`, then a pointer to the prompt file |
+| sandboxed CLIs can report | roles write into `<worktree>/.apsolut-out/` (git-excluded); the runner collects into `runs/`. A handoff printed as the final message counts too. |
+| merges are tasks | a card that conflicts or goes red on the night branch is a red attempt; its retry starts from the night tip |
+| proof is kept | verifier scratch moves to `runs/evidence/<id>-verify<n>/` |
+| a broken verifier is loud | two `verifier-blocked` in a row raise the Andon |
+| goal mode needs a second opinion | with no verifier, only cards whose `check:` passed integrate; the rest wait as `unverified` |
+| a crash does not reset the night | `runs/.night-current` keeps the night (branch, spend, rounds) across a restart within 18 h |
+| cost is honest | no cost in the output → `max(cost_fallback_usd, minutes × cost_per_minute_usd)`; the spend ledger is locked across lanes |
+
 ## Roles and the per-card pipeline (v0.9)
 
 Each role is a plain prompt in `prompts/<role>.md`, rendered with the card, the goal,
@@ -69,8 +98,9 @@ and the evidence. Each optional role is an agent name in `HEARTBEAT.md` (`verifi
 `advisor_agent:`, `review_agent:`; `planner_agent:` lives in `GOAL.md`).
 
 ```
-claim → [advisor, retries only] → worker → handoff → green_cmd → [verifier] → review
-                                                                     └─ goal mode: integrate → night branch
+claim → snapshot card → [setup_cmd, new worktree] → check: must FAIL → [advisor, retries only]
+  → worker → handoff → green_cmd → protect: + forbid_added: → check: must PASS → [verifier] → review
+                                                                       └─ goal mode: integrate → night branch
 ```
 
 - **Worker** (`prompts/worker.md`): carries the rules agents keep breaking. Prove it on

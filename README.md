@@ -124,6 +124,15 @@ pull the **Andon** (`andon.sh raise`), and only you clear it. An agent that edit
 its own rules trips the tamper canary. Details: [`template/NIGHTSHIFT.md`](template/NIGHTSHIFT.md).
 Proven end to end in CI against a scripted fake CLI (`tests/goal-loop.sh`).
 
+**v0.10: the runner enforces, the prompts only explain.** A blind review by four
+models (Claude, Codex, Grok, agy) moved every rule a script can check into
+`runner.sh`. Each card's `check:` must fail before the change and pass after.
+`protect:` paths (the judge: the predicate's tests, the green script) are off limits
+to cards. Added `.skip`/`@ts-ignore`-style patches are red. Every check has a
+timeout. `setup_cmd` bootstraps fresh worktrees. Prompts go by stdin or by a file
+pointer, so they survive Windows' command-line limit. A card that conflicts on the
+night branch retries from the night tip instead of stranding.
+
 **Run the v0 gate first.** `scripts/doctor.sh <agent>` preflights everything in one
 command — tools, config sanity, every card's contract and `after:` graph, green on
 the primary, rolling cost vs budget, plus a live probe of the agent's CLI. Then a
