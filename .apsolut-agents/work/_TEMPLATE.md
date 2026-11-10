@@ -8,11 +8,13 @@ needs: []                # [<agent>] or [human] when status is need-feedback
 after: []                # [T-01, T-02] — plain mode: ready once these are done (MERGED),
                          # so not the same night. Goal mode: ready once they are on the
                          # night branch, and this card starts from there (NIGHTSHIFT.md).
-risk: []                 # [api-contract, schema, pii, money, ui] — see PLAYBOOK.md §4
+risk: []                 # [api-contract, schema, pii, money, ui] — see PLAYBOOK.md §4. A tag listed
+                         # in HEARTBEAT risk_tags sends the card to the stronger verifier.
 spike: false             # true = research/docs card; waives the night test-first gate
 verify: test             # minimum independent verdict: live | test | typecheck (HEARTBEAT verify_level if absent)
 check:                   # one command the RUNNER runs: must fail before the change, pass after (no # in it)
-verified: null           # set by runner.sh: the verifier's verdict, self:<level>, or blocked
+verified: null           # set by runner.sh: the verifier's verdict, self:<level>, blocked,
+                         # unverified or risk-unverified
 integrated: null         # set by runner.sh in goal mode: the night branch this card was merged into
 files:                   # paths you expect to touch (declare INTENT on hot files)
   - <path/to/file>

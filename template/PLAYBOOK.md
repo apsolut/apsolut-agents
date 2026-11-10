@@ -40,14 +40,19 @@ add the matching Done-when lines. The two that bite most in practice:
 | `pii` / `money` | mutation is auditable (who/when/what); human gate per PROJECT.md |
 | `ui` | accessibility item; behind a feature flag if risky (flag removal is its own card) |
 
+Tags also route. A card carrying one of `risk_tags` (HEARTBEAT.md) is judged by
+`risk_verifier_agent`, your strongest model, and in goal mode it never integrates on
+its `check:` alone. Tag honestly: an untagged migration is reviewed like a typo fix.
+
 Tags are card-level and technical — whether the product is B2B or B2C is your
 business, not the card's.
 
 ## 5. Close the loops
 
 Decisions carry `Status:` and get updated in the implementing session. Blocked night
-cards get a fixed-shape note in their runs/ output — three lines, blameless:
-`Attempted:` / `Failed because:` / `Would unblock:`. Fixed shape so scripts can
+cards get a fixed-shape note in their runs/ output — four lines, blameless:
+`Attempted:` / `Failed because:` / `Blocked by:` (`task`, `rule` or `cli`) /
+`Would unblock:`. Fixed shape so scripts can
 aggregate it later; blameless so it gets written at all.
 
 ## 6. Deliberately absent

@@ -163,7 +163,8 @@ Keeps the no-daemon soul — the container lives exactly as long as the lane doe
 - **Learned card sizing** — mine `runs/.spend-*` and attempt outputs into a
   rolling cost/duration model per risk tag; use it for the budget gate above and
   to flag "this card is 3× your usual scope" at write time.
-- **Card auto-generation** — turn a failing CI run or an issue into a draft card
+- **Card auto-generation** — (issues: shipped in v0.12 as `intake.sh`; a failing CI
+  run is still open) turn a failing CI run or an issue into a draft card
   (goal + failing test pre-filled, `spike:` guessed) for the human to approve at
   evening card-writing time.
 - **Cross-night distillation** — a session that reads the last N night reports +
@@ -171,7 +172,8 @@ Keeps the no-daemon soul — the container lives exactly as long as the lane doe
   stop living only in `runs/` archaeology. (Caveat from 2026 field data:
   LLM-generated agent-memory files measurably reduce success rates vs
   human-curated ones — the human-approves gate is load-bearing, keep it.)
-- **Model routing by risk tags** — cards tagged `schema`/`money` go to the
+- **Model routing by risk tags** — (the verifier half shipped in v0.12 as
+  `risk_tags` + `risk_verifier_agent`; routing the WORKER is still open) cards tagged `schema`/`money` go to the
   strongest model, `spike:` research cards to the cheapest; the roster table
   grows a routing column instead of a human deciding per card.
 - **`files:` enforcement** — post-card diff of declared vs touched paths (both

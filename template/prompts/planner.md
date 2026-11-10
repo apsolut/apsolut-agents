@@ -28,6 +28,7 @@ Your cwd is a throwaway snapshot of the night integration branch {{BRANCH}}. It 
 6. Reuse what the code already has: point at the existing module, helper, or pattern by path, so the worker imitates it instead of inventing a parallel one.
 7. Don't plan work the board already holds (waiting, writing, or integrated), and don't re-plan a blocked card unchanged. A card in review that is NOT integrated (an unverified one) did not land: plan around it or replace it with a smaller, checkable card.
 9. Every card needs `check:`, one shell command run from the repo root that FAILS now and PASSES when the card is done (usually the new test file alone). The runner runs it before and after, so pick one that cannot pass by accident. A check that already passes gets the card refused.
+10. Tag what a card can break in `risk:`, from `api-contract`, `schema`, `pii`, `money`, `ui` (for example `risk: [schema]`). Tag honestly: a tagged card gets a stronger independent review, and an untagged one that touches a public API, a migration, personal data or payments is the kind of change that lands unexamined.
 8. At most {{MAX_CARDS}} cards. Fewer, broader cards beat many tiny ones.
 
 === OUTPUT (files only — this is the only place you may write) ===

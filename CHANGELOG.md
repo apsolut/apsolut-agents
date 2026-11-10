@@ -3,6 +3,42 @@
 All notable changes to apsolut-agents. Pin a release with `install.sh --tag vX.Y.Z`;
 upgrade an installed workspace with `sh .apsolut-agents/scripts/upgrade.sh`.
 
+## v0.12.0 — 2026-11-11
+
+Four ideas taken from a public build of the same pattern (ZazenCodes, "Build a Better
+Software Factory with Claude Code", 2026-11-09), each fitted to what the runner
+already enforces. Its auto-merge approver and its model-as-orchestrator were not
+taken: the default branch never moves on its own here, and `runner.sh` is the
+deterministic version of that orchestrator.
+
+### Added
+- **Risk picks the judge.** `risk_tags` and `risk_verifier_agent` in `HEARTBEAT.md`.
+  A card whose `risk:` list holds one of the tags is judged by the risk verifier
+  (else the usual one). In goal mode, with no verifier at all, it never integrates on
+  its `check:` alone: it waits in `review` as `risk-unverified`. The tag is read from
+  the card snapshot, so a worker cannot drop it. The planner is told to tag its cards.
+  Empty `risk_tags` (every upgraded workspace) changes nothing.
+- **`Blocked by: task | rule | cli`** on every blocked card, in the log line and in
+  the night report. `task`: the work failed. `rule`: a runner rule refused a change
+  that may be fine (`protect:`, `forbid_added`, the call budget, the test-first
+  gate). `cli`: the agent CLI failed or was cut off, so nothing was learned.
+- **`scripts/intake.sh`.** Open GitHub issues carrying a label (default `agents`)
+  become `work/GH-<n>.md`. Drafts land on `hold` for you to read and release;
+  `--ready` writes `waiting`. The issue text is quoted as data and cannot close the
+  frontmatter or forge a card section. A delegate or a spawned worktree is refused.
+  Needs `gh`.
+- **`doctor.sh` warns about a weak verifier**: a small-model name (`haiku`, `mini`,
+  `flash`, …) on the verifier's `cmd_` line while another lane runs without one. A
+  judge that cannot follow the code rejects good work, and each wrong rejection is a
+  paid retry. It also checks `risk_verifier_agent` and reports who judges risky cards.
+
+### Upgrading
+Nothing changes until you add `risk_tags:` to your `HEARTBEAT.md` (the template now
+ships `api-contract schema pii money`). Blocked notes gain one line.
+
+Tests: `tests/goal-loop.sh` 64/64 (three new scenarios, `tests/fake-gh.sh` stands in
+for GitHub). `intake.sh` has not been run against a live repository's issues.
+
 ## v0.11.0 — 2026-11-10
 
 Lane caps for CLIs that grew their own agents. claude, codex, grok and agy now ship

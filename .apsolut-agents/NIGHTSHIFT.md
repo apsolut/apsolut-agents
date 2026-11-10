@@ -91,6 +91,8 @@ the Cursor plugins: every rule a script can check moved out of the prompts.
 | proof is kept | verifier scratch moves to `runs/evidence/<id>-verify<n>/` |
 | a broken verifier is loud | two `verifier-blocked` in a row raise the Andon |
 | goal mode needs a second opinion | with no verifier, only cards whose `check:` passed integrate; the rest wait as `unverified` |
+| risk picks the judge (v0.12) | a card whose `risk:` holds one of `risk_tags` is judged by `risk_verifier_agent` (else `verifier_agent`); with no verifier it never integrates on its `check:` alone and waits as `risk-unverified`. Read from the card snapshot, so a worker cannot drop its own tag |
+| a block says what blocked it (v0.12) | every blocked card carries `Blocked by: task \| rule \| cli`: the work failed, a runner rule refused it, or the CLI never finished. The night report repeats it |
 | a crash does not reset the night | `runs/.night-current` keeps the night (branch, spend, rounds) across a restart within 18 h |
 | cost is honest | no cost in the output → `max(cost_fallback_usd, minutes × cost_per_minute_usd)`; the spend ledger is locked across lanes |
 
@@ -121,7 +123,10 @@ claim → snapshot card → [setup_cmd, new worktree] → check: must FAIL → [
   verifier-failed`. Below the card's `verify:` level (default `test`), the attempt is
   red, and the verdict goes into the retry's failure context. `verifier-blocked` means
   the environment, not the work, so the card waits in `review` as **unverified** and
-  never integrates.
+  never integrates. Do not give this role a weaker model than the workers: a judge
+  that cannot follow the code rejects good work, and each wrong rejection is a paid
+  retry. `risk_verifier_agent` sends the cards tagged with a `risk_tags` entry to
+  your strongest model and leaves the rest with the usual one.
 - **Advisor** (`prompts/advisor.md`): before a retry, a different agent reads the
   failed diff and output, then names the mechanism, the wrong premise, and the next
   steps. That diagnosis goes into the retry prompt. `CARD IS WRONG:` blocks the card
@@ -214,7 +219,26 @@ trail rows Attention points at. Then run `worktree.sh review`, and `worktree.sh 
 branch only if that passes and leaves the merge commit unchanged. A dirty folder stays until you run `done <id> --jar` (branch already
 in `HEAD`) or `done <id> --reject "<why>"`. Nothing prunes worktrees for you.
 Reassigning a blocked card to the other model is a **human** decision, made
-here, with the attempt output in front of you.
+here, with the attempt output in front of you. Read `Blocked by:` first. `task`
+means the work failed: fix or split the card. `rule` means a runner rule refused a
+change that may be fine: decide whether the rule or the card is wrong. `cli` means
+the agent never finished: nothing was learned about the card, so rerun it.
+
+## Cards from GitHub issues (v0.12)
+
+`sh scripts/intake.sh` turns every open issue that carries the label `agents`
+(`intake_label:` in `HEARTBEAT.md`, or `--label`) into `work/GH-<number>.md`. The
+label is your approval: on a public repo anyone can open an issue, and its text
+reaches a worker that runs with approvals bypassed. Naming issue numbers narrows the
+list and never waives the label.
+
+Cards arrive as `status: hold`. Read each one, add a `check:` and `risk:` tags, then
+set `status: waiting`. `--ready` writes `waiting` directly, for a board you trust to
+run unread. The issue text is quoted into the card as data, with a note to the worker
+that it is a request and not instructions. A card is a snapshot, an issue that
+already has a card is skipped, and `--dry-run` writes nothing. Needs `gh`, signed in.
+Anything that can open a labelled issue (an alert, a failed deploy, a teammate) can
+now feed the board.
 
 ## Phase gates (don't skip)
 

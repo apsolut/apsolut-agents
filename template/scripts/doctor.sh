@@ -126,7 +126,7 @@ for p in worker verifier planner advisor review; do
 done
 [ -f "$WS/prompts/worker.md" ] && ok "role prompts present (prompts/)"
 if [ -f "$HB" ]; then
-  for role in verifier_agent advisor_agent review_agent; do
+  for role in verifier_agent risk_verifier_agent advisor_agent review_agent; do
     a=$(cfg "$role"); [ -n "$a" ] || continue
     [ -n "$(cfg "cmd_$a")" ] && ok "$role: $a" || fail "$role: $a has no cmd_$a line — the runner refuses to start"
   done
@@ -135,6 +135,29 @@ if [ -f "$HB" ]; then
   for a in $CMDS; do
     [ -n "$VA" ] && [ "$a" = "$VA" ] && warn "verifier_agent '$VA' is also a worker lane — a lane it runs gets judged by its own model; prefer a different family"
   done
+  # A judge weaker than the author rejects work it does not follow, and each wrong
+  # rejection is a paid retry. Read from the cmd_ lines: a small-model name on the
+  # verifier's line while another lane runs without one.
+  SMALL='(^|[^[:alnum:]])(haiku|mini|nano|flash|lite|fast|small)([^[:alnum:]]|$)'
+  strong=""
+  for a in $CMDS; do
+    cfg "cmd_$a" | grep -qiE "$SMALL" || strong="$strong$a "
+  done
+  for role in verifier_agent risk_verifier_agent; do
+    a=$(cfg "$role"); [ -n "$a" ] || continue
+    sm=$(cfg "cmd_$a" | grep -oiE "$SMALL" | head -1 | tr -cd '[:alnum:]' || true)
+    [ -n "$sm" ] || continue
+    others=$(printf '%s' "$strong" | tr ' ' '\n' | grep -vx "$a" | tr '\n' ' ' | sed 's/ *$//' || true)
+    [ -z "$others" ] || warn "$role '$a' runs a small model ($sm) while $others does not — a verifier weaker than the worker rejects good work, and every wrong rejection is a paid retry"
+  done
+  # risk routing
+  RT=$(cfg risk_tags | tr ',[]' '   ' | tr -s ' ' | sed 's/^ //; s/ $//'); RVA=$(cfg risk_verifier_agent)
+  if [ -n "$RT" ]; then
+    ok "risk_tags: $RT → judged by ${RVA:-${VA:-nobody}}"
+    [ -n "$VA$RVA" ] || warn "risk_tags set but no verifier — in goal mode a card carrying one of them never integrates; it waits for you"
+  elif [ -n "$RVA" ]; then
+    warn "risk_verifier_agent set but risk_tags is empty — no card is ever routed to it"
+  fi
 fi
 DONE_CMD=$(gcfg done_cmd)
 if [ -z "$DONE_CMD" ]; then

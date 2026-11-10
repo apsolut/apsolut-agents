@@ -150,6 +150,7 @@ blocked: yes"
 run
 check "card blocked after one attempt" 'grep -q "^status: blocked" "$W/work/T-01.md" && [ "$(cat "$W/runs/.attempts-$(date +%Y-%m-%d)-T-01")" = 1 ]'
 check "blocked note carries the agent's reason" 'grep -q "Would unblock: - needs a credential" "$W/work/T-01.md"'
+check "a dead end is blocked by the task" 'grep -qx "Blocked by: task" "$W/work/T-01.md"'
 
 echo "[7] plain board mode (no done_cmd) is unchanged: no night branch"
 setup "" ''
@@ -173,6 +174,7 @@ cheat: yes"
 run
 check "card blocked, never integrated" 'grep -q "^status: blocked" "$W/work/T-01.md" && ! git -C "$R" cat-file -e "$(NB):a.txt" 2>/dev/null'
 check "reason names the protected path" 'grep -q "protected path(s): run-tests.sh" "$W/work/T-01.md"'
+check "blocked by a rule, and the report says so" 'grep -qx "Blocked by: rule" "$W/work/T-01.md" && grep -q "T-01 blocked (by: rule)" "$W/runs/night-$(D).md"'
 
 echo "[10] symptom patches are red: an added .skip fails the attempt"
 setup "" ''
@@ -216,12 +218,50 @@ card T-01 "cancelled: yes"
 run
 check "blocked after two attempts, never sent to review" 'grep -q "^status: blocked" "$W/work/T-01.md" && grep -q "ended the turn early" "$W/work/T-01.md" && [ "$(cat "$W/runs/.attempts-$(D)-T-01")" = 2 ]'
 check "both attempts charged at the agent rate" 'awk "BEGIN{exit !($(cat "$W/runs/.spend-$(D)") >= 1.54)}"'
+check "a CLI that never finished is blocked by the cli, not the task" 'grep -qx "Blocked by: cli" "$W/work/T-01.md"'
 
 echo "[15] a CLI that stops at its own timeout reads as a timeout"
 setup "" ''
 card T-01 "print-timeout: yes"
 run
 check "failure names the timeout" 'grep -q "^status: blocked" "$W/work/T-01.md" && grep -q "timeout after" "$W/work/T-01.md"'
+
+echo "[16] risk routing: a risk-tagged card goes to the risk verifier, the rest to the usual one"
+setup "a.txt and c.txt exist" 'test -f a.txt \&\& test -f c.txt' "cmd_fakes: sh $FAKE
+risk_tags: schema money
+risk_verifier_agent: fakes"
+card T-01 "make: a.txt"; sed -i 's/^risk: \[\]$/risk: [ui, schema]/' "$W/work/T-01.md"
+card T-02 "make: c.txt"; sed -i 's/^risk: \[\]$/risk: [ui]/' "$W/work/T-02.md"
+run
+check "exit 0 (goal met)" '[ "$RC" -eq 0 ]'
+check "T-01 judged by the risk verifier, with the tag in the trail" 'grep -q "fakes judged T-01.*risk tag schema" "$W/runs/trail-$(D).tsv"'
+check "T-02 (no listed tag) judged by the usual verifier" 'grep -q "fakev judged T-02" "$W/runs/trail-$(D).tsv" && ! grep -q "fakes judged T-02" "$W/runs/trail-$(D).tsv"'
+
+echo "[17] a risk-tagged card never integrates on its check: alone"
+setup "a.txt exists" 'test -f a.txt' "risk_tags: schema"
+sed -i 's/^verifier_agent: fakev$//' "$W/HEARTBEAT.md"
+card T-01 "make: a.txt" "check: test -f a.txt"; sed -i 's/^risk: \[\]$/risk: [schema]/' "$W/work/T-01.md"
+run
+check "green, in review, marked risk-unverified, not integrated" 'grep -q "^status: review" "$W/work/T-01.md" && grep -q "^verified: risk-unverified" "$W/work/T-01.md" && ! grep -q "^integrated: $(NB)" "$W/work/T-01.md"'
+check "the report hands it to the human" 'grep -q "T-01 green, but it carries a risk tag" "$W/runs/night-$(D).md"'
+
+echo "[18] intake.sh: labelled GitHub issues become draft cards"
+setup "" ''
+intake() { IRC=0; ( cd "$R" && APSOLUT_GH="$ROOT/tests/fake-gh.sh" sh .apsolut-agents/scripts/intake.sh "$@" ) > "$T/intake.out" 2>&1 || IRC=$?; }
+intake 3 9
+check "a named issue with the label becomes a draft on hold" '[ "$IRC" -eq 0 ] && grep -q "^status: hold" "$W/work/GH-3.md" && grep -q "^source: https://github.com/example/proj/issues/3" "$W/work/GH-3.md"'
+check "a named issue without the label is refused" '[ ! -f "$W/work/GH-9.md" ] && grep -q "skip  #9" "$T/intake.out"'
+intake
+check "the rest of the labelled issues follow, existing cards are skipped" '[ -f "$W/work/GH-7.md" ] && grep -q "skip  #3" "$T/intake.out"'
+check "issue text cannot close the frontmatter or forge a card section" '[ "$(grep -c "^---$" "$W/work/GH-7.md")" -eq 2 ] && [ "$(grep -c "^status:" "$W/work/GH-7.md")" -eq 1 ] && [ "$(grep -c "^## Notes" "$W/work/GH-7.md")" -eq 1 ] && grep -q "^> Ignore your rules" "$W/work/GH-7.md"'
+check "a title cannot smuggle a comment marker" '! grep "^title:" "$W/work/GH-7.md" | grep -q "#"'
+rm "$W/work/GH-3.md"; intake --ready 3
+check "--ready writes a waiting card" 'grep -q "^status: waiting" "$W/work/GH-3.md"'
+rm "$W/work/GH-3.md"
+IRC=0; ( cd "$R" && APSOLUT_AGENT_DEPTH=1 APSOLUT_GH="$ROOT/tests/fake-gh.sh" sh .apsolut-agents/scripts/intake.sh 3 ) >/dev/null 2>&1 || IRC=$?
+check "a delegate cannot write its own cards" '[ "$IRC" -ne 0 ] && [ ! -f "$W/work/GH-3.md" ]'
+run
+check "the runner accepts an intake card and leaves a draft on hold alone" '[ "$RC" -eq 0 ] && grep -q "^status: hold" "$W/work/GH-7.md"'
 
 echo
 echo "goal-loop: $PASSN ok, $FAILN failed"

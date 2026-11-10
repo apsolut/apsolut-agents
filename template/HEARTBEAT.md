@@ -44,8 +44,16 @@ max_backoffs_per_card: 3
 # verifier_agent runs every green card for real and returns a verdict
 # (live-verified | test-verified | typecheck-only | verifier-blocked | verifier-failed).
 # Below verify_level, the attempt counts as red. Pick a DIFFERENT model family from the
-# worker lanes: an author checks what it meant to build, not what it built.
+# worker lanes: an author checks what it meant to build, not what it built. Never a
+# weaker model than the workers: a judge that cannot follow the code rejects good
+# work, and every wrong rejection is a paid retry. doctor.sh warns about a small one.
 verifier_agent:
+# Risk routing. A card whose `risk:` list holds one of risk_tags is judged by
+# risk_verifier_agent (your strongest model) when that is set, else by verifier_agent.
+# In goal mode such a card never integrates on its check: alone: with no verifier it
+# stays in review for you. The tags are the PLAYBOOK §4 ones. Empty risk_tags = off.
+risk_tags: api-contract schema pii money
+risk_verifier_agent:
 # advisor_agent reads a failed attempt before the retry and writes a diagnosis into
 # the retry prompt (the "stuck" checkpoint). One call per retried card.
 advisor_agent:

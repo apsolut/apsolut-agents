@@ -139,6 +139,12 @@ a lane stays inside the card clock and the spend ledger. One call cannot outspen
 the night (`call_budget_usd`). A CLI that exits 0 without finishing its turn is
 red. Codex is a lane. `doctor.sh` warns when your own `HEARTBEAT.md` lacks the caps.
 
+**v0.12: risk picks the judge, issues feed the board.** A card tagged with a risk
+(`schema`, `money`, `pii`, `api-contract`) is judged by your strongest model and
+never lands on its own check alone. `doctor.sh` warns when the verifier is a smaller
+model than the workers. Every blocked card says whether the work, a runner rule or
+the CLI stopped it. `intake.sh` turns labelled GitHub issues into draft cards.
+
 **Run the v0 gate first.** `scripts/doctor.sh <agent>` preflights everything in one
 command — tools, config sanity, every card's contract and `after:` graph, green on
 the primary, rolling cost vs budget, plus a live probe of the agent's CLI. Then a

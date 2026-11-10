@@ -76,6 +76,10 @@ NTFY=$(cfg notify_url)
 CMD=$(cfg "cmd_$AGENT")
 VERIFIER=$(cfg verifier_agent); ADVISOR=$(cfg advisor_agent); REVIEWER=$(cfg review_agent)
 VERIFY_LEVEL=$(cfg verify_level); VERIFY_LEVEL=${VERIFY_LEVEL:-test}
+# risk routing: a card whose risk: list holds one of risk_tags is judged by
+# risk_verifier_agent (else verifier_agent), and in goal mode it never integrates on
+# its check: alone. Empty risk_tags = off.
+RISK_TAGS=$(cfg risk_tags | tr ',[]' '   '); RISK_VERIFIER=$(cfg risk_verifier_agent)
 CHECK_MIN=$(num_or "$(cfg check_timeout_minutes)" 30)
 SETUP=$(cfg setup_cmd)
 PER_MIN=$(num_or "$(cfg cost_per_minute_usd)" 0.15)
@@ -114,7 +118,7 @@ case "$EXCL" in /*|?:*) ;; *) EXCL="$REPO/$EXCL";; esac
 mkdir -p "$(dirname "$EXCL")"; grep -qx "/$OUTD/" "$EXCL" 2>/dev/null || echo "/$OUTD/" >> "$EXCL"
 
 ROLES="$AGENT"
-for r in "$VERIFIER" "$ADVISOR" "$REVIEWER"; do [ -n "$r" ] && ROLES="$ROLES $r"; done
+for r in "$VERIFIER" "$RISK_VERIFIER" "$ADVISOR" "$REVIEWER"; do [ -n "$r" ] && ROLES="$ROLES $r"; done
 [ "$GOAL_MODE" = yes ] && ROLES="$ROLES $PLANNER"
 ROLES=$(printf '%s\n' $ROLES | awk '!s[$0]++' | tr '\n' ' ')
 for r in $ROLES; do
@@ -349,6 +353,13 @@ protected_hits() {
 forbidden_hits() { # symptom patches on added lines; $1 dir, $2 from, $3 to
   [ -n "$FORBID" ] || return 0
   git -C "$1" diff -U0 "$2" "$3" 2>/dev/null | grep '^+' | grep -v '^+++' | grep -E "$FORBID" | head -3 || true
+}
+# $1 card -> its first risk: tag that is listed in risk_tags (nothing = not risky)
+risky_tag() {
+  for rt in $(fm_get "$1" risk | tr -d '[]' | tr ',' ' '); do
+    case " $RISK_TAGS " in *" $rt "*) echo "$rt"; return 0;; esac
+  done
+  return 0
 }
 rank() { case "$1" in live-verified) echo 3;; test-verified) echo 2;; typecheck-only) echo 1;; *) echo 0;; esac; }
 need_rank() { case "$1" in live) echo 3;; typecheck) echo 1;; *) echo 2;; esac; }
@@ -717,9 +728,11 @@ finish() { # $1 reason, $2 exit code
     for f in "$WS"/work/*.md; do is_card "$f" || continue;
       id=$(fm_get "$f" id); st=$(fm_get "$f" status); vf=$(fm_get "$f" verified)
       [ "$st" = blocked ] && [ "$(fm_get "$f" updated)" = "$DATE" ] && {
-        echo "- $id blocked — $(sed -n 's/^Would unblock: //p' "$f" | tail -1)"; w=1; }
+        by=$(sed -n 's/^Blocked by: //p' "$f" | tail -1)
+        echo "- $id blocked${by:+ (by: $by)} — $(sed -n 's/^Would unblock: //p' "$f" | tail -1)"; w=1; }
       [ "$st" = review ] && [ "$vf" = blocked ] && { echo "- $id green but UNVERIFIED (verifier blocked) — runs/handoffs/$id-verify*.md"; w=1; }
       [ "$st" = review ] && [ "$vf" = unverified ] && { echo "- $id green but UNVERIFIED (no verifier and no check:) — not integrated"; w=1; }
+      [ "$st" = review ] && [ "$vf" = risk-unverified ] && { echo "- $id green, but it carries a risk tag and no verifier judged it — not integrated; yours to review"; w=1; }
     done
     [ "$w" -eq 0 ] && echo "(nothing)"
     echo
@@ -762,6 +775,13 @@ finish() { # $1 reason, $2 exit code
 
 # --- one red attempt: pin the evidence, reset, decide retry or block ----------------
 # $1 reason (one line), $2 "block" to skip the retry (agent or advisor says dead end)
+# BY says what stopped it, so the morning reader knows whether the WORK failed:
+#   task  the work itself (tests red, verifier said no, a dead end, a conflict)
+#   rule  a runner rule refused it; the change may be fine (protect:, forbid_added,
+#         the call budget, the test-first gate)
+#   cli   the agent CLI failed or was cut off; nothing was learned about the task
+# Set BY before calling red; it falls back to task after every call.
+BY=task
 red() {
   FAILS=$(( FAILS + 1 ))
   [ "$(git -C "$WT" rev-parse HEAD)" != "$PRE" ] && git -C "$WT" update-ref "refs/apsolut/attempts/$ID-$N" HEAD 2>/dev/null || true
@@ -785,18 +805,19 @@ red() {
     fm_set "$CARD" updated "$DATE"
     # the agent's Notes say what would unblock only when the agent itself stopped
     unb=""; [ "${2:-}" = block ] && unb=$(md_body "$HF" Notes 1)
-    printf '\nAttempted: %s attempt(s) by %s, night %s (runs/%s)\nFailed because: %s\nWould unblock: %s\n' \
-      "$N" "$AGENT" "$DATE" "$(basename "$OUT")" "$1" "${unb:-a human reading runs/$ID-attempt$N.fail}" >> "$CARD"
-    printf '\n### %s — %s (night shift)\n- %s BLOCKED after %s attempt(s): %s. See runs/%s\n' \
-      "$AGENT" "$DATE" "$ID" "$N" "$1" "$ID-attempt$N.fail" >> "$LOG"
-    notify "$ID blocked: $1"
-    tick "blocked $ID"
-    trail card "blocked $ID" "$1" "runs/$ID-attempt$N.fail" blocked
+    printf '\nAttempted: %s attempt(s) by %s, night %s (runs/%s)\nFailed because: %s\nBlocked by: %s\nWould unblock: %s\n' \
+      "$N" "$AGENT" "$DATE" "$(basename "$OUT")" "$1" "$BY" "${unb:-a human reading runs/$ID-attempt$N.fail}" >> "$CARD"
+    printf '\n### %s — %s (night shift)\n- %s BLOCKED (%s) after %s attempt(s): %s. See runs/%s\n' \
+      "$AGENT" "$DATE" "$ID" "$BY" "$N" "$1" "$ID-attempt$N.fail" >> "$LOG"
+    notify "$ID blocked ($BY): $1"
+    tick "blocked $ID ($BY)"
+    trail card "blocked $ID" "$BY: $1" "runs/$ID-attempt$N.fail" blocked
   else
     fm_set "$CARD" status waiting
     tick "red $ID attempt $N ($1) — will retry"
-    trail card "red $ID attempt $N, will retry with the failure in the prompt" "$1" "runs/$ID-attempt$N.fail" red
+    trail card "red $ID attempt $N, will retry with the failure in the prompt" "$BY: $1" "runs/$ID-attempt$N.fail" red
   fi
+  BY=task
 }
 
 echo "runner[$AGENT]: timeout=${TIMEOUT_MIN}m attempts=$MAX_ATTEMPTS breaker=$MAX_FAILS budget=\$$BUDGET stop=$STOP goal=$GOAL_MODE verifier=${VERIFIER:-none}"
@@ -872,7 +893,7 @@ while :; do
   # on the card, or spike: true. (A word match, so "latest" no longer counts.)
   if [ -z "$CHK" ] && [ "$(fm_get "$CARDSNAP" spike)" != "true" ] && ! grep -qiwE 'tests?|specs?' "$CARDSNAP"; then
     fm_set "$CARD" status blocked
-    printf '\nAttempted: claim by runner\nFailed because: no check: command, no test named on the card, and spike is not true (PLAYBOOK §2)\nWould unblock: add check: <command that fails now and passes when done>, or a failing-test criterion in Done-when\n' >> "$CARD"
+    printf '\nAttempted: claim by runner\nFailed because: no check: command, no test named on the card, and spike is not true (PLAYBOOK §2)\nBlocked by: rule\nWould unblock: add check: <command that fails now and passes when done>, or a failing-test criterion in Done-when\n' >> "$CARD"
     tick "refused $ID: test-first gate (PLAYBOOK §2)"
     trail claim "refused $ID" "test-first gate: no check, no test named, not a spike" "work/$ID.md" blocked
     rm -f "$CARDSNAP"; release; continue
@@ -940,7 +961,7 @@ while :; do
     if run_check "$WT" "$CHK" "$WS/runs/$ID-check-pre.out"; then
       git -C "$WT" reset --hard -q "$PRE"; git -C "$WT" clean -fdq -e .apsolut-agents 2>/dev/null || true
       fm_set "$CARD" status blocked; fm_set "$CARD" updated "$DATE"; rm -f "$CARDSNAP"
-      printf '\nAttempted: claim by runner, night %s\nFailed because: check: already passes before any change (runs/%s-check-pre.out)\nWould unblock: a check that fails until the card is done, or close the card\n' "$DATE" "$ID" >> "$CARD"
+      printf '\nAttempted: claim by runner, night %s\nFailed because: check: already passes before any change (runs/%s-check-pre.out)\nBlocked by: rule\nWould unblock: a check that fails until the card is done, or close the card\n' "$DATE" "$ID" >> "$CARD"
       trail claim "refused $ID" "its check: passes before any change, so it proves nothing" "runs/$ID-check-pre.out" blocked
       release; continue
     fi
@@ -971,7 +992,7 @@ while :; do
       trail advise "advisor $ADVISOR read the failure of $ID" "retry gets a second model's diagnosis" "runs/handoffs/$ID-advice$N.md" advised
       if grep -qE '^[[:space:]*_>-]*CARD IS WRONG:' "$AP"; then
         fm_set "$CARD" status blocked; fm_set "$CARD" updated "$DATE"; rm -f "$CARDSNAP"
-        printf '\nAttempted: %s attempt(s), then advisor %s\nFailed because: advisor says the card is wrong — %s\nWould unblock: a human rewrites the card (runs/handoffs/%s)\n' \
+        printf '\nAttempted: %s attempt(s), then advisor %s\nFailed because: advisor says the card is wrong — %s\nBlocked by: task\nWould unblock: a human rewrites the card (runs/handoffs/%s)\n' \
           "$(( N - 1 ))" "$ADVISOR" "$(grep -m1 'CARD IS WRONG:' "$AP" | sed 's/.*CARD IS WRONG:[[:space:]]*//')" "$ID-advice$N.md" >> "$CARD"
         trail card "blocked $ID without a retry" "the advisor says the card itself is wrong" "runs/handoffs/$ID-advice$N.md" blocked
         release; continue
@@ -1083,14 +1104,14 @@ while :; do
   # a card that used up a whole call budget is too big for one call: a retry at the
   # same size pays the cap a second time, so it goes to the human instead
   if [ "$STOPWHY" = budget ]; then
-    red "hit the per-call budget cap — split the card or raise call_budget_usd" block
+    BY=rule; red "hit the per-call budget cap — split the card or raise call_budget_usd" block
     release; continue
   fi
 
   echo "green_cmd @ $(git -C "$WT" rev-parse HEAD)" >> "$OUT"
   if [ "$RC" -ne 0 ]; then
     fmode=$(md_first "$HF" "Failure mode")
-    red "${fmode:-the agent CLI exited $RC}"
+    BY=cli; red "${fmode:-the agent CLI exited $RC}"
     release; continue
   fi
   if ! run_check "$WT" "$GREEN" "$OUT"; then
@@ -1100,12 +1121,12 @@ while :; do
   # the judge is not the worker's to edit, and symptom patches are not fixes
   ph=$(protected_hits "$WT" "$PRE" HEAD)
   if [ -n "$ph" ]; then
-    red "changed protected path(s): $ph — the checks are not the worker's to edit"
+    BY=rule; red "changed protected path(s): $ph — the checks are not the worker's to edit"
     release; continue
   fi
   fh=$(forbidden_hits "$WT" "$PRE" HEAD)
   if [ -n "$fh" ]; then
-    red "added a forbidden symptom patch (forbid_added): $(printf '%s' "$fh" | head -1 | cut -c1-140)"
+    BY=rule; red "added a forbidden symptom patch (forbid_added): $(printf '%s' "$fh" | head -1 | cut -c1-140)"
     release; continue
   fi
   # check: must pass AFTER the change — the runner runs it, the worker's word is a claim
@@ -1117,7 +1138,7 @@ while :; do
       release; continue
     fi
     [ -z "$(git -C "$WT" status --porcelain -uno | grep -v '\.apsolut-agents' || true)" ] || {
-      red "check: changed tracked files — a check must not edit"; release; continue; }
+      BY=rule; red "check: changed tracked files — a check must not edit"; release; continue; }
     CHECKED=yes
   fi
   trail card "green $ID attempt $N" "$( [ "$CHECKED" = yes ] && echo "green_cmd and check: decide" || echo "green_cmd decides"), not the agent's claim" "runs/$(basename "$OUT") @ $(git -C "$WT" rev-parse --short HEAD)" "green (self: ${VSELF:-none}, handoff: ${HSTAT:-none})"
@@ -1126,18 +1147,22 @@ while :; do
   VLEVEL="self:${VSELF:-none}"; PASS=yes
   [ "$CHECKED" = yes ] && VLEVEL="check-passed"
   NEED=$(fm_get "$CARDSNAP" verify); NEED=${NEED:-$VERIFY_LEVEL}
-  if [ -n "$VERIFIER" ]; then
+  # risk routing: the card's risk: tags pick who judges it. Read from the snapshot,
+  # so a worker cannot drop its own tag.
+  RTAG=$(risky_tag "$CARDSNAP"); VAG=$VERIFIER
+  [ -n "$RTAG" ] && [ -n "$RISK_VERIFIER" ] && VAG=$RISK_VERIFIER
+  if [ -n "$VAG" ]; then
     VP="$HO/$ID-verify$N.md"; rm -f "$VP"; VPW=$(out_path "$WT" verdict.md)
     SCRW=$(out_path "$WT" "scratch-$N"); mkdir -p "$SCRW"
     HEADC=$(git -C "$WT" rev-parse HEAD)
     p_begin
-    pv AGENT "$VERIFIER"; pv ID "$ID"; pv WT "$WT"; pv BRANCH "$BR"; pv BASE "$PRE"; pv SCRATCH "$SCRW"
+    pv AGENT "$VAG"; pv ID "$ID"; pv WT "$WT"; pv BRANCH "$BR"; pv BASE "$PRE"; pv SCRATCH "$SCRW"
     pv GREEN "$GREEN"; pv CHECK "${CHK:-(none on this card)}"; pvf CARD "$CARDSNAP"; pvf HANDOFF "$HF"; pv VERDICT_PATH "$VPW"
     p_render verifier "$WS/runs/$ID-verify$N.prompt"
     st0=$(tree_state "$WT"); guard_begin
-    rcv=0; run_cli "$VERIFIER" "$WT" "$HELPER_MIN" "$WS/runs/$ID-verify$N.prompt" "$WS/runs/$ID-verify$N.out" || rcv=$?
-    charge "$WS/runs/$ID-verify$N.out" "$(t_min)" "$VERIFIER"
-    guard_end "verifier $VERIFIER on $ID" || finish "andon: tamper by the verifier on $ID" 5
+    rcv=0; run_cli "$VAG" "$WT" "$HELPER_MIN" "$WS/runs/$ID-verify$N.prompt" "$WS/runs/$ID-verify$N.out" || rcv=$?
+    charge "$WS/runs/$ID-verify$N.out" "$(t_min)" "$VAG"
+    guard_end "verifier $VAG on $ID" || finish "andon: tamper by the verifier on $ID" 5
     collect "$VPW" "$VP"
     # evidence outlives the worktree cleanup: screenshots, logs, repro scripts
     if [ -n "$(ls -A "$SCRW" 2>/dev/null)" ]; then
@@ -1160,19 +1185,24 @@ while :; do
     elif [ "$VLEVEL" = verifier-failed ] || [ "$(rank "$VLEVEL")" -lt "$(need_rank "$NEED")" ]; then
       PASS=no; VBLOCKS=0
     else VBLOCKS=0; fi
-    trail verify "$VERIFIER judged $ID: $VLEVEL" "needs $NEED; ${why:-}" "runs/handoffs/$ID-verify$N.md" "$PASS"
+    trail verify "$VAG judged $ID: $VLEVEL" "needs $NEED${RTAG:+; risk tag $RTAG}; ${why:-}" "runs/handoffs/$ID-verify$N.md" "$PASS"
     if [ "$VBLOCKS" -ge 2 ]; then
-      TRAIL_LANE=$AGENT sh "$WS/scripts/andon.sh" raise "verifier $VERIFIER blocked on two cards in a row (last: $why) — its harness is broken, every card would land unverified" >/dev/null 2>&1 || true
+      TRAIL_LANE=$AGENT sh "$WS/scripts/andon.sh" raise "verifier $VAG blocked on two cards in a row (last: $why) — its harness is broken, every card would land unverified" >/dev/null 2>&1 || true
       trail andon "stopped the night" "two verifier-blocked verdicts in a row" "runs/handoffs/$ID-verify$N.md" ANDON
     fi
   elif [ "$GOAL_MODE" = yes ] && [ "$CHECKED" != yes ]; then
     # goal mode never integrates on the author's word alone: something other than
     # the author (the runner's check: or a verifier) has to prove each card
     PASS=unverified
+  elif [ "$GOAL_MODE" = yes ] && [ -n "$RTAG" ]; then
+    # a risk-tagged card needs a second pair of eyes: its own check: is not enough
+    PASS=riskhold
+    trail verify "kept $ID off the night branch" "risk tag $RTAG and no verifier is configured" "work/$ID.md" risk-unverified
   fi
   case "$PASS" in
     blocked) fm_set "$CARD" verified blocked ;;
     unverified) fm_set "$CARD" verified unverified ;;
+    riskhold) fm_set "$CARD" verified risk-unverified ;;
     *) fm_set "$CARD" verified "$VLEVEL" ;;
   esac
 
