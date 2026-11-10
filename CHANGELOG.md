@@ -3,6 +3,102 @@
 All notable changes to apsolut-agents. Pin a release with `install.sh --tag vX.Y.Z`;
 upgrade an installed workspace with `sh .apsolut-agents/scripts/upgrade.sh`.
 
+## v0.10.0 — 2026-11-10
+
+Hardening from a blind four-model review. Claude, Codex, Grok and agy each read v0.9
+and the Cursor plugins on their own. All four said to keep apsolut-agents as the
+engine (the plugins only drive Cursor's own agents and cannot run Claude Code, Grok,
+Codex and agy against each other), and to move every rule a script can check out of
+the prompts and into `runner.sh`. Every item below was flagged by at least two
+reviewers and checked against the code first.
+
+### Fixed
+- **False throttles.** Any output that mentioned "rate limit" or "Internal Server
+  Error" (a card about rate limiting, a test log) was read as a provider throttle:
+  the work was reset, no attempt was counted, no spend was charged, and the loop
+  repeated until stop time. Now only a failed call (non-zero exit or `is_error`)
+  can be a throttle, judged on its last 40 lines. Every call is charged, and after
+  `max_backoffs_per_card` (3) throttles the card counts the attempt. `delegate.sh`
+  gets the same detection fix (a failed call, judged on its last lines); its
+  rounds are still not charged on a throttle.
+- **Stranded cards.** A card that conflicted with the night branch, or went red
+  there after the merge, used to stay in `review` and never landed, and its
+  dependents never ran. "Merges are tasks": it is now a red attempt, and every
+  attempt starts from the current night tip.
+- **Prompts too long for the command line.** The rendered prompt went through argv
+  despite the code comment. Retries and planner rounds outgrow Windows' 8–32 KB
+  command-line limit, so the CLI failed before the model ran. New:
+  `prompt_<agent>: stdin`; otherwise argv up to `prompt_arg_max_bytes` (6000), then
+  a one-line pointer to the prompt file.
+- **The planner prompt contradicted goal mode.** It said `after:` never gives code
+  visibility, which is wrong on the night branch, so planners merged dependent work
+  into oversized cards. The rule is rewritten.
+- **`--once` was not one pass.** It ran the whole board. `--once` is now exactly one
+  card, and the old behaviour is `--drain`.
+- **Verifier evidence was deleted** as soon as its verdict was read. It now moves
+  to `runs/evidence/<id>-verify<n>/`.
+- **The planner could erase a merge.** It ran in the night worktree without the
+  integration lock, and its "undo stray edits" reset could wipe another lane's
+  integration. It now plans in a detached snapshot.
+- **A verdict was thrown away when tests left untracked files** (coverage,
+  `.tsbuildinfo`, sqlite). The read-only check now compares HEAD and tracked
+  files only.
+- **The handoff parser** read only the first line under the exact heading. It now
+  accepts `## Status: blocked`, bold text, bullets and fences. A handoff printed as
+  the final message is recovered, and a synthetic handoff carries the output tail.
+- A restart after midnight opened a new night from `main` and reset the budget.
+  `runs/.night-current` now keeps the night for 18 h. Attempt counters are per night.
+- A timed-out run was charged the $2 fallback. It is now charged at least
+  `cost_per_minute_usd` × minutes. Lanes now share the spend ledger under a lock.
+- `stop_time` at 12:00 or later never fired. `CARD IS WRONG:` matched anywhere in
+  the advisor's text, even when quoted. The test-first gate matched words like
+  "latest". When the runner detects a red, the worker's notes are no longer shown
+  as "Would unblock".
+
+- Second review round (Codex and Grok on this diff) found seven more, fixed before
+  release. The preflight probe now uses the lane's own prompt transport, so
+  `prompt_<agent>: stdin` CLIs can start. The card snapshot is kept across retries
+  (it used to be retaken on each claim, so attempt 1 could weaken attempt 2's
+  contract) and dropped when the card blocks. `protect:` globs reach git literally
+  instead of being expanded by the shell. The night file records its start time
+  portably (`date -r` differs on macOS), and the last lane out closes it. A handoff
+  printed inside a JSON envelope is recovered. The card's `check:` runs again on
+  the merge candidate. The prompt pointer names a copy inside the cwd
+  (`.apsolut-out/prompt.md`), because a native Windows CLI cannot open an MSYS
+  `/c/...` path written in a sentence. Integration accepts untracked green output.
+  "not blocked" no longer reads as `blocked` (the token must be the first word).
+  A timeout is never a throttle. `doctor.sh` fails a `setup_cmd` that edits tracked
+  files.
+
+### Added
+- **`protect:`** (HEARTBEAT and GOAL.md): git pathspecs no card may change, meaning
+  the predicate's tests, the green script and CI config. A card diff touching one is
+  red, and a night whose diff touches one cannot meet the goal. The card is
+  snapshotted at claim, so a worker editing its own `verify:` or Done-when changes
+  nothing.
+- **`check:` on cards.** The runner runs it before the change (it must fail, or the
+  card is refused) and after (it must pass). Planner cards must carry one. In goal
+  mode with no verifier, only cards whose check passed integrate; the rest wait as
+  `unverified`.
+- **`forbid_added:`**: added diff lines matching it (`.skip(`, `.only(`,
+  `@ts-ignore`, `eslint-disable`, …) turn the attempt red.
+- **`setup_cmd:`** runs once per fresh worktree (cards and the night branch),
+  outside the attempt clock. `doctor.sh` proves it in a pristine worktree.
+- **`check_timeout_minutes:`** (30) caps setup, green, check and done_cmd.
+- Roles write into `<worktree>/.apsolut-out/` (git-excluded), so CLIs sandboxed to
+  their cwd can report. The runner collects the files into `runs/`.
+- Worker prompts carry the handoffs of their `after:` cards. Retry and advisor
+  context is ordered reason, verdict, handoff, output, then the diff.
+- Two `verifier-blocked` verdicts in a row raise the Andon.
+- Planner cards are normalised: `owner: any`, no pinned branch, `after:` must
+  name known cards, no `spike: true`.
+- `doctor.sh` now fails when `timeout` is not GNU and when `done_cmd` already
+  passes, warns when `protect:` is empty, and runs `setup_cmd`. The runner refuses
+  a non-GNU `timeout` at boot.
+- `tests/goal-loop.sh` grows from 28 to 43 checks across 12 scenarios: false
+  throttles, pointer and stdin prompts, protected paths, forbidden patches, check
+  before and after, no-verifier goal mode, `--once`, and handoffs printed to stdout.
+
 ## v0.9.0 — 2026-11-09
 
 The goal loop. A night can now run until a checkable "final product" predicate

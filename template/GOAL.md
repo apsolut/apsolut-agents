@@ -21,6 +21,10 @@ goal:
 # must not edit files. Point it at a committed script: e2e journeys, an acceptance
 # test suite, `test -z "$(grep -r TODO src)"`, a pixel diff, a coverage floor.
 done_cmd:
+# protect: pathspecs no card may change tonight: the files done_cmd and the
+# acceptance tests live in. A card touching one is red, and a night whose diff
+# touches one cannot meet the goal. The predicate never relaxes.
+protect:
 # minimum independent-verifier verdict for a card to integrate:
 # live | test | typecheck  (a card's own `verify:` overrides it)
 verify_level: test

@@ -1,17 +1,29 @@
 #!/bin/sh
 # SPDX-License-Identifier: MIT — (c) 2026 apsolut — https://github.com/apsolut/apsolut-agents
-# fake-agent.sh "<prompt>" — a scripted stand-in for an agent CLI, used by
+# fake-agent.sh ["<prompt>"] — a scripted stand-in for an agent CLI, used by
 # tests/goal-loop.sh. It recognises the role from the rendered prompt and acts like
 # a cooperative (or, when the card or goal asks, misbehaving) agent, so the whole
-# night loop can run in CI without a model. Cards steer it with Notes lines:
-#   make: <file>   create <file> and t_<file>.sh, which tests for it
-#   flaky: yes     the first attempt writes the wrong content (the verifier catches it)
-#   tamper: yes    edit HEARTBEAT.md through the .primary pointer
-#   blocked: yes   report a dead end
+# night loop can run in CI without a model. The prompt arrives as $1, on stdin (no
+# $1), or as a one-line pointer to a prompt file — the three ways runner.sh sends it.
+# Cards steer it with Notes lines:
+#   make: <file>         create <file> and t_<file>.sh, which tests for it
+#   flaky: yes           the first attempt writes the wrong content (the verifier catches it)
+#   tamper: yes          edit HEARTBEAT.md through the .primary pointer
+#   blocked: yes         report a dead end
+#   chatty: yes          print provider-error words in a successful run
+#   cheat: yes           make the green script always pass (a protected path)
+#   skip: yes            add a skipped test (a forbidden symptom patch)
+#   stdout-handoff: yes  print the handoff instead of writing the file
 # and the goal steers the planner: "stuck-please" → STUCK.md.
 set -eu
-P=$1
+if [ $# -ge 1 ]; then P=$1; else P=$(cat); fi
+case "$P" in "Your complete instructions are in the file "*)
+  f=$(printf '%s\n' "$P" | sed -n 's/^Your complete instructions are in the file \([^ ]*\) .*/\1/p')
+  case "$f" in /*) echo "fake-agent: pointer must be relative to the cwd: $f" >&2; exit 3;; esac
+  P=$(cat "$f");;
+esac
 after() { printf '%s\n' "$P" | sed -n "s/.*$1[[:space:]]*//p" | head -1; }
+has() { case "$P" in *"$1"*) return 0;; esac; return 1; }
 
 case "$P" in
   "Reply with the single word: ok") echo ok; exit 0 ;;
@@ -26,6 +38,8 @@ case "$P" in
   else
     lvl=verifier-failed; why="- (high) $f does not hold the right content: cat $f -> $(cat "$f" 2>/dev/null || echo missing)"
   fi
+  scr=$(printf '%s\n' "$P" | sed -n 's/.*go under \(.*\) only\..*/\1/p' | head -1)
+  [ -n "$scr" ] && echo "evidence for $f" > "$scr/proof.log"
   printf '## Verification\n%s\n\n## Execution\n- cat %s -> %s\n\n## Findings\n%s\n\n## Notes\n- fake verifier\n' \
     "$lvl" "$f" "$(cat "$f" 2>/dev/null || echo missing)" "$why" > "$out"
   echo '{"total_cost_usd": 0.01}'
@@ -34,21 +48,22 @@ case "$P" in
   stage=$(printf '%s\n' "$P" | sed -n 's/.*as its own file in \(.*\)\/ named exactly.*/\1/p' | head -1)
   next=$(printf '%s\n' "$P" | sed -n 's/.*with ids continuing from \([^ ]*\) (.*/\1/p' | head -1)
   mkdir -p "$stage"
-  case "$P" in *stuck-please*)
+  if has stuck-please; then
     printf 'The goal needs a product decision: which colour.\nWould unblock: the human picks one.\n' > "$stage/STUCK.md"
-    echo '{"total_cost_usd": 0.01}'; exit 0;;
-  esac
+    echo '{"total_cost_usd": 0.01}'; exit 0
+  fi
   if [ ! -f b.txt ]; then
     cat > "$stage/$next.md" <<EOF
 ---
 id: $next
 status: waiting
-owner: any
+owner: claude
 title: add b.txt
 after: []
 risk: []
 spike: false
 verify: test
+check: test -f b.txt
 files:
   - b.txt
 ---
@@ -79,22 +94,29 @@ EOF
   echo '{"total_cost_usd": 0.01}'
   ;;
 *"working alone and headless"*)
-  hf=$(after 'with exactly these headings:')
+  hf=$(printf '%s\n' "$P" | sed -n 's/.*do not commit it): //p' | head -1)
   f=$(printf '%s\n' "$P" | sed -n 's/^make: //p' | head -1)
-  case "$P" in *"tamper: yes"*)
-    echo "tampered: yes" >> "$(cat .apsolut-agents/.primary)/HEARTBEAT.md";;
-  esac
-  case "$P" in *"blocked: yes"*)
-    printf '## Status\nblocked\n\n## Notes\n- needs a credential nobody gave me\n' > "$hf"; exit 0;;
-  esac
+  has "tamper: yes" && echo "tampered: yes" >> "$(cat .apsolut-agents/.primary)/HEARTBEAT.md"
+  if has "blocked: yes"; then
+    printf '## Status\nblocked\n\n## Notes\n- needs a credential nobody gave me\n' > "$hf"; exit 0
+  fi
   content=right
-  case "$P" in *"flaky: yes"*)
-    case "$P" in *"PREVIOUS ATTEMPT FAILED"*) ;; *) content=wrong;; esac;;
-  esac
+  if has "flaky: yes" && ! has "PREVIOUS ATTEMPT FAILED"; then content=wrong; fi
   printf '%s\n' "$content" > "$f"
   printf 'test -f %s\n' "$f" > "t_$f.sh"
+  has "cheat: yes" && printf 'exit 0\n' > run-tests.sh
+  has "skip: yes" && printf 'it.skip("later", () => {})\n' > "skipped.test.js"
   git add -A -- ':!.apsolut-agents' && git commit -q -m "add $f"
-  printf '## Status\nsuccess\n\n## Root cause\nn/a (new behaviour)\n\n## What I did\n- added %s\n\n## Verification\ntest-verified\n- sh run-tests.sh -> pass\n\n## Notes\n- fake worker\n\n## Suggested follow-ups\n- (none)\n' "$f" > "$hf"
+  H=$(printf '## Status\nsuccess\n\n## Root cause\nn/a (new behaviour)\n\n## What I did\n- added %s\n\n## Verification\ntest-verified\n- sh run-tests.sh -> pass\n\n## Notes\n- fake worker made %s\n\n## Suggested follow-ups\n- (none)\n' "$f" "$f")
+  if has "stdout-handoff: yes"; then
+    # the way a JSON-output CLI prints it: one line, escaped newlines, in an envelope
+    printf '{"type":"result","result":"%s","total_cost_usd":0.05}\n' \
+      "$(printf '%s\n' "$H" | sed 's/^success$/blocked/' | awk '{printf "%s\n", $0}')"
+    exit 0
+  else
+    printf '%s\n' "$H" > "$hf"
+  fi
+  has "chatty: yes" && echo "tests: HTTP 429 rate limit exceeded / 500 Internal Server Error (expected in this suite)"
   echo '{"total_cost_usd": 0.05}'
   ;;
 *) echo "fake-agent: unknown role" >&2; exit 3 ;;

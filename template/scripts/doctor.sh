@@ -39,6 +39,9 @@ echo "[tools]"
 for t in git curl awk sed grep mktemp timeout; do
   command -v "$t" >/dev/null 2>&1 && ok "$t" || fail "$t not found in PATH"
 done
+# runner.sh needs GNU timeout (-k, exit 124); Windows TIMEOUT.EXE first on PATH
+# makes every call fail in milliseconds
+timeout -k 1 5 true >/dev/null 2>&1 || fail "timeout is not GNU coreutils timeout ($(command -v timeout)) — put Git Bash/coreutils first on PATH" 
 
 # --- heartbeat ---------------------------------------------------------------------
 echo "[heartbeat]"
@@ -95,7 +98,7 @@ if [ -f "$HB" ]; then
     [ -n "$(cfg "cmd_$a")" ] && ok "$role: $a" || fail "$role: $a has no cmd_$a line — the runner refuses to start"
   done
   VA=$(cfg verifier_agent)
-  [ -z "$VA" ] && warn "verifier_agent empty — green_cmd is the only gate; nobody but the author runs the change"
+  [ -z "$VA" ] && warn "verifier_agent empty — green_cmd and each card's check: are the only gates; in goal mode a card without check: never integrates"
   for a in $CMDS; do
     [ -n "$VA" ] && [ "$a" = "$VA" ] && warn "verifier_agent '$VA' is also a worker lane — a lane it runs gets judged by its own model; prefer a different family"
   done
@@ -114,13 +117,19 @@ else
   pa=$(gcfg planner_agent)
   [ -z "$pa" ] || [ -n "$(cfg "cmd_$pa")" ] || fail "GOAL.md planner_agent: $pa has no cmd_$pa line in HEARTBEAT.md"
   case "$DONE_CMD" in *sleep*|*"for "*h*) warn "done_cmd looks like a duration — it must be a predicate that can fail";; esac
+  PROT="$(cfg protect) $(gcfg protect)"
+  if [ -z "$(printf '%s' "$PROT" | tr -d ' ,')" ]; then
+    warn "no protect: paths — a card can edit the predicate's tests or the green script and still integrate. List them in GOAL.md protect:"
+  else
+    ok "protected paths: $PROT"
+  fi
   # the predicate runs in a worktree of tracked files, like green_cmd: prove it RUNS
   # there (red is expected before the night; "command not found" is not)
   DW="$TMPD/done-wt"
   if git -C "$REPO" worktree add -q --detach "$DW" HEAD >/dev/null 2>&1; then
     drc=0; ( cd "$DW" && timeout 600 sh -c "$DONE_CMD" ) > "$TMPD/done.out" 2>&1 || drc=$?
     case "$drc" in
-      0) warn "done_cmd already PASSES on HEAD — the goal is met before the night starts";;
+      0) fail "done_cmd already PASSES on HEAD — the night would end at the first empty board with nothing done";;
       126|127) fail "done_cmd cannot run in a pristine worktree (exit $drc) — untracked script or missing tool?"
                command tail -5 "$TMPD/done.out" | sed 's/^/        /';;
       *) ok "done_cmd runs in a pristine worktree and is red now (exit $drc) — something to drive toward";;
@@ -154,8 +163,8 @@ else
     for k in status owner branch worktree updated; do
       grep -q "^$k:" "$f" || warn "$i: frontmatter missing '$k:' — hand-written card? copy work/_TEMPLATE.md so scripts can record into it"
     done
-    if [ "$(fm_get "$f" spike)" != "true" ] && ! grep -qi "test" "$f"; then
-      warn "$i: names no test and spike is not true — the night runner will refuse it (PLAYBOOK §2)"
+    if [ -z "$(fm_get "$f" check)" ] && [ "$(fm_get "$f" spike)" != "true" ] && ! grep -qiwE 'tests?|specs?' "$f"; then
+      warn "$i: no check:, names no test and spike is not true — the night runner will refuse it (PLAYBOOK §2)"
     fi
     # a worktree contains only TRACKED files: an untracked/gitignored card input is
     # invisible to the agent (field incident 2026-08-11 — lane spawned without inputs)
@@ -240,6 +249,15 @@ if [ -n "$GREEN" ]; then
   # incident 2026-08-11: cost 3 cards). Prove it in a real throwaway worktree.
   DWT="$TMPD/wt-doctor"
   if git -C "$REPO" worktree add --detach "$DWT" >/dev/null 2>&1; then
+    SETUP=$(cfg setup_cmd)
+    if [ -n "$SETUP" ]; then
+      if ( cd "$DWT" && sh -c "$SETUP" ) > "$TMPD/setup-wt.out" 2>&1; then
+        if [ -n "$(git -C "$DWT" status --porcelain -uno)" ]; then
+          fail "setup_cmd changed TRACKED files in a pristine worktree (a lockfile rewrite?) — the runner refuses that as a harness failure"
+        else ok "setup_cmd bootstraps a pristine worktree"; fi
+      else fail "setup_cmd FAILED in a pristine worktree — every card would stop the night as a harness failure. Tail:"
+           command tail -5 "$TMPD/setup-wt.out" | sed 's/^/        /'; fi
+    fi
     if ( cd "$DWT" && sh -c "$GREEN" ) > "$TMPD/green-wt.out" 2>&1; then
       ok "green_cmd passed in a PRISTINE worktree (tracked files only)"
     else
@@ -282,7 +300,12 @@ if [ $# -gt 0 ]; then
     CMD=$(cfg "cmd_$AG")
     if [ -z "$CMD" ]; then fail "$AG: no cmd_$AG: in HEARTBEAT.md"; continue; fi
     PD=$(mktemp -d)
-    if OUTP=$( cd "$PD" && timeout -k 10 180 sh -c "$CMD \"\$1\"" doctor "Reply with the single word: ok" 2>&1 ); then
+    if [ "$(cfg "prompt_$AG")" = stdin ]; then
+      PCMD() { printf 'Reply with the single word: ok\n' | timeout -k 10 180 sh -c "$CMD"; }
+    else
+      PCMD() { timeout -k 10 180 sh -c "$CMD \"\$1\"" doctor "Reply with the single word: ok" < /dev/null; }
+    fi
+    if OUTP=$( cd "$PD" && PCMD 2>&1 ); then
       rm -rf "$PD"
       if printf '%s' "$OUTP" | grep -q '"is_error"[[:space:]]*:[[:space:]]*true'; then
         fail "$AG: CLI answered but is_error:true (refusal/infra?) — a lane would burn the board"

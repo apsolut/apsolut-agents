@@ -11,24 +11,24 @@ anything no longer true (git keeps history), keep the whole file to ~1 screen.
 ## Facts (generated)
 
 <!-- facts:begin -->
-_Generated 2026-11-09 23:44 by status.sh — do not hand-edit this block._
+_Generated 2026-11-10 02:18 by status.sh — do not hand-edit this block._
 
 | | |
 |--|--|
-| Branch | `v0.9-goal-loop` |
+| Branch | `v0.10-hardening` |
 | Ahead/behind upstream | no upstream configured |
-| Dirty files | 1 |
+| Dirty files | 2 |
 | Worktrees | 1 (incl. primary) |
-| Last session token | claude — 2026-11-09 — HOLD |
-| agent-log.md | 156 lines |
+| Last session token | claude — 2026-11-10 — HOLD |
+| agent-log.md | 164 lines |
 
 Recent commits:
 ```
+8881f39 fix: v0.10.0 second review round (Codex + Grok on the diff)
+aa50077 feat: v0.10.0 — the runner enforces what the prompts only asked
+b96e82b Merge v0.9-goal-loop: run the night until a final-product predicate passes
+9a89a1f agents: claude session end 2026-11-09 (HOLD) — v0.9.0 goal loop on branch
 a6c812a feat: v0.9.0 — goal loop: run the night until a final-product predicate passes
-d2e9d5c agents: claude session end 2026-11-07 (PUSHED) — v0.8.x tagged, state caught up
-f0fb80c feat: v0.8.2 — refuse a check that changes the merge
-5329c33 feat: v0.8.1 — prove the merge before the primary branch moves
-445b244 feat: v0.8.0 — review leftover worktrees, seal delegate push
 ```
 <!-- facts:end -->
 

@@ -10,6 +10,8 @@ You are agent '{{AGENT}}' working alone and headless in the isolated git worktre
 - Stay inside the card. Something else that looks broken or worth doing goes under "Suggested follow-ups" in your handoff, not into this diff.
 - Green is checked by the runner after you stop, with: {{GREEN}}
   Run it yourself and iterate until it passes. The runner's run decides, not what you say about it.
+- The card's check, which the runner ran before you started (it failed) and runs again after you stop (it must pass): {{CHECK}}
+- Never edit the checks themselves: the green script, the predicate's tests, CI config, or this card. The runner diffs protected paths and turns the attempt red.
 
 === HOW TO WORK (each rule exists because agents broke it) ===
 1. Prove it works on the real artifact: run the test, the CLI, the endpoint, or the page. "It compiles" and "it should work" are not proof.
@@ -19,12 +21,13 @@ You are agent '{{AGENT}}' working alone and headless in the isolated git worktre
 5. Two fixes that share one premise failed? Stop. Write the premise down and test it directly before you write a third.
 6. Never weaken the check to pass it: no disabled tests, no loosened lint, no edits to the green command. If the check itself is wrong, say so in the handoff and stop.
 7. A genuine dead end (missing credential, a product decision, a contradiction in the card) is a `blocked` handoff with what would unblock it. That beats hours of creative reinterpretation.
-{{PREVFAIL}}{{ADVICE}}
+{{DEPS}}{{PREVFAIL}}{{ADVICE}}
 === TASK CARD ===
 {{CARD}}
 
 === YOUR HANDOFF (required — the runner and the planner read nothing else) ===
-Before you stop, write this file with exactly these headings: {{HANDOFF_PATH}}
+Before you stop, write this file with exactly these headings (it is inside your worktree and git-ignored; do not commit it): {{HANDOFF_PATH}}
+If you cannot write files, print the handoff as your final message instead.
 
 ## Status
 success | partial | blocked
