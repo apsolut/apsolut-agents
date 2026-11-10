@@ -180,3 +180,12 @@ v0.10.0 merged, tagged and pushed; workspace refreshed to 0.10.0, state caught u
 
 ### claude — 2026-11-10 — HOLD
 v0.11.0 is on branch v0.11-lane-caps, unpushed. The human reviews it, merges to main and tags v0.11.0. Next: one supervised real-model runner.sh <agent> --once with the new cmd_ lines.
+
+### claude — 2026-11-11 — v0.12.0: risk routing, blocked-by, issue intake (branch v0.12-risk-intake, not pushed)
+- Source: the human asked for what was worth taking from a public video of the same pattern (ZazenCodes, "Build a Better Software Factory with Claude Code", 2026-11-09). Read from the auto-captions only, not its source repo. Not taken: its auto-merge approver and its model-as-orchestrator.
+- Shipped: `risk_tags` + `risk_verifier_agent` (a tagged card goes to the stronger verifier; with no verifier it never integrates on its check alone), `Blocked by: task | rule | cli` on every blocked card and in the night report, `scripts/intake.sh` (labelled GitHub issues become draft cards on hold; issue text quoted as data), and a doctor.sh warning for a verifier that runs a smaller model than the workers.
+- Verified: tests/goal-loop.sh 64/64 (three new scenarios; tests/fake-gh.sh stands in for GitHub), install parity, doctor on this repo 28 ok / 4 warn / 0 fail. intake.sh ran once against this repo read-only (--dry-run, no labelled issues); it has NOT written a card from a live issue. shellcheck is not installed here; CI runs it on push.
+- This branch is stacked on v0.11-lane-caps: merging it lands v0.11.0 and v0.12.0 together.
+
+### claude — 2026-11-11 — HOLD
+v0.12.0 (risk routing, blocked-by, issue intake) on branch v0.12-risk-intake, stacked on v0.11-lane-caps; human reviews, merges, tags
