@@ -170,3 +170,13 @@ v0.10.0 is on branch v0.10-hardening, unpushed. The human pushes main + v0.9.0, 
 
 ### claude — 2026-11-10 — PUSHED
 v0.10.0 merged, tagged and pushed; workspace refreshed to 0.10.0, state caught up.
+
+### claude — 2026-11-10 — v0.11.0 lane caps from a three-model consult (branch v0.11-lane-caps, not pushed)
+- Read the installed CLIs (claude 2.1.322, codex 0.167.0, grok 1.0.70, agy 1.5.3): all four now ship native subagents, goal loops and spend or time flags. Wrote six proposals. Claude, Grok and agy judged them alone, read-only. Record: runs/2026-11-10-lane-caps-consult.md.
+- Shipped the four all three would ship, with their corrections: a per-call budget ($APSOLUT_CALL_BUDGET_USD, a cap hit blocks), native subagents off on the cmd_ lines, agy's own timeout read as a timeout, a Codex lane with per-agent cost rates. Also fixed "exit 0 is read as finished" (a cancelled turn or a denied tool went to green_cmd), which the consult itself hit twice.
+- Not shipped: native sandboxes (2 for, 1 against) and schema output (0 for, 3 against). Reasons in FUTURE.md.
+- Verified: tests/goal-loop.sh 48/48, install parity, and a live doctor.sh probe of all four cmd_ lines. NOT yet run against a real model night.
+- Decision for the human: doctor.sh now warns that a headless claude can reach the signed-in account's MCP servers and claude.ai connectors. --strict-mcp-config closes it and also drops a project .mcp.json, so it is a warning, not a default.
+
+### claude — 2026-11-10 — HOLD
+v0.11.0 is on branch v0.11-lane-caps, unpushed. The human reviews it, merges to main and tags v0.11.0. Next: one supervised real-model runner.sh <agent> --once with the new cmd_ lines.

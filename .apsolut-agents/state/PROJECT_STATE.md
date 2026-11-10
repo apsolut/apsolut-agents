@@ -11,24 +11,24 @@ anything no longer true (git keeps history), keep the whole file to ~1 screen.
 ## Facts (generated)
 
 <!-- facts:begin -->
-_Generated 2026-11-10 03:19 by status.sh — do not hand-edit this block._
+_Generated 2026-11-10 17:31 by status.sh — do not hand-edit this block._
 
 | | |
 |--|--|
-| Branch | `main` |
-| Ahead/behind upstream | 0 ahead / 0 behind upstream |
-| Dirty files | 17 |
+| Branch | `v0.11-lane-caps` |
+| Ahead/behind upstream | no upstream configured |
+| Dirty files | 23 |
 | Worktrees | 1 (incl. primary) |
-| Last session token | claude — 2026-11-10 — PUSHED |
-| agent-log.md | 172 lines |
+| Last session token | claude — 2026-11-10 — HOLD |
+| agent-log.md | 182 lines |
 
 Recent commits:
 ```
+861aa5d agents: claude session end 2026-11-10 (PUSHED) — v0.10.0 shipped, workspace refreshed to 0.10.0, state caught up
 444b782 Merge pull request #1 from apsolut/v0.10-hardening
 c995c27 fix: doctor probes a stdin lane through stdin, like the runner
 db6bb84 agents: claude session end 2026-11-10 (HOLD) — v0.10.0 four-model review on branch
 8881f39 fix: v0.10.0 second review round (Codex + Grok on the diff)
-aa50077 feat: v0.10.0 — the runner enforces what the prompts only asked
 ```
 <!-- facts:end -->
 
@@ -41,6 +41,7 @@ no — HOLD lifted 2026-07-29: human provided the remote (github.com/apsolut/aps
 | Task / id | Owner | Status |
 |---|---|---|
 | v0.9.0 (goal loop) + v0.10.0 (runner-enforced checks, four-model review) | Claude | done — on main, tagged and pushed 2026-11-10 (PR #1) |
+| v0.11.0 (lane caps: per-call budget, native subagents off, Codex lane, exit-0 fix) | Claude | on branch `v0.11-lane-caps`, not pushed — human reviews, merges, tags |
 
 ## Blockers
 
@@ -48,7 +49,7 @@ no — HOLD lifted 2026-07-29: human provided the remote (github.com/apsolut/aps
 
 ## Top 3 next actions
 
-1. Run the first supervised real-model `runner.sh <agent> --once` goal night on a small repo. v0.9/v0.10 (goal loop, verifier ladder, stdin prompts, throttle detection, night-branch integration) are proven only by `tests/goal-loop.sh` (43/43) against a fake CLI. — human + any agent
+1. Run the first supervised real-model `runner.sh <agent> --once` goal night on a small repo. v0.9/v0.10 (goal loop, verifier ladder, stdin prompts, throttle detection, night-branch integration) are proven only by `tests/goal-loop.sh` (43/43) against a fake CLI. The v0.11 `cmd_` lines (budget cap, subagents off, agy print-timeout, Codex lane) answer a live `doctor.sh` probe but have not carried a real card. — human + any agent
 2. Pick from the v0.10 review leftovers in `../FUTURE.md` ("raised, not shipped"): stall detector, failure-mode routing, and one design for the score ratchet. Process-group containment and real isolation both point at Docker lanes. Record: `runs/2026-11-10-four-model-review.md`. — any agent
 3. Installed copies elsewhere (e.g. the n8n project) need `sh .apsolut-agents/scripts/upgrade.sh` to pick up v0.10.0; `--once` now means one card (old behaviour is `--drain`). Merged branches `v0.9-goal-loop` and `v0.10-hardening` can be deleted. — human
 
