@@ -107,6 +107,8 @@ fi
 # --- more warnings ----------------------------------------------------------------
 [ "$LOGLINES" -gt 400 ] && WARNINGS="${WARNINGS}- ⚠ agent-log.md is $LOGLINES lines (>400) — run scripts/session-end.sh to compact
 "
+[ -f "$WS/ANDON" ] && WARNINGS="${WARNINGS}- 🚨 ANDON raised — every night lane refuses to claim: $(sed -n 's/^reason: //p' "$WS/ANDON") (human clears: \`sh scripts/andon.sh clear\`)
+"
 for f in README.md INSTALL.md PROJECT.md PROTOCOL.md WORKTREES.md CLAUDE-SNIPPET.md \
          STATUS.md agent-log.md state/PROJECT_STATE.md decisions/DECISIONS.md \
          agents/agent-TEMPLATE.md work/_TEMPLATE.md runs/README.md; do

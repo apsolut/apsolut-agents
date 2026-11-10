@@ -49,13 +49,11 @@ Keeps the no-daemon soul — the container lives exactly as long as the lane doe
 
 ## Faster
 
-- **Overnight branch stacking** — `after:` deps only clear on merge, so a 3-card
-  chain takes three nights or becomes one bloated card. Opt-in `stack: true`: when
-  the dep is `review`+green, the dependent card's worktree spawns from the dep's
-  branch instead of the default branch — a chain finishes in one night as stacked
-  branches. Morning semantics are stacked PRs: reject A and B falls with it, which
-  the unmerged-branches rule already expresses. First step: teach `worktree.sh
-  spawn` an optional base ref and `deps_met` the `stack:` case.
+- **Overnight branch stacking** — shipped in v0.9.0 for goal mode, as the night
+  integration branch instead of per-card stacks. `worktree.sh spawn --base`
+  spawns every card from `agent/night/NIGHT-<date>`, verified cards merge onto it,
+  and `after:` clears on integration. Plain board mode is unchanged (`after:` still
+  clears only on merge). Still open: per-card `stack: true` outside goal mode.
 - **Warm worktree seeding** — every spawn pays the full `npm ci` / first-build tax
   inside the card's own time cap. A `seed_dirs:` HEARTBEAT key: when a sibling
   `*-wt-*` worktree already has the artifact dirs (`node_modules/`, `target/`,
@@ -104,7 +102,11 @@ Keeps the no-daemon soul — the container lives exactly as long as the lane doe
   `extensions.worktreeConfig` and then `git config --worktree remote.<name>.pushurl
   no_push://refused` for every remote. The primary checkout is not sealed.
   The prompt still says do not push.
-- **Round-boundary tamper canary** — the caps and ledgers are plain files a
+- **Round-boundary tamper canary** — runner half shipped in v0.9.0: `runner.sh`
+  checksums HEARTBEAT.md, GOAL.md, prompts/ and scripts/ around every agent call.
+  A mismatch raises the Andon (exit 5). Not covered: the spend file, claims/ and
+  the log (lanes legitimately write them), and `delegate.sh` rounds. Original note:
+  the caps and ledgers are plain files a
   bypass delegate can rewrite via `.primary` (HEARTBEAT.md, spend file, claims/,
   its own card, the log). Prevention needs Docker; detection needs a checksum:
   snapshot sha256s at dispatch, re-verify after the round, diff the log for
@@ -202,7 +204,9 @@ Keeps the no-daemon soul — the container lives exactly as long as the lane doe
   mechanically. Capture is human/foreman; replay is grep. First step:
   `delegate.sh run --note` also appends the note to GOTCHAS.md keyed by the
   card's globs.
-- **Prior-attempt feedback on re-dispatch** — blocked notes already have a fixed
+- **Prior-attempt feedback on re-dispatch** — retries within a night shipped
+  (v0.7 failure context; v0.9 adds the verifier's verdict and an advisor's
+  diagnosis). Still open: re-claiming a card blocked on an earlier night. Blocked notes already have a fixed
   shape "so scripts can aggregate it later" (PLAYBOOK §5), but a re-claimed card
   gets the same prompt it failed with and can repeat the identical dead end at
   full token cost. On retry or re-claim of a previously-blocked card, prepend the
@@ -233,3 +237,19 @@ Keeps the no-daemon soul — the container lives exactly as long as the lane doe
   state, so a card carries its full biography. First step: one `printf >> card`
   in the runner's verdict block. (From the auto-memory agent-design slide,
   2026-08-11.)
+
+## From the v0.9 goal loop (2026-11-09)
+
+- **Goal mode for `delegate.sh`.** The attended path still has no handoff parsing,
+  verifier, or trail. Reuse the runner's `p_render` and handoff helpers instead of a
+  second copy.
+- **Live verifier lane.** `live-verified` needs the project's control surface
+  (dev server, browser, CLI) inside the verifier's worktree. Without Docker lanes
+  that means ports, so serialize live verification with a mutex, as dyl-stack does
+  for UI driving.
+- **Cross-night goal memory.** A goal that takes three nights restarts its plan
+  rounds each night. Carry `STUCK`, plateau premises and the last round's
+  failures into the next night's first planner prompt.
+- **Swarm verify for risky cards.** When cards are tagged `schema`/`api-contract`,
+  run two verifiers on different models and integrate only on two passes (pstack
+  autopilot-full). Cost is about 2×, so make it tag-gated, not default.

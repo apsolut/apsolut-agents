@@ -11,24 +11,24 @@ anything no longer true (git keeps history), keep the whole file to ~1 screen.
 ## Facts (generated)
 
 <!-- facts:begin -->
-_Generated 2026-11-07 16:05 by status.sh — do not hand-edit this block._
+_Generated 2026-11-09 23:44 by status.sh — do not hand-edit this block._
 
 | | |
 |--|--|
-| Branch | `main` |
-| Ahead/behind upstream | 0 ahead / 0 behind upstream |
-| Dirty files | 3 |
+| Branch | `v0.9-goal-loop` |
+| Ahead/behind upstream | no upstream configured |
+| Dirty files | 1 |
 | Worktrees | 1 (incl. primary) |
-| Last session token | claude — 2026-11-07 — PUSHED |
-| agent-log.md | 147 lines |
+| Last session token | claude — 2026-11-09 — HOLD |
+| agent-log.md | 156 lines |
 
 Recent commits:
 ```
+a6c812a feat: v0.9.0 — goal loop: run the night until a final-product predicate passes
+d2e9d5c agents: claude session end 2026-11-07 (PUSHED) — v0.8.x tagged, state caught up
 f0fb80c feat: v0.8.2 — refuse a check that changes the merge
 5329c33 feat: v0.8.1 — prove the merge before the primary branch moves
 445b244 feat: v0.8.0 — review leftover worktrees, seal delegate push
-5ad36fb fix: v0.7.1 — harness failures no longer read as card failures (field incident #2)
-29d5e9b feat: v0.7.0 — scripts/doctor.sh one-command workspace preflight
 ```
 <!-- facts:end -->
 

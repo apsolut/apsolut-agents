@@ -21,6 +21,21 @@ workspace — they report to their orchestrator, and the orchestrator files the 
 Decisions arising from a run go to `decisions/DECISIONS.md` as usual, with a pointer
 to the run file.
 
+## Written by Night Shift (`runner.sh`), not by hand
+
+- `night-<date>.md`: the morning packet. It holds the goal state, the card table,
+  "Waiting on you", and the reviewer's "Attention" section. Read Attention first.
+- `trail-<date>.tsv`: the decision trail, one row per decision (ts, lane, phase,
+  decision, why, evidence, result). It is append-only. A wrong row is superseded by a
+  new row, never edited. Humans add rows with `scripts/trail.sh`.
+- `handoffs/<id>-attempt<n>.md`: each worker's structured handoff (Status, Root cause,
+  Verification, Follow-ups). Alongside it: `-verify<n>.md` holds the independent
+  verdict, and `-advice<n>.md` holds the advisor's diagnosis before a retry.
+- `plan-<date>-r<n>/`: one planner round. It holds the staged cards (accepted ones are
+  copied into `work/`), the prompt, and `STUCK.md` when the goal needs a human.
+- `<id>-attempt<n>.fail`: a red attempt's diff, handoff, verdict, and output tail.
+  The next attempt's prompt includes it.
+
 ## Not here
 
 - Raw subagent transcripts or full tool output — link, don't paste.

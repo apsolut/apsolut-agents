@@ -20,6 +20,24 @@ cost_fallback_usd: 2.00
 stop_time: 07:00
 idle_poll_seconds: 300
 stale_claim_minutes: 5
+# per-call cap for the read-only roles below (verifier, advisor, planner, reviewer)
+helper_timeout_minutes: 20
+
+## Roles (v0.9) — each names an agent that has a cmd_<agent> line below; empty = off
+# verifier_agent runs every green card for real and returns a verdict
+# (live-verified | test-verified | typecheck-only | verifier-blocked | verifier-failed).
+# Below verify_level, the attempt counts as red. Pick a DIFFERENT model family from the
+# worker lanes: an author checks what it meant to build, not what it built.
+verifier_agent:
+# advisor_agent reads a failed attempt before the retry and writes a diagnosis into
+# the retry prompt (the "stuck" checkpoint). One call per retried card.
+advisor_agent:
+# review_agent audits the decision trail at night end and appends "Attention" to the
+# night report. Read it first in the morning.
+review_agent:
+# minimum verifier verdict: live | test | typecheck. A card's `verify:` overrides it,
+# and GOAL.md verify_level overrides it in goal mode.
+verify_level: test
 
 ## Delegation caps (scripts/delegate.sh — see DELEGATION.md §4)
 delegate_max_depth: 2

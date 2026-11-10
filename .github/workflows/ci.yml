@@ -12,7 +12,7 @@ jobs:
       - uses: actions/checkout@v4
       # -S error only: these scripts are hand-tuned POSIX sh; style-level findings
       # are reviewed by agents, not gated here.
-      - run: shellcheck -s sh -S error install.sh template/scripts/*.sh
+      - run: shellcheck -s sh -S error install.sh template/scripts/*.sh tests/*.sh
 
   install-smoke:
     runs-on: ubuntu-latest
@@ -32,3 +32,13 @@ jobs:
           sh install.sh "$T" --refresh --wire   # marker present — must skip and still exit 0
           test "$(grep -c 'apsolut-agents:begin' "$T/CLAUDE.md")" = 1
           test "$(cat "$T/.apsolut-agents/VERSION")" = "$(cat VERSION)" || { echo "VERSION not stamped"; cat "$T/.apsolut-agents/VERSION"; exit 1; }
+
+  goal-loop:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: night shift goal loop, end to end, against a fake agent CLI
+        run: |
+          git config --global user.email ci@example.invalid
+          git config --global user.name ci
+          sh tests/goal-loop.sh

@@ -10,6 +10,9 @@ after: []                # [T-01, T-02] — ready only when these are done (MERG
                          # run the same night as its dependency (NIGHTSHIFT.md).
 risk: []                 # [api-contract, schema, pii, money, ui] — see PLAYBOOK.md §4
 spike: false             # true = research/docs card; waives the night test-first gate
+verify: test             # minimum independent verdict: live | test | typecheck (HEARTBEAT verify_level if absent)
+verified: null           # set by runner.sh: the verifier's verdict, self:<level>, or blocked
+integrated: null         # set by runner.sh in goal mode: the night branch this card was merged into
 files:                   # paths you expect to touch (declare INTENT on hot files)
   - <path/to/file>
 branch: null             # agent/<agent>/<id> — set by worktree.sh spawn

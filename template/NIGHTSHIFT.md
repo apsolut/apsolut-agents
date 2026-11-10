@@ -3,8 +3,10 @@
 
 _Runs task cards through the night with no human in the loop. Design reviewed blind
 by three models (Claude draft, Gemini + Grok reviews); the cuts they agreed on are
-law here: rule-based control only, no overnight merges, kill is terminal, no
-automatic cross-model reassignment._
+law here: rule-based control only, no overnight merges into the default branch,
+kill is terminal, no automatic cross-model reassignment. The v0.9 goal loop (below)
+merges onto a separate night branch only. The default branch still moves only when a
+human runs `done --merge`._
 
 ## The deal
 
@@ -60,6 +62,100 @@ failure context in its prompt (a blind retry repeats the same dead end); retry
 once, then `status: blocked` + phone ping. Backoff resets salvage + pin the same
 way — a 429 never destroys work.
 
+## Roles and the per-card pipeline (v0.9)
+
+Each role is a plain prompt in `prompts/<role>.md`, rendered with the card, the goal,
+and the evidence. Each optional role is an agent name in `HEARTBEAT.md` (`verifier_agent:`,
+`advisor_agent:`, `review_agent:`; `planner_agent:` lives in `GOAL.md`).
+
+```
+claim → [advisor, retries only] → worker → handoff → green_cmd → [verifier] → review
+                                                                     └─ goal mode: integrate → night branch
+```
+
+- **Worker** (`prompts/worker.md`): carries the rules agents keep breaking. Prove it on
+  the real artifact. Write the test first. Write `Root cause: X because Y` before any
+  fix (a null guard, a retry, or a `.skip` is a symptom patch until that line
+  justifies it). Make the smallest change. After two failed fixes, attack the
+  premise. Never weaken the check. A dead end is a `blocked` handoff. It ends with a
+  structured **handoff** in `runs/handoffs/<id>-attempt<n>.md` (Status, Root cause,
+  What I did, Verification, Notes, Suggested follow-ups). No handoff gets a synthetic
+  one that names the failure mode: timeout ("split the card"), left its branch, or
+  CLI error. `Status: blocked` blocks the card at once, with no retry burned.
+- **Verifier** (`prompts/verifier.md`): a *different* agent runs the change. It is
+  read-only, and the runner checks HEAD and `git status` and resets any edit. It
+  returns `live-verified | test-verified | typecheck-only | verifier-blocked |
+  verifier-failed`. Below the card's `verify:` level (default `test`), the attempt is
+  red, and the verdict goes into the retry's failure context. `verifier-blocked` means
+  the environment, not the work, so the card waits in `review` as **unverified** and
+  never integrates.
+- **Advisor** (`prompts/advisor.md`): before a retry, a different agent reads the
+  failed diff and output, then names the mechanism, the wrong premise, and the next
+  steps. That diagnosis goes into the retry prompt. `CARD IS WRONG:` blocks the card
+  instead of burning the attempt.
+- **Reviewer** (`prompts/review.md`): at night end, it audits the decision trail and
+  handoffs against the evidence. It appends `## Attention` (🟢/🟡/🔴, at most 7 lines)
+  and `## Waiting on the human` to the night report. Read it first.
+
+Every decision is a row in `runs/trail-<date>.tsv`: claim, green or red, verdict,
+integrate, plan, goal check, stop. The trail plus the diff is what lets the morning
+trust the night.
+
+## Goal loop: run until the final product (v0.9)
+
+Fill in `GOAL.md` (goal, `done_cmd:`, and what "final product" means) and the night
+stops working a *list* and starts working toward a *predicate*:
+
+```
+board has a ready card? ── yes → run it (pipeline above); verified → merge onto the night branch
+        │ no
+        ▼
+done_cmd on the night branch ── exit 0 → GOAL MET, stop
+        │ red
+        ▼
+planner (prompts/planner.md) reads GOAL.md, the predicate's output, the board, and
+the handoffs' follow-ups → writes ≤ max_cards_per_round cards → runner validates
+them (filename = id, Goal + Done when, test-first) → work/ → loop
+```
+
+- **One night branch** (`agent/night/NIGHT-<date>`, a card-shaped worktree). Each
+  verified card merges onto it with `--no-ff`, one merge commit per card, so a single
+  card reverts cleanly. Green runs again after each merge, and a red merge is undone.
+  Later cards **spawn from the night branch**, so `after:` clears on integration and a
+  three-card chain finishes in one night.
+- **Stops**, each with an exit code and a line in the report:
+
+  | exit | reason |
+  |---|---|
+  | 0 | goal met (the predicate passed on the night branch) |
+  | 6 | planner wrote `STUCK.md` (needs a human decision), plateau (two plan rounds in a row landed nothing), or `max_plan_rounds` used up |
+  | 5 | Andon raised, or the tamper canary fired |
+  | 2 / 3 / 4 | breaker / budget / harness, as before |
+
+- **A plateau means pivot, and the predicate never relaxes.** When a round lands
+  nothing, the next planner prompt says so and orders it to attack the shared premise
+  before planning again. A second empty round stops the night instead of spinning.
+- **Morning:** `worktree.sh review NIGHT-<date>`, then `worktree.sh done NIGHT-<date>
+  --merge`. That is the usual proven merge (green in the worktree, primary moves only
+  on pass). The per-card branches are already contained in it. Remove their worktrees
+  with plain `done <id>`.
+- **Write `done_cmd` as a predicate, never a duration.** Good ones are an e2e journey,
+  an acceptance suite, `! grep -rq TODO src`, a coverage floor, or a pixel diff. "Work
+  for 4 hours" gives the loop nothing to check. `doctor.sh` proves `done_cmd` *runs*
+  in a pristine worktree (red is expected, "command not found" is not).
+
+## Andon and the tamper canary (v0.9)
+
+- `scripts/andon.sh raise "<reason>"`: any agent stops the line for every lane. Use
+  it when there is evidence that continuing produces garbage: upstream output is
+  wrong, the harness is broken, or auth is dead. One card's dead end is a `blocked`
+  handoff, not an Andon. Runners exit 5 before their next claim. **Only the human
+  clears it** (`andon.sh clear`, which is refused from a worktree or a delegate).
+- **Tamper canary:** the runner checksums `HEARTBEAT.md`, `GOAL.md`, `prompts/` and
+  `scripts/` around every agent call. An agent that edits the rules it runs under
+  (they are reachable through `.primary`) raises the Andon and ends the night. This is
+  detection, not prevention. Prevention needs Docker lanes (FUTURE.md).
+
 ## Safety rails (structural)
 
 - Lane preflight: on boot the runner sends the CLI one "reply ok" probe from an empty
@@ -77,9 +173,11 @@ way — a 429 never destroys work.
 
 ## Morning ritual
 
-Read `runs/night-<date>.md` (what finished, what blocked, spend, per-branch
-diffstat) → `worktree.sh review` → `worktree.sh done <id> --merge` for the branches
-you accept. `--merge` runs `green_cmd` in the agent worktree and moves the primary
+Read `runs/night-<date>.md`. Start with **Attention** and **Waiting on you**, then
+the goal state, the card table (status, verdict, integrated), and spend. Follow the
+trail rows Attention points at. Then run `worktree.sh review`, and `worktree.sh done
+<id> --merge` for the branches you accept. In goal mode that is usually just
+`done NIGHT-<date> --merge`. `--merge` runs `green_cmd` in the agent worktree and moves the primary
 branch only if that passes and leaves the merge commit unchanged. A dirty folder stays until you run `done <id> --jar` (branch already
 in `HEAD`) or `done <id> --reject "<why>"`. Nothing prunes worktrees for you.
 Reassigning a blocked card to the other model is a **human** decision, made

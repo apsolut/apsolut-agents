@@ -35,6 +35,9 @@ run `scripts/session-end.sh` (it compacts) or flag it in the log.
 | Record that the project's state changed | the **narrative** sections of `state/PROJECT_STATE.md` (the facts block is generated — don't touch it) |
 | Record a cross-cutting decision others must respect | `decisions/DECISIONS.md` + one-line ping in the log |
 | Track a task | `work/<id>.md` *(Tier 2)*, else a line in `PROJECT_STATE` |
+| Define the final product a night drives toward | `GOAL.md` (`done_cmd:` = a predicate that can fail) *(Tier 2)* |
+| Stop every lane because continuing produces garbage | `sh scripts/andon.sh raise "<evidence>"`. Only the human clears it *(Tier 2)* |
+| Record a decision during a long run | `sh scripts/trail.sh <phase> <decision> <why> <evidence> <result>` → `runs/trail-<date>.tsv` |
 | Save the output of a subagent fan-out (Task/Workflow run) | `runs/<date>-<slug>.md` + one log entry |
 | Hand a card to another agent's CLI and drive it myself *(Tier 2)* | `scripts/delegate.sh` — protocol in `DELEGATION.md` |
 | Describe how I (an agent) work | `agents/agent-<me>.md` |

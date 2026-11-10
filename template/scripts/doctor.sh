@@ -76,6 +76,61 @@ else
   fi
 fi
 
+# --- goal loop (v0.9): roles, prompts, GOAL.md contract, Andon ---------------------
+echo "[goal loop]"
+GOALF="$WS/GOAL.md"; DONE_CMD=""
+gcfg() { [ -f "$GOALF" ] && sed -n "s/^$1:[[:space:]]*//p" "$GOALF" | head -1 | tr -d '\r' || true; }
+if [ -f "$WS/ANDON" ]; then
+  fail "ANDON raised — every lane refuses to claim: $(sed -n 's/^reason: //p' "$WS/ANDON") (human: sh scripts/andon.sh clear)"
+else
+  ok "no Andon raised"
+fi
+for p in worker verifier planner advisor review; do
+  [ -f "$WS/prompts/$p.md" ] || fail "prompts/$p.md missing — runner.sh refuses to start (run scripts/upgrade.sh)"
+done
+[ -f "$WS/prompts/worker.md" ] && ok "role prompts present (prompts/)"
+if [ -f "$HB" ]; then
+  for role in verifier_agent advisor_agent review_agent; do
+    a=$(cfg "$role"); [ -n "$a" ] || continue
+    [ -n "$(cfg "cmd_$a")" ] && ok "$role: $a" || fail "$role: $a has no cmd_$a line — the runner refuses to start"
+  done
+  VA=$(cfg verifier_agent)
+  [ -z "$VA" ] && warn "verifier_agent empty — green_cmd is the only gate; nobody but the author runs the change"
+  for a in $CMDS; do
+    [ -n "$VA" ] && [ "$a" = "$VA" ] && warn "verifier_agent '$VA' is also a worker lane — a lane it runs gets judged by its own model; prefer a different family"
+  done
+fi
+DONE_CMD=$(gcfg done_cmd)
+if [ -z "$DONE_CMD" ]; then
+  ok "GOAL.md done_cmd empty — plain board mode (the night ends when the board is empty)"
+else
+  ok "goal mode: done_cmd = $DONE_CMD"
+  [ -n "$(gcfg goal)" ] || warn "GOAL.md goal: is empty — planner and workers get no one-line goal"
+  for k in max_plan_rounds max_cards_per_round; do
+    v=$(gcfg "$k"); [ -n "$v" ] || continue
+    [ "$(num_or "$v" X)" = X ] && fail "GOAL.md $k: '$v' not numeric" || ok "GOAL.md $k: $v"
+  done
+  case "$(gcfg verify_level)" in ''|live|test|typecheck) ;; *) fail "GOAL.md verify_level: must be live, test or typecheck";; esac
+  pa=$(gcfg planner_agent)
+  [ -z "$pa" ] || [ -n "$(cfg "cmd_$pa")" ] || fail "GOAL.md planner_agent: $pa has no cmd_$pa line in HEARTBEAT.md"
+  case "$DONE_CMD" in *sleep*|*"for "*h*) warn "done_cmd looks like a duration — it must be a predicate that can fail";; esac
+  # the predicate runs in a worktree of tracked files, like green_cmd: prove it RUNS
+  # there (red is expected before the night; "command not found" is not)
+  DW="$TMPD/done-wt"
+  if git -C "$REPO" worktree add -q --detach "$DW" HEAD >/dev/null 2>&1; then
+    drc=0; ( cd "$DW" && timeout 600 sh -c "$DONE_CMD" ) > "$TMPD/done.out" 2>&1 || drc=$?
+    case "$drc" in
+      0) warn "done_cmd already PASSES on HEAD — the goal is met before the night starts";;
+      126|127) fail "done_cmd cannot run in a pristine worktree (exit $drc) — untracked script or missing tool?"
+               command tail -5 "$TMPD/done.out" | sed 's/^/        /';;
+      *) ok "done_cmd runs in a pristine worktree and is red now (exit $drc) — something to drive toward";;
+    esac
+    git -C "$REPO" worktree remove --force "$DW" >/dev/null 2>&1 || true
+  else
+    warn "could not create a temp worktree to test done_cmd"
+  fi
+fi
+
 # --- cards: filename contract, statuses, test-first, after: graph ------------------
 echo "[cards]"
 IDS=" "
@@ -120,7 +175,10 @@ else
     case "$IDS" in
       *" $dep "*)
         dst=$(fm_get "$WS/work/$dep.md" status)
-        [ "$dst" = "done" ] || warn "$id waits on $dep (status: ${dst:-?}) — after: clears only on MERGE, unreachable overnight"
+        if [ "$dst" != "done" ]; then
+          if [ -n "$DONE_CMD" ]; then ok "$id waits on $dep — goal mode: clears when $dep integrates onto the night branch"
+          else warn "$id waits on $dep (status: ${dst:-?}) — after: clears only on MERGE, unreachable overnight"; fi
+        fi
         ;;
       *) fail "$id: after: names '$dep' but work/$dep.md does not exist";;
     esac
