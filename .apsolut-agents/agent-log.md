@@ -162,3 +162,11 @@ v0.9.0 is committed on branch v0.9-goal-loop and not pushed. The human reviews i
 
 ### claude — 2026-11-10 — HOLD
 v0.10.0 is on branch v0.10-hardening, unpushed. The human pushes main + v0.9.0, then reviews and merges v0.10-hardening and tags v0.10.0. Next: one supervised real-model `runner.sh <agent> --once`.
+
+### claude — 2026-11-10 — v0.10.0 shipped, state caught up
+- The human pushed main + v0.9.0, merged PR #1 (v0.10-hardening → main, 444b782) and tagged v0.10.0; the tag is on the remote and CI is green on main. The session that did it ended before its session-end (machine trouble), so the HOLD entry above was left standing.
+- Checked after the fact: `git fsck` clean, no interrupted git operation, main == origin/main, tests/goal-loop.sh 43/43 locally.
+- This repo's own workspace refreshed 0.8.2 → 0.10.0 (`install.sh . --refresh`; instance files untouched). PROJECT_STATE ownership and next actions rewritten for v0.10.
+
+### claude — 2026-11-10 — PUSHED
+v0.10.0 merged, tagged and pushed; workspace refreshed to 0.10.0, state caught up.
