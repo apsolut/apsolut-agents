@@ -4,7 +4,8 @@ This is **real output** of `runner.sh` (only the heading levels are shifted), ta
 (`tests/goal-loop.sh`, scenario 2). The "agents" are the suite's scripted stand-ins
 (`fake` as the worker, `fakev` as verifier, advisor and reviewer), so the task is a
 toy and the spend is not real money. What it shows is the shape of what you read in
-the morning. A report from a real-model night will replace it.
+the morning, including a rejection and a retry. For a night run by real models, see
+[`demo/night-report.md`](demo/night-report.md).
 
 What happened in this night: the worker's first attempt passed `green_cmd`, the
 independent verifier rejected it, an advisor read the failure, the second attempt was

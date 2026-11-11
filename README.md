@@ -13,13 +13,15 @@ every change before it counts. Nothing lands on your default branch until you me
 No server, no daemon, no framework. Markdown + git + POSIX sh (Git Bash on Windows).
 
 > **Status: early.** Plain nights have run on a real project. The goal loop (v0.9+)
-> is proven end to end in CI against a scripted stand-in agent, and the real CLIs
-> answer its preflight probe, but it has not yet carried a real model through a full
-> night. Start with one supervised card (`--once`).
+> is tested end to end in CI against a scripted stand-in agent, and has carried real
+> models through one small night (the recording below). It has not yet run a long
+> night on a large project. Start with one supervised card (`--once`).
 
-<!-- Demo recording goes here once a real night has been recorded:
-     ![a night, start to morning](docs/demo/night.gif)
-     Regenerate with: vhs docs/demo/night.tape -->
+![The morning after a real night: the goal, the report, the decision trail, and an untouched main](docs/demo/night.gif)
+
+_The morning after a real night: Claude Code wrote the code, Codex verified each card,
+and the planner added the card the two hand-written ones had missed.
+[The full report](docs/demo/night-report.md)._
 
 ## What you get
 
@@ -105,6 +107,7 @@ Call: 🟢 merge as is
 ```
 
 The full report and its decision trail: [`docs/sample-night-report.md`](docs/sample-night-report.md).
+For a night run by real models, see [`docs/demo/night-report.md`](docs/demo/night-report.md).
 
 ## The runner enforces; the prompts only explain
 

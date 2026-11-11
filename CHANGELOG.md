@@ -3,6 +3,19 @@
 All notable changes to apsolut-agents. Pin a release with `install.sh --tag vX.Y.Z`;
 upgrade an installed workspace with `sh .apsolut-agents/scripts/upgrade.sh`.
 
+## Unreleased
+
+### Docs
+The README now shows a recording (`docs/demo/night.gif`) of the morning after the
+first real-model goal-loop night, and `docs/demo/night-report.md` holds that night's
+report and decision trail. The night ran on 2026-11-11 on a throwaway `todo-cli`
+repository: Claude Code as worker and planner, Codex as verifier and reviewer, two
+hand-written cards, one planner round, three cards verified, goal met in about eight
+minutes. `docs/demo/night.tape` regenerates the recording. On Windows VHS starts
+WSL's bash, and the tape's hidden first block handles that.
+
+No script changed.
+
 ## v0.12.0 — 2026-11-11
 
 Four ideas taken from a public build of the same pattern (ZazenCodes, "Build a Better

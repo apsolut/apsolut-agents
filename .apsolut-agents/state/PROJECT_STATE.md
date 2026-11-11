@@ -49,8 +49,8 @@ no — HOLD lifted 2026-07-29: human provided the remote (github.com/apsolut/aps
 
 ## Top 3 next actions
 
-1. Tag the two releases if you want them pinnable: `v0.11.0` on `1cce412`, `v0.12.0` on the main tip. Local branches `v0.11-lane-caps` and `v0.12-risk-intake` are merged and can be deleted. — human
-2. Run the first supervised real-model `runner.sh <agent> --once` goal night on a small repo. Everything since v0.9 (goal loop, verifier ladder, lane caps, risk routing, `Blocked by:`) is proven only by `tests/goal-loop.sh` (64/64) against a fake CLI; the v0.11 `cmd_` lines also answer a live `doctor.sh` probe. `intake.sh` has never written a card from a live issue: label one issue `agents` and run it. — human + any agent
+1. Run a longer real-model night on a real project. One small real night has now run (2026-11-11, throwaway `todo-cli` repo, claude worker and planner, codex verifier and reviewer: 3 cards, 1 planner round, goal met, every card first attempt; report in `../docs/demo/night-report.md`). Still never exercised with real models: a verifier rejection and retry, the advisor, a blocked card, a merge conflict on the night branch, STUCK, a budget or time stop. — human
+2. `intake.sh` has never written a card from a live issue: label one issue `agents` and run `sh .apsolut-agents/scripts/intake.sh` (cards arrive as `hold`). Observed on the real night: the report said spend $9.26 while the ledger `runs/.spend-<date>` ended at 11.26, because the reviewer's call is charged after the report's spend line is written. Worth a look. — human / next agent
 3. Installed copies elsewhere (e.g. the n8n project) need `sh .apsolut-agents/scripts/upgrade.sh`, then `doctor.sh`: no upgrade rewrites `HEARTBEAT.md`, so the new `cmd_` lines, `risk_tags:` and `intake_label:` are copied by hand from `template/HEARTBEAT.md`. Leftover ideas are in `../FUTURE.md` (stall detector, failure-mode routing, score ratchet, worker routing by risk). Merged branches `v0.9-goal-loop` and `v0.10-hardening` can be deleted. — human
 
 ## Do-not-undo

@@ -224,3 +224,10 @@ README rebuilt on branch readme-first-screen; human reviews before it goes to ma
 
 ### claude — 2026-11-11 — PUSHED
 README first screen on main
+
+### claude — 2026-11-11 — first real-model night; demo GIF recorded (branch demo-gif, not pushed)
+- The human said to do the rest (the GIF and the other open items). Ran the first real-model goal-loop night: a throwaway `todo-cli` repo in the session scratchpad, `runner.sh claude --drain`, claude as worker and planner, codex as verifier and reviewer. Two hand-written cards landed, `done_cmd` was still red, the planner wrote G1111r1-1, it landed, goal met. About 8.5 minutes, reported spend $9.26. Every card passed first attempt, so no retry, advisor call or block was exercised.
+- Recorded `docs/demo/night.gif` from that repo with VHS (installed vhs, ttyd and ffmpeg through winget). The README shows it, and `docs/demo/night-report.md` holds the real report and trail. On Windows VHS starts WSL bash, not Git Bash; the tape's hidden block sets safe.directory and the prompt for that.
+- Created and pushed signed tags `v0.11.0` (1cce412) and `v0.12.0` (264e772), as earlier releases were tagged. Deleted the merged local branches readme-first-screen, v0.12-risk-intake, v0.11-lane-caps, v0.10-hardening, v0.9-goal-loop.
+- Seen on the real night, not fixed: the report's spend line ($9.26) is written before the reviewer's call is charged (ledger ended at 11.26).
+- The demo repo lives in the session scratchpad and will not survive the session; the GIF cannot be re-recorded without a new night.
