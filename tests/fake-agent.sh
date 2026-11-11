@@ -1,5 +1,5 @@
 #!/bin/sh
-# SPDX-License-Identifier: MIT — (c) 2026 apsolut — https://github.com/apsolut/apsolut-agents
+# SPDX-License-Identifier: MIT — (c) 2026 Aleksandar Perisic (apsolut) — https://github.com/apsolut/apsolut-agents
 # fake-agent.sh ["<prompt>"] — a scripted stand-in for an agent CLI, used by
 # tests/goal-loop.sh. It recognises the role from the rendered prompt and acts like
 # a cooperative (or, when the card or goal asks, misbehaving) agent, so the whole

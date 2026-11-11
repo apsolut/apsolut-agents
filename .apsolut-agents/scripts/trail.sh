@@ -1,6 +1,6 @@
 #!/bin/sh
 # apsolut-agents: tier=2 kind=doc
-# SPDX-License-Identifier: MIT — (c) 2026 apsolut — https://github.com/apsolut/apsolut-agents
+# SPDX-License-Identifier: MIT — (c) 2026 Aleksandar Perisic (apsolut) — https://github.com/apsolut/apsolut-agents
 # trail.sh <phase> <decision> <why> <evidence> <result> — append one row to tonight's
 # decision trail, runs/trail-<date>.tsv (one row per decision, append-only).
 # runner.sh writes a row at every claim, verdict, integration, plan round and stop;

@@ -1,5 +1,5 @@
 #!/bin/sh
-# SPDX-License-Identifier: MIT — (c) 2026 apsolut — https://github.com/apsolut/apsolut-agents
+# SPDX-License-Identifier: MIT — (c) 2026 Aleksandar Perisic (apsolut) — https://github.com/apsolut/apsolut-agents
 # fake-gh.sh — a stand-in for the GitHub CLI, used by tests/goal-loop.sh to drive
 # scripts/intake.sh without a network. It answers the three calls intake.sh makes:
 #   issue list --state open --label <l> ... --jq '.[].number'

@@ -1,6 +1,6 @@
 #!/bin/sh
 # apsolut-agents: tier=2 kind=doc
-# SPDX-License-Identifier: MIT — (c) 2026 apsolut — https://github.com/apsolut/apsolut-agents
+# SPDX-License-Identifier: MIT — (c) 2026 Aleksandar Perisic (apsolut) — https://github.com/apsolut/apsolut-agents
 # intake.sh [--label <name>] [--ready] [--dry-run] [<issue-number>...]
 # Turn GitHub issues into cards: work/GH-<number>.md, one per issue.
 #

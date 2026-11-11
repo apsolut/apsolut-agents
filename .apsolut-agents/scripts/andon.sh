@@ -1,6 +1,6 @@
 #!/bin/sh
 # apsolut-agents: tier=2 kind=doc
-# SPDX-License-Identifier: MIT — (c) 2026 apsolut — https://github.com/apsolut/apsolut-agents
+# SPDX-License-Identifier: MIT — (c) 2026 Aleksandar Perisic (apsolut) — https://github.com/apsolut/apsolut-agents
 # andon.sh raise "<reason>" | clear | status — stop the line for every lane.
 # Any agent may RAISE (from a worktree too: the .primary pointer is followed) when it
 # has evidence that continuing produces garbage: upstream work is wrong, the harness

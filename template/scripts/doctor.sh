@@ -1,6 +1,6 @@
 #!/bin/sh
 # apsolut-agents: tier=2 kind=doc
-# SPDX-License-Identifier: MIT — (c) 2026 apsolut — https://github.com/apsolut/apsolut-agents
+# SPDX-License-Identifier: MIT — (c) 2026 Aleksandar Perisic (apsolut) — https://github.com/apsolut/apsolut-agents
 # doctor.sh [agent ...] — preflight the workspace before trusting it with a night.
 # Free checks always run: tools, HEARTBEAT sanity, card contract + after: graph,
 # claims, green_cmd on the primary, rolling cost vs budget. Naming agents also

@@ -1,6 +1,6 @@
 #!/bin/sh
 # apsolut-agents: tier=2 kind=doc
-# SPDX-License-Identifier: MIT — (c) 2026 apsolut — https://github.com/apsolut/apsolut-agents
+# SPDX-License-Identifier: MIT — (c) 2026 Aleksandar Perisic (apsolut) — https://github.com/apsolut/apsolut-agents
 # runner.sh <agent> [--once|--drain] — Night Shift: overnight task runner, one lane per agent.
 #   --once   one card through the whole pipeline, then stop (the supervised v0 gate)
 #   --drain  work until the board is empty (or the goal is met), then stop; no idle wait

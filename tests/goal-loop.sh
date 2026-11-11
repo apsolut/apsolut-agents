@@ -1,5 +1,5 @@
 #!/bin/sh
-# SPDX-License-Identifier: MIT — (c) 2026 apsolut — https://github.com/apsolut/apsolut-agents
+# SPDX-License-Identifier: MIT — (c) 2026 Aleksandar Perisic (apsolut) — https://github.com/apsolut/apsolut-agents
 # tests/goal-loop.sh — end-to-end Night Shift goal loop against a fake agent CLI.
 # Each scenario: a throwaway repo, a fresh install, a board, `runner.sh fake --drain`,
 # then asserts on exit code, branches, cards, trail and report. No model is called.
