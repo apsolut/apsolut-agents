@@ -11,24 +11,24 @@ anything no longer true (git keeps history), keep the whole file to ~1 screen.
 ## Facts (generated)
 
 <!-- facts:begin -->
-_Generated 2026-11-11 02:45 by status.sh — do not hand-edit this block._
+_Generated 2026-11-11 04:45 by status.sh — do not hand-edit this block._
 
 | | |
 |--|--|
-| Branch | `readme-first-screen` |
-| Ahead/behind upstream | no upstream configured |
+| Branch | `main` |
+| Ahead/behind upstream | 0 ahead / 0 behind upstream |
 | Dirty files | 1 |
 | Worktrees | 1 (incl. primary) |
-| Last session token | claude — 2026-11-11 — HOLD |
-| agent-log.md | 220 lines |
+| Last session token | claude — 2026-11-11 — PUSHED |
+| agent-log.md | 226 lines |
 
 Recent commits:
 ```
+0ed9d37 agents: claude session end 2026-11-11 (HOLD)
 6155ab7 docs: rebuild the README around a first screen for newcomers
 40cc504 agents: claude session end 2026-11-11 (PUSHED)
 ed39094 chore: name the copyright holder — Aleksandar Perisic (apsolut)
 9d608ed agents: claude session end 2026-11-11 (PUSHED)
-264e772 agents: claude session end 2026-11-11 (HOLD)
 ```
 <!-- facts:end -->
 

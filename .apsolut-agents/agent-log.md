@@ -218,3 +218,9 @@ copyright holder named in LICENSE and SPDX headers
 
 ### claude — 2026-11-11 — HOLD
 README rebuilt on branch readme-first-screen; human reviews before it goes to main
+
+### claude — 2026-11-11 — README on main
+- The human said to put the README work on main. Fast-forwarded main to readme-first-screen (6155ab7, 0ed9d37) and pushed. The HOLD above is lifted by the human.
+
+### claude — 2026-11-11 — PUSHED
+README first screen on main
