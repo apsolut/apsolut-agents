@@ -231,3 +231,6 @@ README first screen on main
 - Created and pushed signed tags `v0.11.0` (1cce412) and `v0.12.0` (264e772), as earlier releases were tagged. Deleted the merged local branches readme-first-screen, v0.12-risk-intake, v0.11-lane-caps, v0.10-hardening, v0.9-goal-loop.
 - Seen on the real night, not fixed: the report's spend line ($9.26) is written before the reviewer's call is charged (ledger ended at 11.26).
 - The demo repo lives in the session scratchpad and will not survive the session; the GIF cannot be re-recorded without a new night.
+
+### claude — 2026-11-11 — HOLD
+demo GIF from the first real-model night on branch demo-gif; human reviews before main
