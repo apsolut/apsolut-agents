@@ -11,24 +11,24 @@ anything no longer true (git keeps history), keep the whole file to ~1 screen.
 ## Facts (generated)
 
 <!-- facts:begin -->
-_Generated 2026-11-11 05:26 by status.sh — do not hand-edit this block._
+_Generated 2026-11-11 05:29 by status.sh — do not hand-edit this block._
 
 | | |
 |--|--|
 | Branch | `main` |
-| Ahead/behind upstream | 5 ahead / 0 behind upstream |
+| Ahead/behind upstream | 1 ahead / 0 behind upstream |
 | Dirty files | 1 |
 | Worktrees | 1 (incl. primary) |
 | Last session token | claude — 2026-11-11 — PUSHED |
-| agent-log.md | 267 lines |
+| agent-log.md | 274 lines |
 
 Recent commits:
 ```
+dce492c docs: record who drew each agent icon
+73f044a agents: claude session end 2026-11-11 (PUSHED)
 b32b6ca agents: claude session end 2026-11-11 (HOLD)
 9601c16 docs: Antigravity adds its own icon to the README
 df3fc49 docs: Grok adds its own icon to the README
-fd808ef docs: Codex adds its own icon to the README
-70f0f77 docs: Claude Code adds its own icon to the README
 ```
 <!-- facts:end -->
 

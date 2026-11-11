@@ -265,3 +265,10 @@ agent icons on branch agent-icons; human reviews before main
 
 ### claude — 2026-11-11 — PUSHED
 agent icons on main
+
+### claude — 2026-11-11 — Grok credited through its official GitHub account
+- The human asked to make Grok and Antigravity show under Contributors too. Grok: xAI owns the GitHub App "Grok (by xAI)" (`grok-by-xai[bot]`, owner xai-org), and other public repos credit Grok commits to its noreply address. Grok was run headless and wrote docs/icons/README.md (who drew each icon), committing with that co-author line (dce492c). Pushed to main at the human request to make it show.
+- Antigravity: not done. No official Antigravity account or app was found. The addresses seen in the wild resolve to unrelated people (antigravity-agent@google.com -> a personal account; antigravity@google.com is reported to do the same) or to no account (noreply@google.com). Crediting any of them would be wrong or would do nothing.
+
+### claude — 2026-11-11 — PUSHED
+Grok credited via its official account
