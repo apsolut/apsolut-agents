@@ -38,6 +38,12 @@ box" (doctor, andon, trail and intake were missing). `NIGHTSHIFT.md`, `PLAYBOOK.
 `DELEGATION.md`, `prompts/README.md`, `runs/README.md` and both READMEs describe risk
 routing, `Blocked by:` and issue intake.
 
+The root `README.md` was rebuilt around a first screen for newcomers: one promise, a
+quickstart, a diagram of a night, a sample night report (`docs/sample-night-report.md`)
+and a "why this, and not" section. The per-version paragraphs moved here. A VHS script
+(`docs/demo/night.tape`) is ready for a demo recording; it is not recorded yet,
+because it needs a real-model night.
+
 ### Upgrading
 Nothing changes until you add `risk_tags:` to your `HEARTBEAT.md` (the template now
 ships `api-contract schema pii money`). `intake_label:` is optional (default

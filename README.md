@@ -1,14 +1,145 @@
 # apsolut-agents
 
-A drop-in, markdown-first workspace for coordinating multiple AI coding agents
-(Claude, Grok, Codex, Gemini, …) on **one repo**. Agents talk in one append-only
-log, state facts are derived from git by small scripts (so they can never go
-stale), and true same-day concurrency runs on **git worktrees** — one isolated
-checkout per agent, one shared coordination folder, zero merge conflicts on the
-coordination files.
+[![ci](https://github.com/apsolut/apsolut-agents/actions/workflows/ci.yml/badge.svg)](https://github.com/apsolut/apsolut-agents/actions/workflows/ci.yml)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-No servers, no daemons, no orchestrator. Markdown + git + a handful of small
-POSIX-sh scripts (they run in Git Bash on Windows).
+**Write task cards in the evening. Review verified branches in the morning.**
+
+A drop-in folder of markdown and small shell scripts that lets the coding CLIs you
+already have (Claude Code, Codex, Grok, Antigravity, …) work **one repo** together:
+unattended through the night, or side by side during the day. A second model checks
+every change before it counts. Nothing lands on your default branch until you merge it.
+
+No server, no daemon, no framework. Markdown + git + POSIX sh (Git Bash on Windows).
+
+> **Status: early.** Plain nights have run on a real project. The goal loop (v0.9+)
+> is proven end to end in CI against a scripted stand-in agent, and the real CLIs
+> answer its preflight probe, but it has not yet carried a real model through a full
+> night. Start with one supervised card (`--once`).
+
+<!-- Demo recording goes here once a real night has been recorded:
+     ![a night, start to morning](docs/demo/night.gif)
+     Regenerate with: vhs docs/demo/night.tape -->
+
+## What you get
+
+- **Night shift.** One runner per agent works a board of cards, each in its own git
+  worktree, with a time cap, a spend cap and a circuit breaker.
+- **A goal loop.** Give it a command that fails until the product is done. When the
+  board runs dry and the command is still red, a planner writes the next cards.
+- **An independent verifier.** A different model runs each change and returns a
+  verdict. The author's "done" is treated as a claim.
+- **Agents that drive agents.** Any agent can dispatch another agent's CLI on a card,
+  watch it, correct it and decide. Caps are enforced by scripts.
+- **One place to look.** One append-only log, one state file whose facts are derived
+  from git so they cannot go stale, and a morning report that says what needs you.
+
+## Quickstart
+
+From inside your project:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/apsolut/apsolut-agents/main/install.sh | sh -s -- . --wire
+```
+
+Then:
+
+1. In `.apsolut-agents/HEARTBEAT.md`, set `green_cmd:` to the command that means
+   "this repo is healthy" (your tests, typecheck, lint).
+2. Copy `.apsolut-agents/work/_TEMPLATE.md` to `work/T-01.md` and describe one small
+   task. Give it a `check:` command that fails now and passes when the task is done.
+3. Commit the folder, then run the preflight and one supervised card:
+
+```sh
+sh .apsolut-agents/scripts/doctor.sh claude          # tools, config, cards, a live probe of the CLI
+sh .apsolut-agents/scripts/runner.sh claude --once   # one card through the whole pipeline
+```
+
+4. Read `.apsolut-agents/runs/night-<date>.md`, then merge what you accept:
+
+```sh
+sh .apsolut-agents/scripts/worktree.sh done T-01 --merge
+```
+
+When single cards are boring, drop `--once` and let it run the night.
+
+## How a night works
+
+```mermaid
+flowchart TD
+  card["card: waiting"] --> pre{"its check fails<br/>before any change?"}
+  pre -- "no" --> refused["refused: the check proves nothing"]
+  pre -- "yes" --> worker["worker agent<br/>own worktree, test first"]
+  worker --> gates{"runner gates:<br/>green_cmd and check pass,<br/>no protected path touched,<br/>no skipped test added"}
+  gates -- "red" --> retry["advisor reads the failure,<br/>worker retries"]
+  retry --> worker
+  gates -- "green" --> verifier{"verifier:<br/>a different model<br/>runs the change"}
+  verifier -- "rejects" --> retry
+  verifier -- "verified" --> night["merged onto the night branch"]
+  retry -- "attempts used up" --> blocked["blocked, with a reason:<br/>task, rule or cli"]
+  night --> goal{"board empty:<br/>is done_cmd green?"}
+  goal -- "no" --> planner["planner writes<br/>the next cards"]
+  planner --> card
+  goal -- "yes" --> report["morning report.<br/>You merge the night branch."]
+```
+
+Every step is a row in `runs/trail-<date>.tsv`, with a pointer to the evidence.
+
+## What the morning looks like
+
+The runner writes one report per night. This excerpt (trimmed) is real output from the test
+suite, where a scripted agent's first attempt was rejected by the verifier and its
+second attempt landed:
+
+```
+Ended: 2026-11-11 02:37 — reason: goal met — spend: $0.13 / $50
+
+| card | status | verified      | integrated | attempts | branch          |
+| T-01 | review | test-verified | yes        | 2        | agent/fake/T-01 |
+
+## Waiting on you
+(nothing)
+
+## Attention
+Call: 🟢 merge as is
+```
+
+The full report and its decision trail: [`docs/sample-night-report.md`](docs/sample-night-report.md).
+
+## The runner enforces; the prompts only explain
+
+Every rule a script can check lives in `runner.sh`, not in a prompt:
+
+- **Test first.** A card's `check:` must fail before the change and pass after.
+- **The judge is off limits.** `protect:` paths (the tests behind the goal, the green
+  script, CI config) cannot be changed by a card.
+- **No symptom patches.** An added `.skip`, `@ts-ignore` or `eslint-disable` is red.
+- **Exit 0 is not "finished".** A CLI that ends with a cancelled turn, a denied tool
+  or an error is a failed attempt, whatever it exited with.
+- **Lanes stay in their lane.** The default commands switch off each CLI's own
+  subagents, so work stays inside the card clock and the spend ledger.
+- **Risk picks the judge.** A card tagged `schema`, `money`, `pii` or `api-contract`
+  goes to your strongest verifier and never lands on its own check alone.
+- **A block says why.** Each blocked card records whether the work failed, a runner
+  rule refused it, or the CLI never finished.
+- **Agents cannot edit their own rules.** A change to the config, the prompts or the
+  scripts during a run stops the night (the tamper canary). Any agent can stop the
+  line (`andon.sh raise`); only you restart it.
+
+Details: [`template/NIGHTSHIFT.md`](template/NIGHTSHIFT.md). History of each rule:
+[`CHANGELOG.md`](CHANGELOG.md).
+
+## Why this, and not…
+
+- **…the agents and loops built into each CLI?** They work within one vendor, and the
+  model that wrote the code also judges it. Here the verifier is a different model,
+  and one time cap, one spend ledger and one trail cover every CLI you run.
+- **…an orchestration server or framework?** There is nothing to host. The state is
+  files in your repo: read it with `cat`, review it with `git diff`, delete it with
+  `rm -r`.
+- **…an agent in a `while` loop?** A loop has no independent check, no budget, no
+  record of why it did what it did, and nothing that stops it from weakening the
+  tests to get to green.
 
 ## Install
 
@@ -47,7 +178,8 @@ sh .apsolut-agents/scripts/upgrade.sh --dry-run   # show add/update/keep, write 
 ```
 
 `kind=instance` files (your log, state, decisions, PROJECT.md, cards) survive every
-upgrade; `VERSION` records what you're on.
+upgrade; `VERSION` records what you're on. After an upgrade, run `doctor.sh`: your
+`HEARTBEAT.md` is never rewritten, and doctor says which newer settings it lacks.
 
 ## The tier model
 
@@ -95,11 +227,10 @@ of its own (depth cap). Do not put `claude --bare` on a `cmd_` line in
 being discarded. Rounds, fan-out, and daily spend are all capped; agents can't raise a
 cap. Protocol: [`template/DELEGATION.md`](template/DELEGATION.md).
 
-Unattended variant — write cards in the evening, review branches in the morning:
-[`template/NIGHTSHIFT.md`](template/NIGHTSHIFT.md) (`runner.sh`). Same cards, same claim
-mutex, same spend ledger, so the two never collide.
+The unattended variant is the night shift above: same cards, same claim mutex, same
+spend ledger, so the two never collide. [`template/NIGHTSHIFT.md`](template/NIGHTSHIFT.md).
 
-### Run the night until the final product (v0.9 goal loop)
+## Run the night until the final product (goal loop)
 
 Write what "done" means as a command that can fail, in `GOAL.md`:
 
@@ -108,50 +239,35 @@ goal: a signed-in user can export their library as a zip
 done_cmd: pnpm --filter web e2e journeys/export.spec.ts
 ```
 
-The runner then works the board through a per-card pipeline. A **worker** writes
-the test first and the root cause before any fix, and ends with a structured
-handoff. `green_cmd` runs. An **independent verifier** on another model runs the
-change and returns `live / test / typecheck / blocked / failed`. On a retry, an
-**advisor** diagnoses the failure first. Verified cards merge onto one **night
-branch**, and later cards build on it. When the board runs dry, the runner checks
-`done_cmd` there. If it is red, a **planner** writes the next cards from the gap.
-The night ends when the goal is met, the planner says a human is needed (`STUCK.md`),
-two rounds in a row land nothing (plateau), or a cap trips. Every decision is a row
-in `runs/trail-<date>.tsv`. In the morning, a **reviewer** puts an *Attention*
-section at the top of the night report, and one `worktree.sh done NIGHT-<date>
---merge` lands the night. The default branch never moves on its own. Any agent can
-pull the **Andon** (`andon.sh raise`), and only you clear it. An agent that edits
-its own rules trips the tamper canary. Details: [`template/NIGHTSHIFT.md`](template/NIGHTSHIFT.md).
-Proven end to end in CI against a scripted fake CLI (`tests/goal-loop.sh`).
+Verified cards merge onto one **night branch**, and later cards build on it. When
+the board runs dry, the runner checks `done_cmd` there. If it is red, a **planner**
+writes the next cards from the gap. The night ends when the goal is met, the planner
+says a human is needed (`STUCK.md`), two rounds in a row land nothing (plateau), or a
+cap trips. In the morning, a **reviewer** puts an *Attention* section at the top of
+the night report, and one `worktree.sh done NIGHT-<date> --merge` lands the night.
+The default branch never moves on its own.
 
-**v0.10: the runner enforces, the prompts only explain.** A blind review by four
-models (Claude, Codex, Grok, agy) moved every rule a script can check into
-`runner.sh`. Each card's `check:` must fail before the change and pass after.
-`protect:` paths (the judge: the predicate's tests, the green script) are off limits
-to cards. Added `.skip`/`@ts-ignore`-style patches are red. Every check has a
-timeout. `setup_cmd` bootstraps fresh worktrees. Prompts go by stdin or by a file
-pointer, so they survive Windows' command-line limit. A card that conflicts on the
-night branch retries from the night tip instead of stranding.
+## Cards from GitHub issues
 
-**v0.11: caps for CLIs that grew their own agents.** claude, codex, grok and agy now
-ship native subagents and goal loops. The default `cmd_` lines switch those off, so
-a lane stays inside the card clock and the spend ledger. One call cannot outspend
-the night (`call_budget_usd`). A CLI that exits 0 without finishing its turn is
-red. Codex is a lane. `doctor.sh` warns when your own `HEARTBEAT.md` lacks the caps.
+```
+sh .apsolut-agents/scripts/intake.sh
+```
 
-**v0.12: risk picks the judge, issues feed the board.** A card tagged with a risk
-(`schema`, `money`, `pii`, `api-contract`) is judged by your strongest model and
-never lands on its own check alone. `doctor.sh` warns when the verifier is a smaller
-model than the workers. Every blocked card says whether the work, a runner rule or
-the CLI stopped it. `intake.sh` turns labelled GitHub issues into draft cards.
+turns every open issue carrying the label `agents` into a draft card. The label is
+your approval, and drafts arrive on hold for you to read and release. Anything that
+can open a labelled issue (an alert, a failed deploy, a teammate) can feed the board.
 
-**Run the v0 gate first.** `scripts/doctor.sh <agent>` preflights everything in one
-command — tools, config sanity, every card's contract and `after:` graph, green on
-the primary, rolling cost vs budget, plus a live probe of the agent's CLI. Then a
-supervised `runner.sh <agent> --once` pass costs about a dollar and catches the
-misconfiguration that would otherwise burn the entire night — it is the feature,
-not a formality. The runner also probes the CLI on boot and refuses the lane if
-the model can't answer at all.
+## Run the preflight first
+
+`scripts/doctor.sh <agent>` checks everything in one command: tools, config, every
+card's contract and `after:` graph, green on a pristine worktree, rolling cost against
+the budget, and a live probe of the agent's CLI. Then one supervised
+`runner.sh <agent> --once` catches the misconfiguration that would otherwise burn the
+whole night. The runner also probes the CLI on boot and refuses the lane if the
+model cannot answer.
+
+On a subscription plan the dollar figures are notional: nothing is charged per call,
+and the budgets measure how fast you use your plan's window.
 
 ## This repo dogfoods itself
 
@@ -166,6 +282,7 @@ kept honest by the `kind=doc|instance|generated` labels on line 1 of every file.
 install.sh        installer / upgrader
 template/         the payload — what lands in your repo as .apsolut-agents/
 tests/            the night loop end to end against a fake agent CLI and a fake gh (CI runs it)
+docs/             sample night report, demo recording script
 .apsolut-agents/  this repo's own live workspace (dogfood)
 ```
 
