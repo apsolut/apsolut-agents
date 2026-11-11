@@ -243,3 +243,6 @@ demo GIF and real night report on main
 
 ### claude — 2026-11-11 — "Runs with" badges in the README (branch runs-with-badges, not pushed)
 - The human wants Grok, Cursor, Codex and Agy shown on the repo like the Contributors icons. That sidebar cannot be edited; it comes from commit authorship only. Added a "Runs with" badge row for the four CLIs the template has cmd_ lines for. Cursor is left out: nothing here has run with it. The badge service has no OpenAI or xAI logo, so Codex and Grok are text-only.
+
+### claude — 2026-11-11 — HOLD
+Runs-with badges on branch runs-with-badges; human reviews before main
