@@ -246,3 +246,9 @@ demo GIF and real night report on main
 
 ### claude — 2026-11-11 — HOLD
 Runs-with badges on branch runs-with-badges; human reviews before main
+
+### claude — 2026-11-11 — badges on main
+- The human said to commit to main and push. Fast-forwarded main to runs-with-badges (72d8b9c, 289f01d). The HOLD above is lifted by the human.
+
+### claude — 2026-11-11 — PUSHED
+Runs-with badges on main
