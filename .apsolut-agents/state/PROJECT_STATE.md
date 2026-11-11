@@ -11,24 +11,24 @@ anything no longer true (git keeps history), keep the whole file to ~1 screen.
 ## Facts (generated)
 
 <!-- facts:begin -->
-_Generated 2026-11-11 01:38 by status.sh — do not hand-edit this block._
+_Generated 2026-11-11 02:21 by status.sh — do not hand-edit this block._
 
 | | |
 |--|--|
-| Branch | `v0.12-risk-intake` |
-| Ahead/behind upstream | no upstream configured |
-| Dirty files | 3 |
+| Branch | `main` |
+| Ahead/behind upstream | 0 ahead / 0 behind upstream |
+| Dirty files | 2 |
 | Worktrees | 1 (incl. primary) |
-| Last session token | claude — 2026-11-11 — HOLD |
-| agent-log.md | 198 lines |
+| Last session token | claude — 2026-11-11 — PUSHED |
+| agent-log.md | 206 lines |
 
 Recent commits:
 ```
+264e772 agents: claude session end 2026-11-11 (HOLD)
 e13a954 docs: bring every doc up to v0.12
 5611a13 agents: claude session end 2026-11-11 (HOLD)
 95e95da feat: v0.12.0 — risk picks the judge, blocked-by, GitHub issue intake
 1cce412 agents: claude session end 2026-11-10 (HOLD) — v0.11.0 lane caps on branch
-592ae6c feat: v0.11.0 — lane caps for CLIs that grew their own agents
 ```
 <!-- facts:end -->
 
@@ -41,8 +41,7 @@ no — HOLD lifted 2026-07-29: human provided the remote (github.com/apsolut/aps
 | Task / id | Owner | Status |
 |---|---|---|
 | v0.9.0 (goal loop) + v0.10.0 (runner-enforced checks, four-model review) | Claude | done — on main, tagged and pushed 2026-11-10 (PR #1) |
-| v0.11.0 (lane caps: per-call budget, native subagents off, Codex lane, exit-0 fix) | Claude | on branch `v0.11-lane-caps`, not pushed — human reviews, merges, tags |
-| v0.12.0 (risk routing, `Blocked by:`, `intake.sh`, weak-verifier warning) | Claude | on branch `v0.12-risk-intake` (stacked on `v0.11-lane-caps`), not pushed. Merging it lands both versions |
+| v0.11.0 (lane caps) + v0.12.0 (risk routing, `Blocked by:`, `intake.sh`) | Claude | done — on main, pushed 2026-11-11 (fast-forward, no PR), CI green. NOT tagged yet |
 
 ## Blockers
 
@@ -50,7 +49,7 @@ no — HOLD lifted 2026-07-29: human provided the remote (github.com/apsolut/aps
 
 ## Top 3 next actions
 
-1. Review and merge `v0.12-risk-intake` (it carries v0.11.0 and v0.12.0), then tag both. CI has not run on either: shellcheck is not installed locally. — human
+1. Tag the two releases if you want them pinnable: `v0.11.0` on `1cce412`, `v0.12.0` on the main tip. Local branches `v0.11-lane-caps` and `v0.12-risk-intake` are merged and can be deleted. — human
 2. Run the first supervised real-model `runner.sh <agent> --once` goal night on a small repo. Everything since v0.9 (goal loop, verifier ladder, lane caps, risk routing, `Blocked by:`) is proven only by `tests/goal-loop.sh` (64/64) against a fake CLI; the v0.11 `cmd_` lines also answer a live `doctor.sh` probe. `intake.sh` has never written a card from a live issue: label one issue `agents` and run it. — human + any agent
 3. Installed copies elsewhere (e.g. the n8n project) need `sh .apsolut-agents/scripts/upgrade.sh`, then `doctor.sh`: no upgrade rewrites `HEARTBEAT.md`, so the new `cmd_` lines, `risk_tags:` and `intake_label:` are copied by hand from `template/HEARTBEAT.md`. Leftover ideas are in `../FUTURE.md` (stall detector, failure-mode routing, score ratchet, worker routing by risk). Merged branches `v0.9-goal-loop` and `v0.10-hardening` can be deleted. — human
 

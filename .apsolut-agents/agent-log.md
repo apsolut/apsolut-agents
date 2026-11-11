@@ -196,3 +196,11 @@ v0.12.0 (risk routing, blocked-by, issue intake) on branch v0.12-risk-intake, st
 
 ### claude — 2026-11-11 — HOLD
 docs up to v0.12 on branch v0.12-risk-intake
+
+### claude — 2026-11-11 — v0.11.0 + v0.12.0 on main
+- The human said "commit and push all to main". Fast-forwarded main 861aa5d → 264e772 (branch v0.12-risk-intake, which carried v0.11-lane-caps) and pushed. No PR this time, at the human's instruction.
+- CI on main is green for the first time on these two releases: shellcheck, goal-loop (64/64) and install-smoke all pass (run 42938285854).
+- Not done: no tags (v0.11.0, v0.12.0) were created; the human did not ask for them. Still no real-model night, and intake.sh has not written a card from a live issue.
+
+### claude — 2026-11-11 — PUSHED
+v0.11.0 + v0.12.0 on main, CI green, not tagged
