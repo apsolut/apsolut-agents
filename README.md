@@ -4,7 +4,7 @@
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 Runs with:
-![Claude Code](https://img.shields.io/badge/Claude_Code-D97757?logo=claude&logoColor=white)
+<img src="docs/icons/claude.svg" height="20" alt="Claude Code icon"> Claude Code
 ![Codex](https://img.shields.io/badge/Codex-000000)
 ![Grok](https://img.shields.io/badge/Grok-1A1A1A)
 ![Antigravity](https://img.shields.io/badge/Antigravity-4285F4?logo=google&logoColor=white)
