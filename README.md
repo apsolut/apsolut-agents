@@ -5,7 +5,7 @@
 
 Runs with:
 <img src="docs/icons/claude.svg" height="20" alt="Claude Code icon"> Claude Code
-![Codex](https://img.shields.io/badge/Codex-000000)
+<img src="docs/icons/codex.svg" height="20" alt="Codex icon"> Codex
 ![Grok](https://img.shields.io/badge/Grok-1A1A1A)
 ![Antigravity](https://img.shields.io/badge/Antigravity-4285F4?logo=google&logoColor=white)
 
