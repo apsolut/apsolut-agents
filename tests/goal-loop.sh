@@ -263,6 +263,91 @@ check "a delegate cannot write its own cards" '[ "$IRC" -ne 0 ] && [ ! -f "$W/wo
 run
 check "the runner accepts an intake card and leaves a draft on hold alone" '[ "$RC" -eq 0 ] && grep -q "^status: hold" "$W/work/GH-7.md"'
 
+# a fake signing key: commits can be signed only while $T/key-unlocked exists
+signing() {
+  cat > "$T/signer.sh" <<EOF
+#!/bin/sh
+[ -f "$T/key-unlocked" ] || { echo "error: agent refused operation" >&2; exit 1; }
+for a in "\$@"; do last=\$a; done
+printf -- '-----BEGIN SSH SIGNATURE-----\nZmFrZQ==\n-----END SSH SIGNATURE-----\n' > "\$last.sig"
+EOF
+  chmod +x "$T/signer.sh"
+  git -C "$R" config gpg.format ssh
+  git -C "$R" config gpg.ssh.program "$T/signer.sh"
+  git -C "$R" config user.signingkey "key::ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFakeFakeFakeFakeFakeFakeFakeFakeFakeFakeFake"
+  git -C "$R" config commit.gpgsign true
+}
+# run something once the lane has parked (never loops for more than two minutes)
+when_parked() { ( i=0; until grep -q "PARKED" "$W/agent-log.md" 2>/dev/null || [ "$i" -ge 120 ]; do sleep 1; i=$((i+1)); done; sleep 1; eval "$1" ) & }
+logins() { sed -i "s|^cmd_fake: .*|cmd_fake: FAKE_LOGOUT=$T/signed-out sh $FAKE|; s|^cmd_fakev: .*|cmd_fakev: FAKE_LOGOUT=$T/signed-out sh $FAKE|" "$W/HEARTBEAT.md"; git -C "$R" commit -qam logins; }
+
+echo "[19] a locked signing key parks the lane before any card is touched, and the night resumes"
+setup "a.txt exists" 'test -f a.txt' "human_wait_minutes: 2
+park_poll_seconds: 1"
+card T-01 "make: a.txt"
+signing
+when_parked ': > "$T/key-unlocked"'
+run
+wait
+check "exit 0 (goal met after the key came back)" '[ "$RC" -eq 0 ]'
+check "the lane parked, then resumed, in the trail" 'grep -q "parked the lane" "$W/runs/trail-$(D).tsv" && grep -q "resumed the lane" "$W/runs/trail-$(D).tsv"'
+check "the card landed on its first attempt" 'grep -q "^integrated: $(NB)" "$W/work/T-01.md" && [ "$(cat "$W/runs/.attempts-$(D)-T-01")" = 1 ]'
+
+echo "[20] a signing key that stays locked ends the night without spending a card"
+setup "a.txt exists" 'test -f a.txt' "human_wait_minutes: 0"
+card T-01 "make: a.txt"
+signing
+run
+check "exit 7 (waiting on a human)" '[ "$RC" -eq 7 ]'
+check "no worker was called and the card is still waiting" '[ ! -f "$W/runs/T-01-attempt1.out" ] && grep -q "^status: waiting" "$W/work/T-01.md"'
+check "the report says what to unlock" 'grep -q "Lane parked, waiting on a human: commits cannot be signed" "$W/runs/night-$(D).md"'
+
+echo "[21] a worker CLI that loses its login parks the lane; the card keeps its attempt"
+setup "a.txt exists" 'test -f a.txt' "human_wait_minutes: 0"
+logins
+card T-01 "make: a.txt
+logout: yes"
+run
+check "exit 7 (waiting on a human)" '[ "$RC" -eq 7 ]'
+check "the card is waiting, not blocked, with no attempt used" 'grep -q "^status: waiting" "$W/work/T-01.md" && ! grep -q "^Blocked by:" "$W/work/T-01.md" && [ "$(cat "$W/runs/.attempts-$(D)-T-01")" = 0 ]'
+check "the report names the CLI" 'grep -q "the fake CLI stopped answering" "$W/runs/night-$(D).md"'
+
+echo "[22] a verifier CLI that loses its login parks the lane instead of raising the Andon"
+setup "a.txt exists" 'test -f a.txt' "human_wait_minutes: 2
+park_poll_seconds: 1"
+logins
+card T-01 "make: a.txt
+verifier-logout: yes"
+when_parked 'rm -f "$T/signed-out"'
+run
+wait
+check "exit 0 (goal met after the login came back)" '[ "$RC" -eq 0 ]'
+check "parked on the verifier, resumed, no Andon" 'grep -q "the verifier CLI (fakev) stopped answering" "$W/runs/trail-$(D).tsv" && grep -q "resumed the lane" "$W/runs/trail-$(D).tsv" && [ ! -f "$W/ANDON" ]'
+check "the card was verified and integrated" 'grep -q "^verified: test-verified" "$W/work/T-01.md" && grep -q "^integrated: $(NB)" "$W/work/T-01.md"'
+
+echo "[23] a verifier CLI that crashes (login intact) blocks the verdict; the runner survives"
+setup "a.txt exists" 'test -f a.txt'
+card T-01 "make: a.txt
+verifier-crash: yes"
+run
+check "the runner ended with a report, not a crash" '[ -f "$W/runs/night-$(D).md" ] && [ "$RC" -ne 1 ]'
+check "the card is green but unverified, and not integrated" 'grep -q "^verified: blocked" "$W/work/T-01.md" && ! grep -q "^integrated: $(NB)" "$W/work/T-01.md"'
+check "the trail records the blocked verdict, with no park" 'grep -q "fakev judged T-01: verifier-blocked" "$W/runs/trail-$(D).tsv" && ! grep -q "parked the lane" "$W/runs/trail-$(D).tsv"'
+
+echo "[24] nightshift.sh: the runner's exit code, the lane's ticks, colour only when asked"
+setup "a.txt exists" 'test -f a.txt'
+card T-01 "make: a.txt"
+NRC=0; ( cd "$R" && sh .apsolut-agents/scripts/nightshift.sh fake --drain ) > "$T/ns.out" 2>&1 || NRC=$?
+ESC=$(printf '\033')
+check "exit 0 and the goal is met" '[ "$NRC" -eq 0 ] && grep -q "reason: goal met" "$T/ns.out"'
+check "it shows the lane working and says nothing waits" 'grep -q "start T-01 attempt 1" "$T/ns.out" && grep -q "Nothing is waiting on you" "$T/ns.out"'
+check "no colour codes when the output is not a terminal" '! grep -q "$ESC" "$T/ns.out"'
+setup "" ''
+card T-01 "blocked: yes"
+NRC=0; ( cd "$R" && CLICOLOR_FORCE=1 sh .apsolut-agents/scripts/nightshift.sh fake --drain ) > "$T/ns.out" 2>&1 || NRC=$?
+check "forced colour paints the blocked card red and lists it" 'grep -q "$ESC\[31mblocked T-01" "$T/ns.out" && grep -q "Waiting on you" "$T/ns.out" && grep -q "T-01 blocked" "$T/ns.out"'
+check "NO_COLOR wins over a forced colour" '( cd "$R" && NO_COLOR=1 CLICOLOR_FORCE=1 sh .apsolut-agents/scripts/doctor.sh 2>&1 || true ) | grep -q "ok" && ! ( cd "$R" && NO_COLOR=1 CLICOLOR_FORCE=1 sh .apsolut-agents/scripts/doctor.sh 2>&1 || true ) | grep -q "$ESC"'
+
 echo
 echo "goal-loop: $PASSN ok, $FAILN failed"
 [ -z "${KEEP:-}" ] || echo "kept fixtures:$TMPS"

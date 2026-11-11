@@ -3,7 +3,62 @@
 All notable changes to apsolut-agents. Pin a release with `install.sh --tag vX.Y.Z`;
 upgrade an installed workspace with `sh .apsolut-agents/scripts/upgrade.sh`.
 
-## Unreleased
+## v0.13.0 — 2026-11-11
+
+A night no longer dies waiting for a human. Before this, a credential prompt sat
+until the card's time cap, and a locked signing key or a signed-out CLI failed every
+card in turn until the circuit breaker ended the night.
+
+### Added
+- **Nothing waits at a prompt.** `runner.sh` and `delegate.sh` export
+  `GIT_TERMINAL_PROMPT=0`, `GCM_INTERACTIVE=never` and `GH_PROMPT_DISABLED=1` for
+  every worker, role and check.
+- **A human problem parks the lane.** The runner makes a signed test commit object
+  before opening the night and before every card, and probes the CLI after a failed
+  worker or verifier call. If commits cannot be signed or the CLI no longer answers,
+  the card goes back to `waiting` with its attempt returned and the lane waits:
+  `human_wait_minutes` (default 60) in steps of `park_poll_seconds` (default 300),
+  or until `stop_time`. Then it ends with the new **exit 7** and a "Lane parked"
+  line under "Waiting on you". It does not count toward the breaker. Work that
+  could not be committed is saved as `runs/<id>-attempt<n>.parked.diff`.
+- **`scripts/nightshift.sh`**: `runner.sh` with a live, coloured view of the lane
+  and a closing summary. Same arguments and exit code. `doctor.sh` output is
+  coloured too. Colour is off when piped or with `NO_COLOR`, forced with
+  `CLICOLOR_FORCE=1`.
+- **`doctor.sh` `[unattended]`**: proves a commit can be signed without a prompt and
+  reports whether `gh` is signed in.
+
+### Changed
+- **Leaner default command lines**, each measured with a one-word prompt:
+  - `cmd_claude` now has `--strict-mcp-config`: 42,000 → 33,600 tokens of start-up
+    context, and a bypassed worker can no longer call the signed-in account's MCP
+    servers and connectors. Cards that need a project server add
+    `--mcp-config .mcp.json`.
+  - `cmd_grok` is prefixed with `GROK_CLAUDE_*_ENABLED=0`: Grok stops loading your
+    Claude Code MCP servers, hooks, skills, rules and agents (21,200 → 18,800).
+  - Codex (`--ignore-user-config`) and Antigravity (`--disable-slash-commands`)
+    showed no gain and are unchanged.
+- `doctor.sh` reads the binary of a `cmd_` line past any `VAR=value` prefix, and
+  warns about a Grok line without the prefix.
+- A signed-out verifier parks the lane. It used to count as `verifier-blocked`, and
+  two in a row raised the Andon.
+
+### Fixed
+- **The runner crashed when the verifier's CLI exited non-zero** for any reason
+  other than a provider throttle: an assignment inherited the failed status of a
+  command substitution under `set -e`. The lane ended with no report. The verdict
+  is now `verifier-blocked`, as designed.
+
+### Verified
+- Antigravity 1.5.5 still reports its own timeout the way the runner expects
+  (exit 3, `"finished_reason":"print_timeout"`): checked with a real call.
+- `tests/goal-loop.sh`: six new scenarios (19–24).
+
+### Upgrading
+`HEARTBEAT.md` is yours and is not rewritten. The parking behaviour and the
+no-prompt switches work with no change. To get the leaner lines, copy `cmd_claude`
+and `cmd_grok` from `template/HEARTBEAT.md`; `doctor.sh` warns until you do.
+`human_wait_minutes` and `park_poll_seconds` are optional.
 
 ### Docs
 The README now shows a recording (`docs/demo/night.gif`) of the morning after the

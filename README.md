@@ -20,7 +20,7 @@ No server, no daemon, no framework. Markdown + git + POSIX sh (Git Bash on Windo
 
 > **Status: early.** Plain nights have run on a real project. The goal loop (v0.9+)
 > is tested end to end in CI against a scripted stand-in agent, and has carried real
-> models through one small night (the recording below). It has not yet run a long
+> models through two small nights (the recording below is the first). It has not yet run a long
 > night on a large project. Start with one supervised card (`--once`).
 
 ![The morning after a real night: the goal, the report, the decision trail, and an untouched main](docs/demo/night.gif)
@@ -69,7 +69,9 @@ sh .apsolut-agents/scripts/runner.sh claude --once   # one card through the whol
 sh .apsolut-agents/scripts/worktree.sh done T-01 --merge
 ```
 
-When single cards are boring, drop `--once` and let it run the night.
+When single cards are boring, drop `--once` and let it run the night. To watch one,
+start it with `nightshift.sh` in place of `runner.sh`: same arguments, with the
+lane's progress in colour and a summary at the end.
 
 ## How a night works
 
@@ -131,6 +133,9 @@ Every rule a script can check lives in `runner.sh`, not in a prompt:
   goes to your strongest verifier and never lands on its own check alone.
 - **A block says why.** Each blocked card records whether the work failed, a runner
   rule refused it, or the CLI never finished.
+- **Nothing waits at a prompt.** A credential or login prompt fails at once. A locked
+  signing key or a signed-out CLI parks the lane without spending a card, and the
+  night resumes when it comes back.
 - **Agents cannot edit their own rules.** A change to the config, the prompts or the
   scripts during a run stops the night (the tamper canary). Any agent can stop the
   line (`andon.sh raise`); only you restart it.

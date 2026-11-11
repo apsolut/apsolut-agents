@@ -37,6 +37,9 @@ to the run file.
   The next attempt's prompt includes it. A card that ends blocked gets four lines
   appended to the card itself: `Attempted:`, `Failed because:`, `Blocked by:` (`task`,
   `rule` or `cli`) and `Would unblock:`.
+- `<id>-attempt<n>.parked.diff`: the work of an attempt that could not be committed
+  because the signing key locked mid-card. The attempt was not counted; the lane
+  parked (NIGHTSHIFT.md, "a human problem parks the lane").
 
 ## Not here
 

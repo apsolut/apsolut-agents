@@ -18,9 +18,15 @@ REPO=$(git -C "$WS" rev-parse --show-toplevel)
 TMPD=$(mktemp -d); trap 'rm -rf "$TMPD"' EXIT
 
 PASS=0; WARN=0; FAIL=0
-ok()   { PASS=$((PASS+1)); printf '  ok    %s\n' "$1"; }
-warn() { WARN=$((WARN+1)); printf '  WARN  %s\n' "$1"; }
-fail() { FAIL=$((FAIL+1)); printf '  FAIL  %s\n' "$1"; }
+# colour for a terminal only: off when piped or NO_COLOR is set, forced by CLICOLOR_FORCE=1
+if [ -n "${NO_COLOR:-}" ]; then COLOR=no
+elif [ "${CLICOLOR_FORCE:-0}" = 1 ] || [ -t 1 ]; then COLOR=yes
+else COLOR=no; fi
+if [ "$COLOR" = yes ]; then E=$(printf '\033'); CG="$E[32m"; CY="$E[33m"; CR="$E[31m"; CO="$E[0m"
+else CG=""; CY=""; CR=""; CO=""; fi
+ok()   { PASS=$((PASS+1)); printf '  %sok%s    %s\n' "$CG" "$CO" "$1"; }
+warn() { WARN=$((WARN+1)); printf '  %sWARN%s  %s\n' "$CY" "$CO" "$1"; }
+fail() { FAIL=$((FAIL+1)); printf '  %sFAIL%s  %s\n' "$CR" "$CO" "$1"; }
 
 cfg() { [ -f "$HB" ] && sed -n "s/^$1:[[:space:]]*//p" "$HB" | head -1 | tr -d '\r' || true; }
 num_or() { case "$1" in ''|*[!0-9.]*|*.*.*) echo "$2";; *) echo "$1";; esac; }
@@ -81,13 +87,15 @@ else
   # running without the caps newer CLIs need. Judged by the binary, not the lane name.
   for a in $CMDS; do
     cl=$(cfg "cmd_$a")
-    case "$(printf '%s' "$cl" | awk '{print $1}')" in
+    # the binary is the first word that is not a VAR=value prefix
+    case "$(printf '%s\n' "$cl" | tr ' ' '\n' | grep -vE '^[A-Za-z_][A-Za-z0-9_]*=' | head -1)" in
       claude)
         case "$cl" in *--disallowedTools*|*--disallowed-tools*) ;; *) warn "cmd_$a: no --disallowedTools Agent,Task — claude can spawn its own subagents, outside the card clock and the spend ledger";; esac
         case "$cl" in *--max-budget-usd*) ;; *) warn "cmd_$a: no --max-budget-usd \$APSOLUT_CALL_BUDGET_USD — one card can overshoot night_budget_usd";; esac
-        case "$cl" in *--strict-mcp-config*) ;; *) warn "cmd_$a: no --strict-mcp-config — a headless claude can call the signed-in account's MCP servers and claude.ai connectors (fine if your cards need a project MCP server)";; esac ;;
+        case "$cl" in *--strict-mcp-config*) ;; *) warn "cmd_$a: no --strict-mcp-config — a headless claude loads the signed-in account's MCP servers and claude.ai connectors: a bypassed worker can call them, and every call carries about 8,000 more tokens (add it, with --mcp-config .mcp.json if cards need a project server)";; esac ;;
       grok)
-        case "$cl" in *--no-subagents*) ;; *) warn "cmd_$a: no --no-subagents — grok starts background subagents the runner neither waits for nor charges";; esac ;;
+        case "$cl" in *--no-subagents*) ;; *) warn "cmd_$a: no --no-subagents — grok starts background subagents the runner neither waits for nor charges";; esac
+        case "$cl" in *GROK_CLAUDE_MCPS_ENABLED=0*) ;; *) warn "cmd_$a: grok loads your Claude Code MCP servers, hooks and skills by default — put GROK_CLAUDE_MCPS_ENABLED=0 GROK_CLAUDE_HOOKS_ENABLED=0 (see template/HEARTBEAT.md) in front of the command";; esac ;;
       agy)
         case "$cl" in *--print-timeout*) ;; *) warn "cmd_$a: no --print-timeout \${APSOLUT_SOFT_TIMEOUT_MIN}m — a headless agy waits for its background tasks until the hard timeout kills it";; esac ;;
       codex)
@@ -330,6 +338,26 @@ else
 fi
 
 # --- rolling cost vs budget --------------------------------------------------------
+echo "[unattended]"
+# what a night cannot answer: a signing prompt, a login prompt
+if [ "$(git -C "$REPO" config --bool commit.gpgsign 2>/dev/null || true)" = true ]; then
+  sgo=$(mktemp)
+  if sgt=$(git -C "$REPO" rev-parse 'HEAD^{tree}' 2>/dev/null) && \
+     timeout -k 5 30 git -C "$REPO" commit-tree -S "$sgt" -p HEAD -m "apsolut-agents: signing probe" < /dev/null > /dev/null 2> "$sgo"; then
+    ok "commits can be signed without a prompt (the runner checks again before every card)"
+  else
+    fail "a signed commit failed or waited for approval: $(grep -v '^$' "$sgo" | head -1 | cut -c1-120) — unlock the signing key or its agent; a night parks until it answers"
+  fi
+  rm -f "$sgo"
+else
+  ok "commit signing is off for this repo: no key to unlock"
+fi
+hw=$(cfg human_wait_minutes); ok "human_wait_minutes: ${hw:-60 (default)} — how long a parked lane waits for a key or a login to come back"
+if command -v gh >/dev/null 2>&1; then
+  if GH_PROMPT_DISABLED=1 gh auth status >/dev/null 2>&1; then ok "gh is signed in (intake.sh can read issues)"
+  else warn "gh is not signed in — intake.sh will fail; workers and the runner do not need gh"; fi
+fi
+
 echo "[costs]"
 BUDGET=$(num_or "$(cfg night_budget_usd)" 100)
 FB=$(num_or "$(cfg cost_fallback_usd)" 2)

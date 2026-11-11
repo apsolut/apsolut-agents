@@ -100,6 +100,8 @@ the Cursor plugins: every rule a script can check moved out of the prompts.
 | goal mode needs a second opinion | with no verifier, only cards whose `check:` passed integrate; the rest wait as `unverified` |
 | risk picks the judge (v0.12) | a card whose `risk:` holds one of `risk_tags` is judged by `risk_verifier_agent` (else `verifier_agent`); with no verifier it never integrates on its `check:` alone and waits as `risk-unverified`. Read from the card snapshot, so a worker cannot drop its own tag |
 | a block says what blocked it (v0.12) | every blocked card carries `Blocked by: task \| rule \| cli`: the work failed, a runner rule refused it, or the CLI never finished. The night report repeats it |
+| nothing waits at a prompt (v0.13) | the runner and `delegate.sh` export `GIT_TERMINAL_PROMPT=0`, `GCM_INTERACTIVE=never` and `GH_PROMPT_DISABLED=1`: a credential or login prompt fails at once instead of sitting until the card's time cap |
+| a human problem parks the lane (v0.13) | a locked signing key or a CLI that lost its login cannot be fixed by a retry. The runner checks signing before every card and probes the CLI after a failed call. The card goes back to `waiting` with its attempt returned, and the lane waits up to `human_wait_minutes` (looking every `park_poll_seconds`), then ends with exit 7. It does not count toward the breaker, and a signed-out verifier no longer raises the Andon |
 | a crash does not reset the night | `runs/.night-current` keeps the night (branch, spend, rounds) across a restart within 18 h |
 | cost is honest | no cost in the output → `max(cost_fallback_usd, minutes × cost_per_minute_usd)`; the spend ledger is locked across lanes |
 
@@ -176,6 +178,7 @@ them (filename = id, Goal + Done when, test-first) → work/ → loop
   | 0 | goal met (the predicate passed on the night branch) |
   | 6 | planner wrote `STUCK.md` (needs a human decision), plateau (two plan rounds in a row landed nothing), or `max_plan_rounds` used up |
   | 5 | Andon raised, or the tamper canary fired |
+  | 7 | waiting on a human: commits cannot be signed, or a CLI lost its login, and nobody fixed it within `human_wait_minutes` (or before `stop_time`). No card was blocked or charged an attempt for it |
   | 2 / 3 / 4 | breaker / budget / harness, as before |
 
 - **A plateau means pivot, and the predicate never relaxes.** When a round lands
@@ -231,6 +234,20 @@ here, with the attempt output in front of you. Read `Blocked by:` first. `task`
 means the work failed: fix or split the card. `rule` means a runner rule refused a
 change that may be fine: decide whether the rule or the card is wrong. `cli` means
 the agent never finished: nothing was learned about the card, so rerun it.
+
+A night that ended with exit 7 ("waiting on a human") blocked nothing. Fix what the
+report names (unlock the signing key, sign the CLI in again) and start the runner
+again: the cards are still `waiting`. If a card's work could not be committed when
+the key locked, it is saved as `runs/<id>-attempt<n>.parked.diff`.
+
+### Watching a night: `nightshift.sh`
+
+`sh .apsolut-agents/scripts/nightshift.sh <agent> [--once|--drain]` starts the same
+runner with the same arguments and exit code, shows this lane's log lines as they
+happen, and ends with how the night finished and what waits on you. Colour is on for
+a terminal (green landed, yellow waiting or retrying, red blocked), off when piped or
+when `NO_COLOR` is set, and forced with `CLICOLOR_FORCE=1`. Use `runner.sh` directly
+for cron or a service.
 
 ## Cards from GitHub issues (v0.12)
 

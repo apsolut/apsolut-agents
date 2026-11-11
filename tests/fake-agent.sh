@@ -17,6 +17,11 @@
 #   budget-stop: yes     stop like claude at --max-budget-usd (is_error, exit 1)
 #   cancelled: yes       stop like grok on a denied tool (stopReason cancelled, exit 0)
 #   print-timeout: yes   stop like agy at --print-timeout (finished_reason, exit 3)
+#   logout: yes          the worker's CLI loses its login (once), probe included
+#   verifier-logout: yes the verifier's CLI loses its login (once)
+#   verifier-crash: yes  the verifier's CLI exits 1 with no verdict, login intact
+# A "login" is the absence of the file named by $FAKE_LOGOUT: while it exists every
+# call, the probe included, fails like a signed-out CLI.
 # and the goal steers the planner: "stuck-please" → STUCK.md.
 set -eu
 if [ $# -ge 1 ]; then P=$1; else P=$(cat); fi
@@ -28,12 +33,21 @@ esac
 after() { printf '%s\n' "$P" | sed -n "s/.*$1[[:space:]]*//p" | head -1; }
 has() { case "$P" in *"$1"*) return 0;; esac; return 1; }
 
+if [ -n "${FAKE_LOGOUT:-}" ]; then
+  case "$P" in
+    *"the independent verifier"*)
+      if has "verifier-logout: yes" && [ ! -f "$FAKE_LOGOUT.vdone" ]; then : > "$FAKE_LOGOUT.vdone"; : > "$FAKE_LOGOUT"; fi ;;
+    *) if printf '%s\n' "$P" | grep -q '^logout: yes' && [ ! -f "$FAKE_LOGOUT.done" ]; then : > "$FAKE_LOGOUT.done"; : > "$FAKE_LOGOUT"; fi ;;
+  esac
+  if [ -f "$FAKE_LOGOUT" ]; then echo "Not logged in · Please run /login"; exit 1; fi
+fi
 case "$P" in
   "Reply with the single word: ok") echo ok; exit 0 ;;
 esac
 
 case "$P" in
 *"the independent verifier"*)
+  if has "verifier-crash: yes"; then echo "fake verifier: crashed"; exit 1; fi
   out=$(after 'nothing else in the repo:')
   f=$(printf '%s\n' "$P" | sed -n 's/^make: //p' | head -1)
   if [ -n "$f" ] && [ "$(cat "$f" 2>/dev/null)" = "right" ]; then

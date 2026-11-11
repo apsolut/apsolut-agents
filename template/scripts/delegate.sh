@@ -15,6 +15,9 @@
 # delegation and an overnight lane can never double-claim the same card.
 # Full protocol, caps and rationale: DELEGATION.md.
 set -eu
+# a delegate runs headless: a credential or login prompt fails at once instead of waiting
+GIT_TERMINAL_PROMPT=0; GCM_INTERACTIVE=never; GH_PROMPT_DISABLED=1
+export GIT_TERMINAL_PROMPT GCM_INTERACTIVE GH_PROMPT_DISABLED
 
 usage() {
   echo "usage: delegate.sh run <agent> <task-id> [--detach] [--note \"...\"] [--budget <min>]" >&2

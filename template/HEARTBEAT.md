@@ -36,6 +36,13 @@ cost_per_minute_usd: 0.15
 # Both rates can be set per agent for a CLI that never prints a cost (codex --json and
 # agy print token counts only): cost_fallback_usd_<agent>, cost_per_minute_usd_<agent>.
 #   cost_per_minute_usd_codex: 0.25
+# Waiting on a human (v0.13). When the key that signs commits is locked, or a CLI has
+# lost its login, no card can succeed and a retry cannot help. The lane parks: the
+# card goes back to waiting with its attempt returned, and the runner looks again
+# every park_poll_seconds for up to human_wait_minutes (or until stop_time). After
+# that it ends the night with exit 7 and says so in the report. 0 = end at once.
+human_wait_minutes: 60
+park_poll_seconds: 300
 # a provider throttle (a FAILED call whose last lines say 429/quota/overloaded; never
 # our own timeout) is not an attempt, up to this many per card per night
 max_backoffs_per_card: 3
@@ -123,7 +130,7 @@ notify_url:
 ##   $APSOLUT_CALL_MINUTES       the hard time cap `timeout` enforces on this call
 ##   $APSOLUT_SOFT_TIMEOUT_MIN   one minute less, for a CLI that can stop itself in time
 ## What the flags below are for (checked against claude 2.1.322, codex 0.167.0,
-## grok 1.0.70, agy 1.5.3; `doctor.sh <agent>` proves a line still answers):
+## grok 1.0.70, agy 1.5.5; `doctor.sh <agent>` proves a line still answers):
 ## - No native subagents. Every CLI can now fan out by itself, and that work is outside
 ##   the depth cap, the card clock and the spend ledger. claude --disallowedTools
 ##   Agent,Task · grok --no-subagents · codex --disable multi_agent. agy has no flag.
@@ -134,15 +141,25 @@ notify_url:
 ## - A list flag (claude --disallowedTools, --allowedTools, --tools, --add-dir,
 ##   --mcp-config) swallows the next word. Never leave one last on an arg-mode line:
 ##   it would eat the prompt. doctor.sh fails such a line.
-## - Optional, claude: add --strict-mcp-config. A headless claude loads the MCP servers
-##   and claude.ai connectors of the signed-in account (mail, chat, CRM, ...), and with
-##   permissions bypassed a worker can call them. The flag drops all of them, including
-##   a project .mcp.json, so leave it out if your cards need a project MCP server.
+## - claude --strict-mcp-config (default since v0.13). A headless claude otherwise loads
+##   the MCP servers and claude.ai connectors of the signed-in account (mail, chat,
+##   CRM, ...), and with permissions bypassed a worker can call them. The flag drops
+##   all of them. Measured on claude 2.1.322 with a one-word prompt: 42,000 tokens of
+##   start-up context without it, 33,600 with it. It also drops a project .mcp.json:
+##   if your cards need that server, add `--mcp-config .mcp.json` to the line.
+##   Adding --disable-slash-commands (no skills, no commands) measured 28,800. It is
+##   left off because a project skill can be part of how a card gets done.
+## - grok reads your Claude Code and Cursor setup by default: MCP servers, hooks,
+##   skills, rules, agents. The GROK_CLAUDE_*_ENABLED=0 variables in front of the grok
+##   line switch that off, so a Grok worker runs on its own configuration and its
+##   start-up context is about a tenth smaller (21,200 to 18,800 tokens on 1.0.70).
+## - codex --ignore-user-config and agy --disable-slash-commands were measured too and
+##   changed nothing in start-up tokens or time, so they are not on the lines below.
 ## - codex prints no cost and no is_error: a failed call is its exit code, and its
 ##   spend is cost_fallback_usd / cost_per_minute_usd (settable per agent, see Limits).
 prompt_claude: stdin
-cmd_claude: claude -p --dangerously-skip-permissions --disallowedTools Agent,Task --max-budget-usd $APSOLUT_CALL_BUDGET_USD --output-format json
-cmd_grok: grok --always-approve --no-subagents --output-format json -p
+cmd_claude: claude -p --dangerously-skip-permissions --strict-mcp-config --disallowedTools Agent,Task --max-budget-usd $APSOLUT_CALL_BUDGET_USD --output-format json
+cmd_grok: GROK_CLAUDE_MCPS_ENABLED=0 GROK_CLAUDE_HOOKS_ENABLED=0 GROK_CLAUDE_SKILLS_ENABLED=0 GROK_CLAUDE_RULES_ENABLED=0 GROK_CLAUDE_AGENTS_ENABLED=0 grok --always-approve --no-subagents --output-format json -p
 cmd_agy: agy --dangerously-skip-permissions --output-format json --print-timeout ${APSOLUT_SOFT_TIMEOUT_MIN}m -p
 prompt_codex: stdin
 cmd_codex: codex exec --dangerously-bypass-approvals-and-sandbox --disable multi_agent --json -

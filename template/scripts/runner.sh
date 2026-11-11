@@ -13,6 +13,12 @@
 # Role prompts live in prompts/*.md. Every decision goes to runs/trail-<date>.tsv.
 set -eu
 
+# Nothing in a night may sit at a prompt nobody will answer. A git credential
+# prompt, a credential-manager window or a gh login prompt fails at once instead,
+# for every worker, role and check this runner starts.
+GIT_TERMINAL_PROMPT=0; GCM_INTERACTIVE=never; GH_PROMPT_DISABLED=1
+export GIT_TERMINAL_PROMPT GCM_INTERACTIVE GH_PROMPT_DISABLED
+
 AGENT=${1:?usage: runner.sh <agent> [--once|--drain]}
 ONCE=no; DRAIN=no
 case "${2:-}" in
@@ -66,6 +72,11 @@ TIMEOUT_MIN=$(num_or "$(cfg card_timeout_minutes)" 45)
 HELPER_MIN=$(num_or "$(cfg helper_timeout_minutes)" 20)
 MAX_ATTEMPTS=$(num_or "$(cfg max_attempts_per_card)" 2)
 MAX_FAILS=$(num_or "$(cfg max_consecutive_failures_lane)" 3)
+# waiting on a human (v0.13): how long a parked lane waits for a signing key or a
+# CLI login to come back, and how often it looks. 0 minutes = end the lane at once.
+HUMAN_WAIT=$(num_or "$(cfg human_wait_minutes)" 60); HUMAN_WAIT=${HUMAN_WAIT%%.*}
+PARK_POLL=$(num_or "$(cfg park_poll_seconds)" 300); PARK_POLL=${PARK_POLL%%.*}
+[ "${PARK_POLL:-0}" -ge 1 ] || PARK_POLL=1
 BUDGET=$(num_or "$(cfg night_budget_usd)" "$(num_or "$(cfg night_budget)" 100)")
 FALLBACK_COST=$(num_or "$(cfg cost_fallback_usd)" 2)
 STOP=$(cfg stop_time | tr -d ':'); STOP=${STOP:-0700}
@@ -417,20 +428,24 @@ unlock() { rm -rf "${WS:?}/claims/$1"; }
 # account, dead binary — would otherwise march the whole board, charging an attempt
 # plus fallback cost per card (cost a full night in the field, 2026-08-11). A dead
 # verifier would make every card unverified, so roles are probed too.
-for r in $ROLES; do
-  PROBE_DIR=$(mktemp -d); PROBE_OUT=""; rc=0
-  rcmd=$(cfg "cmd_$r")
-  if [ "$(cfg "prompt_$r")" = stdin ]; then
-    PROBE_OUT=$( cd "$PROBE_DIR" && call_env 3 && printf 'Reply with the single word: ok\n' | timeout -k 10 180 sh -c "$rcmd" 2>&1 ) || rc=$?
+probe_role() { # $1 agent → 0 when its CLI answers; else PROBE_WHY and PROBE_OUT say why not
+  PROBE_DIR=$(mktemp -d); PROBE_OUT=""; pbrc=0; PROBE_WHY=""
+  rcmd=$(cfg "cmd_$1")
+  if [ "$(cfg "prompt_$1")" = stdin ]; then
+    PROBE_OUT=$( cd "$PROBE_DIR" && call_env 3 && printf 'Reply with the single word: ok\n' | timeout -k 10 180 sh -c "$rcmd" 2>&1 ) || pbrc=$?
   else
-    PROBE_OUT=$( cd "$PROBE_DIR" && call_env 3 && timeout -k 10 180 sh -c "$rcmd \"\$1\"" runner "Reply with the single word: ok" < /dev/null 2>&1 ) || rc=$?
+    PROBE_OUT=$( cd "$PROBE_DIR" && call_env 3 && timeout -k 10 180 sh -c "$rcmd \"\$1\"" runner "Reply with the single word: ok" < /dev/null 2>&1 ) || pbrc=$?
   fi
   rm -rf "$PROBE_DIR"
-  why=""
-  [ "$rc" -ne 0 ] && why="exited non-zero"
-  [ -z "$why" ] && printf '%s' "$PROBE_OUT" | grep -q '"is_error"[[:space:]]*:[[:space:]]*true' && why="returned is_error:true"
-  [ -z "$why" ] && printf '%s' "$PROBE_OUT" | grep -qE '"stopReason"[[:space:]]*:[[:space:]]*"cancelled"|"denied_actions"[[:space:]]*:[[:space:]]*\[\{' && why="ended the turn early (cancelled, or a tool was denied)"
-  [ -z "$why" ] && { printf '%s' "$PROBE_OUT" | grep -qiw 'ok' || why="returned no 'ok'"; }
+  [ "$pbrc" -ne 0 ] && PROBE_WHY="exited non-zero"
+  [ -z "$PROBE_WHY" ] && printf '%s' "$PROBE_OUT" | grep -q '"is_error"[[:space:]]*:[[:space:]]*true' && PROBE_WHY="returned is_error:true"
+  [ -z "$PROBE_WHY" ] && printf '%s' "$PROBE_OUT" | grep -qE '"stopReason"[[:space:]]*:[[:space:]]*"cancelled"|"denied_actions"[[:space:]]*:[[:space:]]*\[\{' && PROBE_WHY="ended the turn early (cancelled, or a tool was denied)"
+  [ -z "$PROBE_WHY" ] && { printf '%s' "$PROBE_OUT" | grep -qiw 'ok' || PROBE_WHY="returned no 'ok'"; }
+  [ -z "$PROBE_WHY" ]
+}
+for r in $ROLES; do
+  probe_role "$r" && continue
+  why=$PROBE_WHY
   if [ -n "$why" ]; then
     echo "error: preflight probe for '$r' $why — refusing to start the lane" >&2
     printf '%s\n' "$PROBE_OUT" | command tail -5 >&2
@@ -724,6 +739,7 @@ finish() { # $1 reason, $2 exit code
     echo
     w=0
     [ -f "$WS/ANDON" ] && { echo "- **Andon raised:** $(sed -n 's/^reason: //p' "$WS/ANDON") — clear with \`sh .apsolut-agents/scripts/andon.sh clear\`"; w=1; }
+    case "$1" in "waiting on a human"*) echo "- **Lane parked, $1.** Unfinished cards are still \`waiting\` with their attempts returned: fix it, then start the runner again."; w=1;; esac
     [ -f "$WS/runs/STUCK-$DATE.md" ] && { echo "- **Planner is stuck:** runs/STUCK-$DATE.md — $(head -c 300 "$WS/runs/STUCK-$DATE.md" | tr '\n' ' ')"; w=1; }
     for f in "$WS"/work/*.md; do is_card "$f" || continue;
       id=$(fm_get "$f" id); st=$(fm_get "$f" status); vf=$(fm_get "$f" verified)
@@ -823,8 +839,53 @@ red() {
 echo "runner[$AGENT]: timeout=${TIMEOUT_MIN}m attempts=$MAX_ATTEMPTS breaker=$MAX_FAILS budget=\$$BUDGET stop=$STOP goal=$GOAL_MODE verifier=${VERIFIER:-none}"
 tick "night start (budget \$$BUDGET, stop $STOP, goal mode $GOAL_MODE)"
 trail start "started the lane" "goal mode $GOAL_MODE, verifier ${VERIFIER:-none}, advisor ${ADVISOR:-none}" "pid $$" "budget \$$BUDGET"
+# --- waiting on a human (v0.13) ----------------------------------------------------
+# Two things a card cannot fix and a retry cannot fix: the key that signs commits is
+# locked, or a CLI lost its login. Marching the board through either blocks every
+# card and trips the breaker. So the lane parks: the card goes back to waiting with
+# its attempt returned, and the runner waits for the condition to clear.
+SIGN=no; [ "$(git -C "$REPO" config --bool commit.gpgsign 2>/dev/null || true)" = true ] && SIGN=yes
+sign_ok() { # can a commit be signed right now, without anyone approving a prompt?
+  [ "$SIGN" = yes ] || return 0
+  sgt=$(git -C "$REPO" rev-parse 'HEAD^{tree}' 2>/dev/null) || return 0
+  timeout -k 5 30 git -C "$REPO" commit-tree -S "$sgt" -p HEAD -m "apsolut-agents: signing probe" \
+    < /dev/null > /dev/null 2> "$WS/runs/.sign-probe.out"
+}
+sign_why() { sgw=$(grep -v '^$' "$WS/runs/.sign-probe.out" 2>/dev/null | head -1 | cut -c1-120)
+  echo "commits cannot be signed (${sgw:-the signing key did not answer in 30s}) — unlock the key or its agent"; }
+unattempt() { # the failure is not the card's: keep what it did, give the attempt back, free the card
+  [ "$(git -C "$WT" rev-parse HEAD)" != "$PRE" ] && git -C "$WT" update-ref "refs/apsolut/attempts/$ID-$N" HEAD 2>/dev/null || true
+  git -C "$WT" reset --hard -q "$PRE" 2>/dev/null || true
+  git -C "$WT" clean -fdq -e .apsolut-agents 2>/dev/null || true
+  echo $(( N - 1 )) > "$WS/runs/.attempts-$DATE-$ID"
+  fm_set "$CARD" status waiting
+  release; DID_ONE=no
+}
+park() { # $1 reason; the rest = a command that succeeds once a human has fixed it
+  pkwhy=$1; shift
+  tick "PARKED, waiting on a human: $pkwhy"
+  notify "lane parked, waiting on a human: $pkwhy"
+  trail lane "parked the lane" "$pkwhy" "" parked
+  if [ "$ONCE" = yes ] || [ "$HUMAN_WAIT" -le 0 ]; then finish "waiting on a human: $pkwhy" 7; fi
+  pkw=0
+  while :; do
+    sleep "$PARK_POLL"; pkw=$(( pkw + PARK_POLL ))
+    [ -f "$WS/ANDON" ] && finish "andon: $(sed -n 's/^reason: //p' "$WS/ANDON")" 5
+    if [ "$ARMED" = yes ] && in_stop_window; then finish "waiting on a human: $pkwhy" 7; fi
+    if "$@"; then
+      tick "resumed after $(( pkw / 60 ))m: no longer waiting on a human"
+      trail lane "resumed the lane" "cleared: $pkwhy" "" resumed
+      return 0
+    fi
+    [ "$pkw" -ge $(( HUMAN_WAIT * 60 )) ] && finish "waiting on a human: $pkwhy (gave up after ${HUMAN_WAIT}m)" 7
+  done
+}
+
+
 FAILS=0
 BASELINE_OK=no
+# the night branch needs a signed commit too: do not open a night that cannot commit
+sign_ok || park "$(sign_why)" sign_ok
 [ "$GOAL_MODE" = yes ] && night_setup
 
 deps_digest() { # $1 card → what its after: cards did (latest handoff), for the worker
@@ -846,6 +907,7 @@ while :; do
   elif in_stop_window; then finish "stop_time" 0; fi
   awk "BEGIN{exit !($(spent) >= $BUDGET)}" && { notify "BUDGET CAP hit (\$$(spent))"; finish "budget" 3; }
   [ "$FAILS" -ge "$MAX_FAILS" ] && { notify "CIRCUIT BREAKER: $FAILS consecutive failures"; finish "breaker" 2; }
+  sign_ok || park "$(sign_why)" sign_ok
 
   ID=$(pick_ready || true)
   if [ -z "$ID" ]; then
@@ -1066,7 +1128,14 @@ while :; do
 
   if [ -n "$(git -C "$WT" status --porcelain | grep -v '\.apsolut-agents' || true)" ]; then
     git -C "$WT" add -A -- ':!.apsolut-agents' 2>/dev/null || git -C "$WT" add -A
-    git -C "$WT" commit -q -m "$ID: uncommitted work salvaged by runner (attempt $N)" || true
+    git -C "$WT" commit -q -m "$ID: uncommitted work salvaged by runner (attempt $N)" >> "$OUT" 2>&1 || { sign_ok || SIGNLOST=yes; }
+  fi
+  if [ "${SIGNLOST:-no}" = yes ]; then
+    SIGNLOST=no
+    git -C "$WT" diff --cached "$PRE" > "$WS/runs/$ID-attempt$N.parked.diff" 2>/dev/null || true
+    unattempt
+    park "$(sign_why); $ID's uncommitted work is kept in runs/$ID-attempt$N.parked.diff" sign_ok
+    continue
   fi
 
   # the handoff: the file the agent wrote, else the handoff it printed as its final
@@ -1110,6 +1179,11 @@ while :; do
 
   echo "green_cmd @ $(git -C "$WT" rev-parse HEAD)" >> "$OUT"
   if [ "$RC" -ne 0 ]; then
+    if ! probe_role "$AGENT"; then
+      unattempt
+      park "the $AGENT CLI stopped answering ($PROBE_WHY) — sign it in again" probe_role "$AGENT"
+      continue
+    fi
     fmode=$(md_first "$HF" "Failure mode")
     BY=cli; red "${fmode:-the agent CLI exited $RC}"
     release; continue
@@ -1173,13 +1247,20 @@ while :; do
       restore_tree "$WT" "$HEADC" "$WS/runs/$ID-verify$N.stray.diff"
       VLEVEL=verifier-blocked; why="the verifier edited tracked files; its verdict was thrown away"
     elif [ "$rcv" -ne 0 ]; then
-      VLEVEL=verifier-blocked; why="the verifier CLI exited $rcv$(throttled "$WS/runs/$ID-verify$N.out" "$rcv" && echo " (provider throttle)")"
+      VLEVEL=verifier-blocked; why="the verifier CLI exited $rcv$(throttled "$WS/runs/$ID-verify$N.out" "$rcv" && echo " (provider throttle)" || true)"
+      throttled "$WS/runs/$ID-verify$N.out" "$rcv" || probe_role "$VAG" || VPARK="the verifier CLI ($VAG) stopped answering ($PROBE_WHY) — sign it in again"
     else
       VLEVEL=$(h_level "$VP"); why=$(md_body "$VP" Findings 1)
       [ -n "$VLEVEL" ] || { VLEVEL=verifier-blocked; vs=$(cli_stop "$WS/runs/$ID-verify$N.out")
         why="the verifier wrote no verdict${vs:+ (its CLI stopped: $vs)}"; }
     fi
     git -C "$WT" clean -fdq -e .apsolut-agents 2>/dev/null || true
+    if [ -n "${VPARK:-}" ]; then
+      pkv=$VPARK; VPARK=""
+      unattempt
+      park "$pkv" probe_role "$VAG"
+      continue
+    fi
     if [ "$VLEVEL" = verifier-blocked ]; then
       PASS=blocked; VBLOCKS=$((VBLOCKS+1))
     elif [ "$VLEVEL" = verifier-failed ] || [ "$(rank "$VLEVEL")" -lt "$(need_rank "$NEED")" ]; then

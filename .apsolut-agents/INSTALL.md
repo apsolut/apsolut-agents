@@ -157,6 +157,7 @@ locally and never pushes it — the next agent (and prod) never sees it.
 | `work/_TEMPLATE.md` | 2 | doc | One file per task — the ownership atom |
 | `scripts/worktree.sh` | 2 | doc | Spawn (push sealed) / review / list / human cleanup |
 | `scripts/runner.sh` | 2 | doc | Night Shift single-lane runner (see `NIGHTSHIFT.md`) |
+| `scripts/nightshift.sh` | 2 | doc | `runner.sh` with a live, coloured view of the lane and a summary at the end (same arguments, same exit code) |
 | `scripts/delegate.sh` | 2 | doc | `run`/`status`/`tail`/`stop` a delegated peer agent (see `DELEGATION.md`) |
 | `scripts/doctor.sh` | 2 | doc | Preflight before a night: tools, `HEARTBEAT.md` and its `cmd_` lines, roles, cards, green on a pristine worktree, a live CLI probe |
 | `scripts/intake.sh` | 2 | doc | Labelled GitHub issues → draft cards `work/GH-<n>.md` (needs `gh`) |
