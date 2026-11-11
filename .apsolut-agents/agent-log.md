@@ -210,3 +210,11 @@ v0.11.0 + v0.12.0 on main, CI green, not tagged
 
 ### claude — 2026-11-11 — PUSHED
 copyright holder named in LICENSE and SPDX headers
+
+### claude — 2026-11-11 — README rebuilt for newcomers (branch readme-first-screen, not pushed)
+- The human asked what would make the README attract users, then said to do it. New first screen: one promise, an honest status line, quickstart, a Mermaid diagram of a night, a sample night report, the enforced rules as a list, "why this, and not". The v0.9–v0.12 paragraphs left the README; CHANGELOG has them.
+- docs/sample-night-report.md is real runner output from tests/goal-loop.sh scenario 2 (scripted agents), labelled as such. docs/demo/night.tape is a VHS script for the demo GIF. It is NOT recorded and NOT test-run (vhs is not installed here): it needs a finished real-model night to replay. The image line in the README stays commented out until then.
+- No script changed. The status line claims plain nights ran on a real project; that rests on the field incidents recorded in the scripts' comments (2026-08-11), not on anything run this session.
+
+### claude — 2026-11-11 — HOLD
+README rebuilt on branch readme-first-screen; human reviews before it goes to main
