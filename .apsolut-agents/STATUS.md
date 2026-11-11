@@ -3,7 +3,7 @@
 
 # STATUS board
 
-_Last generated: 2026-11-11 05:17 by status.sh_
+_Last generated: 2026-11-11 05:21 by status.sh_
 
 ## Work units
 
@@ -23,10 +23,10 @@ Status set: `waiting` · `writing` · `need-feedback` · `review` · `done` · `
 
 | | |
 |--|--|
-| Branch | `main` |
-| Ahead/behind upstream | 2 ahead / 0 behind upstream |
+| Branch | `agent-icons` |
+| Ahead/behind upstream | no upstream configured |
 | Dirty files | 1 |
-| Last session token | claude — 2026-11-11 — PUSHED |
+| Last session token | claude — 2026-11-11 — HOLD |
 
 ## Warnings
 

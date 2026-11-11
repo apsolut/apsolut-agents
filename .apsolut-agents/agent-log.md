@@ -252,3 +252,10 @@ Runs-with badges on branch runs-with-badges; human reviews before main
 
 ### claude — 2026-11-11 — PUSHED
 Runs-with badges on main
+
+### claude — 2026-11-11 — each agent drew and committed its own README icon (branch agent-icons, not pushed)
+- The human asked that each agent add its own icon and commit it, so they are credited the right way. In a worktree on branch agent-icons, Codex, Grok and Antigravity were each run headless with one prompt: draw an original 64x64 SVG for yourself in docs/icons/, replace your own line in the README "Runs with" row, commit. Each did, touching only its two files; commits are SSH-signed by the human key. Claude drew docs/icons/claude.svg in this session.
+- None of the three CLIs added a co-author trailer by itself. I re-applied the three commits to add `Co-authored-by: Codex <noreply@openai.com>` to the Codex commit (the trailer Codex documents as its default). Grok has no known trailer address, and the one reported for Antigravity (antigravity@google.com) is said to resolve to an unrelated person on GitHub, so those two commits carry no trailer and will not produce a Contributors avatar.
+
+### claude — 2026-11-11 — HOLD
+agent icons on branch agent-icons; human reviews before main
