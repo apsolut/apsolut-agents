@@ -55,7 +55,7 @@ upgrade; `VERSION` records what you're on.
 |---|---|---|
 | **0 — Core** | any project, even solo | one log, one state file, agent charters, `status.sh` + `session-end.sh` |
 | **1 — Long-run** | weeks-long work | protocol, decision register, `runs/` for subagent fan-outs, log archiving |
-| **2 — Concurrent** | 2–3 agents, same day/same files | **git-worktree multiplexing** (`WORKTREES.md`, `worktree.sh`), **agent-drives-agent delegation** (`DELEGATION.md`, `delegate.sh`), work files, generated `STATUS.md` |
+| **2 — Concurrent** | 2–3 agents, same day/same files | **git-worktree multiplexing** (`WORKTREES.md`, `worktree.sh`), **agent-drives-agent delegation** (`DELEGATION.md`, `delegate.sh`), **unattended nights** (`NIGHTSHIFT.md`, `runner.sh`, `doctor.sh`), cards from GitHub issues (`intake.sh`), work files, generated `STATUS.md` |
 
 Start at Tier 0. Golden rule: don't build Tier 2 before concurrent edits actually hurt.
 
@@ -165,6 +165,7 @@ kept honest by the `kind=doc|instance|generated` labels on line 1 of every file.
 ```
 install.sh        installer / upgrader
 template/         the payload — what lands in your repo as .apsolut-agents/
+tests/            the night loop end to end against a fake agent CLI and a fake gh (CI runs it)
 .apsolut-agents/  this repo's own live workspace (dogfood)
 ```
 

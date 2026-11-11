@@ -174,7 +174,9 @@ order. Whichever gets `mkdir claims/<id>` first owns it; the other refuses and s
 If you delegate during the day and leave the branch in `review`, the night runner will
 not touch that card (it only claims `status: waiting`). Conversely, a card a runner
 blocked overnight is a perfectly good thing to delegate a corrective round to in the
-morning — with the failure output from `runs/` in your `--note`.
+morning — with the failure output from `runs/` in your `--note`. Read the card's
+`Blocked by:` line first: `task` is worth a corrective round, `cli` only needs a
+rerun, and `rule` is a decision for the human, not for a delegate.
 
 ## 7. Failure modes seen in practice
 

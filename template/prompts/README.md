@@ -10,9 +10,9 @@ prompt.
 | file | role | runs | writes (only) |
 |---|---|---|---|
 | `worker.md` | implements one card | in the card's worktree | commits on its branch + `runs/handoffs/<id>-attempt<n>.md` |
-| `verifier.md` | proves or refutes the change, read-only | in the card's worktree, after green | `runs/handoffs/<id>-verify<n>.md` |
+| `verifier.md` | proves or refutes the change, read-only. Run by `verifier_agent`, or by `risk_verifier_agent` for a card carrying a `risk_tags` tag | in the card's worktree, after green | `runs/handoffs/<id>-verify<n>.md` |
 | `advisor.md` | diagnoses a failed attempt, read-only | in the card's worktree, before a retry | `runs/handoffs/<id>-advice<n>.md` |
-| `planner.md` | writes the next cards toward `GOAL.md` | in the night worktree, when the board is dry and the predicate is red | `runs/plan-<date>-r<n>/<id>.md` or `STUCK.md` |
+| `planner.md` | writes the next cards toward `GOAL.md`, each with a `check:` and honest `risk:` tags | in the night worktree, when the board is dry and the predicate is red | `runs/plan-<date>-r<n>/<id>.md` or `STUCK.md` |
 | `review.md` | morning audit of the trail, read-only | at night end | `runs/night-<date>-attention.md` |
 
 Roles write their output inside their cwd, under `.apsolut-out/` (git-excluded),

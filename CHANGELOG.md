@@ -32,9 +32,16 @@ deterministic version of that orchestrator.
   judge that cannot follow the code rejects good work, and each wrong rejection is a
   paid retry. It also checks `risk_verifier_agent` and reports who judges risky cards.
 
+### Docs
+`INSTALL.md` now lists every script and `GOAL.md` and `prompts/` in "What's in the
+box" (doctor, andon, trail and intake were missing). `NIGHTSHIFT.md`, `PLAYBOOK.md`,
+`DELEGATION.md`, `prompts/README.md`, `runs/README.md` and both READMEs describe risk
+routing, `Blocked by:` and issue intake.
+
 ### Upgrading
 Nothing changes until you add `risk_tags:` to your `HEARTBEAT.md` (the template now
-ships `api-contract schema pii money`). Blocked notes gain one line.
+ships `api-contract schema pii money`). `intake_label:` is optional (default
+`agents`). Blocked notes gain one line.
 
 Tests: `tests/goal-loop.sh` 64/64 (three new scenarios, `tests/fake-gh.sh` stands in
 for GitHub). `intake.sh` has not been run against a live repository's issues.

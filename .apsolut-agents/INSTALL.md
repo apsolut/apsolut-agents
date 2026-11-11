@@ -158,6 +158,12 @@ locally and never pushes it — the next agent (and prod) never sees it.
 | `scripts/worktree.sh` | 2 | doc | Spawn (push sealed) / review / list / human cleanup |
 | `scripts/runner.sh` | 2 | doc | Night Shift single-lane runner (see `NIGHTSHIFT.md`) |
 | `scripts/delegate.sh` | 2 | doc | `run`/`status`/`tail`/`stop` a delegated peer agent (see `DELEGATION.md`) |
+| `scripts/doctor.sh` | 2 | doc | Preflight before a night: tools, `HEARTBEAT.md` and its `cmd_` lines, roles, cards, green on a pristine worktree, a live CLI probe |
+| `scripts/intake.sh` | 2 | doc | Labelled GitHub issues → draft cards `work/GH-<n>.md` (needs `gh`) |
+| `scripts/andon.sh` | 2 | doc | `raise` / `clear` / `status`: stop every lane; only the human clears |
+| `scripts/trail.sh` | 2 | doc | Append one row to the night's decision trail |
+| `GOAL.md` | 2 | instance | The final product a night drives toward: `done_cmd`, planner, protected paths |
+| `prompts/` | 2 | doc | The role prompts `runner.sh` renders: worker, verifier, advisor, planner, review |
 | `reference/multi-agent-cli-foundations.md` | 1 | doc | Someday-maybe inbox/orchestrator architecture — reference only |
 
 ## 6. Upgrading

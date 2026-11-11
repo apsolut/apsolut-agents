@@ -96,6 +96,11 @@ protect:
 # Delete the line to use the default; leave the value empty to switch it off.
 forbid_added: \.skip\(|\.only\(|(^|[^[:alnum:]_])x(it|describe)\(|@ts-ignore|@ts-nocheck|eslint-disable
 
+## Issue intake (scripts/intake.sh)
+# Only open GitHub issues carrying this label become cards. The label is your "I read
+# this, the agents may work on it". Empty = agents.
+intake_label: agents
+
 ## Notification (ntfy.sh topic URL, or leave empty for log-only)
 notify_url:
 

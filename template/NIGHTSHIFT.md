@@ -21,8 +21,10 @@ sh .apsolut-agents/scripts/runner.sh claude --once # ONE card through the pipeli
 sh .apsolut-agents/scripts/runner.sh claude --drain # until the board is empty / goal met, no idle wait
 ```
 
-Config lives in `HEARTBEAT.md` (instance file — yours): timeouts, budget, breaker
-thresholds, `green_cmd`, per-agent headless commands, ntfy.sh URL.
+Config lives in `HEARTBEAT.md` (instance file — yours): timeouts, the night and
+per-call budgets, breaker thresholds, `green_cmd`, the role agents and risk routing,
+per-agent headless commands, ntfy.sh URL. Run `scripts/doctor.sh <agent>` after every
+edit and every upgrade: no upgrade rewrites this file, and doctor says what it lacks.
 
 **Attended sibling:** `DELEGATION.md` / `scripts/delegate.sh` runs the same agents on the
 same cards *while you're present* — you dispatch, watch, and send correction rounds. Same
@@ -49,6 +51,11 @@ non-destructive when a foreman is reading the output (`delegate.sh`).
   the agent; `doctor.sh` flags both. Cards touching `PROJECT.md` human-gate paths
   are never claimed.
 - Optional `after: [T-01]` dependency edges and `budget: 30` (minutes) override.
+- Optional `risk: [schema]` tags (PLAYBOOK §4). A tag listed in `risk_tags` sends the
+  card to `risk_verifier_agent`, and in goal mode keeps it off the night branch until
+  a verifier has judged it.
+- A card can come from a GitHub issue: `scripts/intake.sh` (below) writes it on
+  `hold`, and it runs once you have read it and set `status: waiting`.
 
 **`after:` without a goal is sequencing, NOT code visibility.** In plain board mode
 branches stay unmerged overnight, so a dependent card branches from the default
@@ -100,7 +107,8 @@ the Cursor plugins: every rule a script can check moved out of the prompts.
 
 Each role is a plain prompt in `prompts/<role>.md`, rendered with the card, the goal,
 and the evidence. Each optional role is an agent name in `HEARTBEAT.md` (`verifier_agent:`,
-`advisor_agent:`, `review_agent:`; `planner_agent:` lives in `GOAL.md`).
+`risk_verifier_agent:`, `advisor_agent:`, `review_agent:`; `planner_agent:` lives in
+`GOAL.md`).
 
 ```
 claim → snapshot card → [setup_cmd, new worktree] → check: must FAIL → [advisor, retries only]

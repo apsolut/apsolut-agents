@@ -34,7 +34,9 @@ to the run file.
 - `plan-<date>-r<n>/`: one planner round. It holds the staged cards (accepted ones are
   copied into `work/`), the prompt, and `STUCK.md` when the goal needs a human.
 - `<id>-attempt<n>.fail`: a red attempt's diff, handoff, verdict, and output tail.
-  The next attempt's prompt includes it.
+  The next attempt's prompt includes it. A card that ends blocked gets four lines
+  appended to the card itself: `Attempted:`, `Failed because:`, `Blocked by:` (`task`,
+  `rule` or `cli`) and `Would unblock:`.
 
 ## Not here
 
