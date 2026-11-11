@@ -204,3 +204,9 @@ docs up to v0.12 on branch v0.12-risk-intake
 
 ### claude — 2026-11-11 — PUSHED
 v0.11.0 + v0.12.0 on main, CI green, not tagged
+
+### claude — 2026-11-11 — copyright holder named
+- The human chose the notice "Copyright (c) 2026 Aleksandar Perisic (apsolut)" over the handle alone. Changed in LICENSE, template/LICENSE, the SPDX header of install.sh, every template script and every test, and this repo's installed copy. Licence terms (MIT) unchanged. tests/goal-loop.sh 64/64 after the change.
+
+### claude — 2026-11-11 — PUSHED
+copyright holder named in LICENSE and SPDX headers

@@ -11,24 +11,24 @@ anything no longer true (git keeps history), keep the whole file to ~1 screen.
 ## Facts (generated)
 
 <!-- facts:begin -->
-_Generated 2026-11-11 02:21 by status.sh — do not hand-edit this block._
+_Generated 2026-11-11 02:30 by status.sh — do not hand-edit this block._
 
 | | |
 |--|--|
-| Branch | `main` |
-| Ahead/behind upstream | 0 ahead / 0 behind upstream |
+| Branch | `license-holder-name` |
+| Ahead/behind upstream | no upstream configured |
 | Dirty files | 2 |
 | Worktrees | 1 (incl. primary) |
 | Last session token | claude — 2026-11-11 — PUSHED |
-| agent-log.md | 206 lines |
+| agent-log.md | 212 lines |
 
 Recent commits:
 ```
+ed39094 chore: name the copyright holder — Aleksandar Perisic (apsolut)
+9d608ed agents: claude session end 2026-11-11 (PUSHED)
 264e772 agents: claude session end 2026-11-11 (HOLD)
 e13a954 docs: bring every doc up to v0.12
 5611a13 agents: claude session end 2026-11-11 (HOLD)
-95e95da feat: v0.12.0 — risk picks the judge, blocked-by, GitHub issue intake
-1cce412 agents: claude session end 2026-11-10 (HOLD) — v0.11.0 lane caps on branch
 ```
 <!-- facts:end -->
 
