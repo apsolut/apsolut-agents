@@ -234,3 +234,9 @@ README first screen on main
 
 ### claude — 2026-11-11 — HOLD
 demo GIF from the first real-model night on branch demo-gif; human reviews before main
+
+### claude — 2026-11-11 — demo GIF on main
+- The human said to commit to main and push. Fast-forwarded main to demo-gif (1f0d131, 61aef01). The HOLD above is lifted by the human.
+
+### claude — 2026-11-11 — PUSHED
+demo GIF and real night report on main

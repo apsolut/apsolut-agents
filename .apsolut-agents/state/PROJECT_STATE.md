@@ -11,24 +11,24 @@ anything no longer true (git keeps history), keep the whole file to ~1 screen.
 ## Facts (generated)
 
 <!-- facts:begin -->
-_Generated 2026-11-11 05:04 by status.sh — do not hand-edit this block._
+_Generated 2026-11-11 05:13 by status.sh — do not hand-edit this block._
 
 | | |
 |--|--|
-| Branch | `demo-gif` |
-| Ahead/behind upstream | no upstream configured |
+| Branch | `main` |
+| Ahead/behind upstream | 2 ahead / 0 behind upstream |
 | Dirty files | 1 |
 | Worktrees | 1 (incl. primary) |
-| Last session token | claude — 2026-11-11 — HOLD |
-| agent-log.md | 236 lines |
+| Last session token | claude — 2026-11-11 — PUSHED |
+| agent-log.md | 242 lines |
 
 Recent commits:
 ```
+61aef01 agents: claude session end 2026-11-11 (HOLD)
 1f0d131 docs: demo recording and report from the first real-model night
 8aba546 agents: claude session end 2026-11-11 (PUSHED)
 0ed9d37 agents: claude session end 2026-11-11 (HOLD)
 6155ab7 docs: rebuild the README around a first screen for newcomers
-40cc504 agents: claude session end 2026-11-11 (PUSHED)
 ```
 <!-- facts:end -->
 
