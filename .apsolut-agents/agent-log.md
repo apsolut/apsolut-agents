@@ -259,3 +259,9 @@ Runs-with badges on main
 
 ### claude — 2026-11-11 — HOLD
 agent icons on branch agent-icons; human reviews before main
+
+### claude — 2026-11-11 — agent icons on main
+- The human said to push all to main. Fast-forwarded main to agent-icons (70f0f77, fd808ef, df3fc49, 9601c16, b32b6ca). The HOLD above is lifted by the human.
+
+### claude — 2026-11-11 — PUSHED
+agent icons on main
