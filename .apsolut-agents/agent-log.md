@@ -272,3 +272,13 @@ agent icons on main
 
 ### claude — 2026-11-11 — PUSHED
 Grok credited via its official account
+
+### claude — 2026-11-11 — v0.13.0 fail-fast, built while the human slept (branch v0.13-fail-fast, not pushed)
+- The human asked how a night keeps working when something waits on GitHub or 1Password, asked for coloured output and a "nightshift" command, then went to sleep with "finish all tasks without me". Four vendor-doc research agents (Claude Code, Codex, Grok Build, Antigravity) ran first; their findings shaped the list.
+- Checked first: agy 1.5.5 still reports its own timeout as the runner expects (real call: exit 3, finished_reason print_timeout; cli_stop returns "timeout"). No change needed.
+- Built: no-prompt env for runner and delegate; sign_ok probe (signed commit-tree, 30s cap) before the night and before every card; probe_role after a failed worker or verifier call; park() with human_wait_minutes / park_poll_seconds and exit 7; unattempt() returns the attempt; `.parked.diff` when the runner's salvage commit cannot be signed; doctor [unattended]; nightshift.sh; doctor colour.
+- Found and fixed a pre-existing crash: `why="...$(throttled ... && echo ...)"` returned non-zero under set -e whenever the verifier CLI exited non-zero without a throttle, killing the lane with no report. Scenario 23 covers it.
+- Command lines, measured with a one-word prompt: claude 42.0k tokens → 33.6k with --strict-mcp-config (adopted; 28.8k with --disable-slash-commands, not adopted because project skills may matter); grok 21.2k → 18.8k with GROK_CLAUDE_*_ENABLED=0 (adopted); codex --ignore-user-config and agy --disable-slash-commands: no change (not adopted). `--disallowedTools Agent,Task` confirmed to remove both tools.
+- --strict-mcp-config had been left as the human's open decision. I made it the template default because the human asked for the lines to be tuned and it also closes the account-connector exposure; it is one flag to remove. My call, flagged for review.
+- Real proof: throwaway repo, `nightshift.sh claude --drain` and `nightshift.sh grok --drain` at the same time, codex verifying. Both cards landed first attempt (claude lane 2 min, grok lane 6 min). First real two-lane run. Gap seen: both lanes write the same night report file.
+- Not done from the research: per-role models, Codex spend from token usage, session resume, the Claude usage-limit retry switch (CLAUDE_CODE_RETRY_WATCHDOG, unverified), `.claude/` in protect:, Antigravity's consumer-plan terms question (the human's call).

@@ -20,7 +20,8 @@ No server, no daemon, no framework. Markdown + git + POSIX sh (Git Bash on Windo
 
 > **Status: early.** Plain nights have run on a real project. The goal loop (v0.9+)
 > is tested end to end in CI against a scripted stand-in agent, and has carried real
-> models through two small nights (the recording below is the first). It has not yet run a long
+> models through one small night (the recording below). Two lanes (Claude and Grok
+> workers, Codex verifying) have also run side by side once, on two cards. It has not yet run a long
 > night on a large project. Start with one supervised card (`--once`).
 
 ![The morning after a real night: the goal, the report, the decision trail, and an untouched main](docs/demo/night.gif)

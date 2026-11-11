@@ -53,6 +53,11 @@ card in turn until the circuit breaker ended the night.
 - Antigravity 1.5.5 still reports its own timeout the way the runner expects
   (exit 3, `"finished_reason":"print_timeout"`): checked with a real call.
 - `tests/goal-loop.sh`: six new scenarios (19–24).
+- Two real lanes at once, through `nightshift.sh` and the new command lines, on a
+  throwaway repo: a Claude worker and a Grok worker took one card each, Codex
+  verified both, both landed first attempt. Seen there and not fixed: both lanes
+  write the same `runs/night-<date>.md`, so the lane that ends last overwrites the
+  other's report (the trail and the cards keep both).
 
 ### Upgrading
 `HEARTBEAT.md` is yours and is not rewritten. The parking behaviour and the
