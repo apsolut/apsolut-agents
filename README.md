@@ -7,7 +7,7 @@ Runs with:
 <img src="docs/icons/claude.svg" height="20" alt="Claude Code icon"> Claude Code
 <img src="docs/icons/codex.svg" height="20" alt="Codex icon"> Codex
 <img src="docs/icons/grok.svg" height="20" alt="Grok icon"> Grok
-![Antigravity](https://img.shields.io/badge/Antigravity-4285F4?logo=google&logoColor=white)
+<img src="docs/icons/antigravity.svg" height="20" alt="Antigravity icon"> Antigravity
 
 **Write task cards in the evening. Review verified branches in the morning.**
 
