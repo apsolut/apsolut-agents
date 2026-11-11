@@ -3,6 +3,12 @@
 [![ci](https://github.com/apsolut/apsolut-agents/actions/workflows/ci.yml/badge.svg)](https://github.com/apsolut/apsolut-agents/actions/workflows/ci.yml)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
+Runs with:
+![Claude Code](https://img.shields.io/badge/Claude_Code-D97757?logo=claude&logoColor=white)
+![Codex](https://img.shields.io/badge/Codex-000000)
+![Grok](https://img.shields.io/badge/Grok-1A1A1A)
+![Antigravity](https://img.shields.io/badge/Antigravity-4285F4?logo=google&logoColor=white)
+
 **Write task cards in the evening. Review verified branches in the morning.**
 
 A drop-in folder of markdown and small shell scripts that lets the coding CLIs you
