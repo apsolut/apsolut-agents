@@ -11,7 +11,7 @@ anything no longer true (git keeps history), keep the whole file to ~1 screen.
 ## Facts (generated)
 
 <!-- facts:begin -->
-_Generated 2026-11-11 00:37 by status.sh — do not hand-edit this block._
+_Generated 2026-11-11 01:38 by status.sh — do not hand-edit this block._
 
 | | |
 |--|--|
@@ -20,15 +20,15 @@ _Generated 2026-11-11 00:37 by status.sh — do not hand-edit this block._
 | Dirty files | 3 |
 | Worktrees | 1 (incl. primary) |
 | Last session token | claude — 2026-11-11 — HOLD |
-| agent-log.md | 191 lines |
+| agent-log.md | 198 lines |
 
 Recent commits:
 ```
+e13a954 docs: bring every doc up to v0.12
+5611a13 agents: claude session end 2026-11-11 (HOLD)
 95e95da feat: v0.12.0 — risk picks the judge, blocked-by, GitHub issue intake
 1cce412 agents: claude session end 2026-11-10 (HOLD) — v0.11.0 lane caps on branch
 592ae6c feat: v0.11.0 — lane caps for CLIs that grew their own agents
-861aa5d agents: claude session end 2026-11-10 (PUSHED) — v0.10.0 shipped, workspace refreshed to 0.10.0, state caught up
-444b782 Merge pull request #1 from apsolut/v0.10-hardening
 ```
 <!-- facts:end -->
 
@@ -50,9 +50,9 @@ no — HOLD lifted 2026-07-29: human provided the remote (github.com/apsolut/aps
 
 ## Top 3 next actions
 
-1. Run the first supervised real-model `runner.sh <agent> --once` goal night on a small repo. v0.9/v0.10 (goal loop, verifier ladder, stdin prompts, throttle detection, night-branch integration) are proven only by `tests/goal-loop.sh` (64/64) against a fake CLI. The v0.11 `cmd_` lines (budget cap, subagents off, agy print-timeout, Codex lane) answer a live `doctor.sh` probe but have not carried a real card. — human + any agent
-2. Pick from the v0.10 review leftovers in `../FUTURE.md` ("raised, not shipped"): stall detector, failure-mode routing, and one design for the score ratchet. Process-group containment and real isolation both point at Docker lanes. Record: `runs/2026-11-10-four-model-review.md`. — any agent
-3. Installed copies elsewhere (e.g. the n8n project) need `sh .apsolut-agents/scripts/upgrade.sh` to pick up v0.10.0; `--once` now means one card (old behaviour is `--drain`). Merged branches `v0.9-goal-loop` and `v0.10-hardening` can be deleted. — human
+1. Review and merge `v0.12-risk-intake` (it carries v0.11.0 and v0.12.0), then tag both. CI has not run on either: shellcheck is not installed locally. — human
+2. Run the first supervised real-model `runner.sh <agent> --once` goal night on a small repo. Everything since v0.9 (goal loop, verifier ladder, lane caps, risk routing, `Blocked by:`) is proven only by `tests/goal-loop.sh` (64/64) against a fake CLI; the v0.11 `cmd_` lines also answer a live `doctor.sh` probe. `intake.sh` has never written a card from a live issue: label one issue `agents` and run it. — human + any agent
+3. Installed copies elsewhere (e.g. the n8n project) need `sh .apsolut-agents/scripts/upgrade.sh`, then `doctor.sh`: no upgrade rewrites `HEARTBEAT.md`, so the new `cmd_` lines, `risk_tags:` and `intake_label:` are copied by hand from `template/HEARTBEAT.md`. Leftover ideas are in `../FUTURE.md` (stall detector, failure-mode routing, score ratchet, worker routing by risk). Merged branches `v0.9-goal-loop` and `v0.10-hardening` can be deleted. — human
 
 ## Do-not-undo
 

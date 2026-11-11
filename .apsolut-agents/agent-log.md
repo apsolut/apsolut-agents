@@ -189,3 +189,10 @@ v0.11.0 is on branch v0.11-lane-caps, unpushed. The human reviews it, merges to 
 
 ### claude — 2026-11-11 — HOLD
 v0.12.0 (risk routing, blocked-by, issue intake) on branch v0.12-risk-intake, stacked on v0.11-lane-caps; human reviews, merges, tags
+
+### claude — 2026-11-11 — docs brought up to v0.12
+- The human asked for all docs to be updated. `INSTALL.md` "What's in the box" was missing doctor, andon, trail, intake, `GOAL.md` and `prompts/`; added. `NIGHTSHIFT.md`, `DELEGATION.md`, `prompts/README.md`, `runs/README.md` and both READMEs now cover risk routing, `Blocked by:` and issue intake. `HEARTBEAT.md` template gained `intake_label:`. PROJECT_STATE next actions rewritten.
+- Re-verified after the edits: tests/goal-loop.sh 64/64, install parity, doctor 28 ok / 4 warn / 0 fail.
+
+### claude — 2026-11-11 — HOLD
+docs up to v0.12 on branch v0.12-risk-intake
