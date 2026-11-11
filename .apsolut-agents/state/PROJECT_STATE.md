@@ -11,24 +11,24 @@ anything no longer true (git keeps history), keep the whole file to ~1 screen.
 ## Facts (generated)
 
 <!-- facts:begin -->
-_Generated 2026-11-11 05:29 by status.sh — do not hand-edit this block._
+_Generated 2026-11-11 07:10 by status.sh — do not hand-edit this block._
 
 | | |
 |--|--|
-| Branch | `main` |
-| Ahead/behind upstream | 1 ahead / 0 behind upstream |
+| Branch | `v0.13-fail-fast` |
+| Ahead/behind upstream | no upstream configured |
 | Dirty files | 1 |
 | Worktrees | 1 (incl. primary) |
-| Last session token | claude — 2026-11-11 — PUSHED |
-| agent-log.md | 274 lines |
+| Last session token | claude — 2026-11-11 — HOLD |
+| agent-log.md | 287 lines |
 
 Recent commits:
 ```
+5e7b469 docs: record the two-lane real run and the open gaps for v0.13.0
+1c3c0cf feat: v0.13.0 — a night no longer dies waiting for a human
+c65eba8 agents: claude session end 2026-11-11 (PUSHED)
 dce492c docs: record who drew each agent icon
 73f044a agents: claude session end 2026-11-11 (PUSHED)
-b32b6ca agents: claude session end 2026-11-11 (HOLD)
-9601c16 docs: Antigravity adds its own icon to the README
-df3fc49 docs: Grok adds its own icon to the README
 ```
 <!-- facts:end -->
 

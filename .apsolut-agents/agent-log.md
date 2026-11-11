@@ -282,3 +282,6 @@ Grok credited via its official account
 - --strict-mcp-config had been left as the human's open decision. I made it the template default because the human asked for the lines to be tuned and it also closes the account-connector exposure; it is one flag to remove. My call, flagged for review.
 - Real proof: throwaway repo, `nightshift.sh claude --drain` and `nightshift.sh grok --drain` at the same time, codex verifying. Both cards landed first attempt (claude lane 2 min, grok lane 6 min). First real two-lane run. Gap seen: both lanes write the same night report file.
 - Not done from the research: per-role models, Codex spend from token usage, session resume, the Claude usage-limit retry switch (CLAUDE_CODE_RETRY_WATCHDOG, unverified), `.claude/` in protect:, Antigravity's consumer-plan terms question (the human's call).
+
+### claude — 2026-11-11 — HOLD
+v0.13.0 fail-fast on branch v0.13-fail-fast; human reviews before main
