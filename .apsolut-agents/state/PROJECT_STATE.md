@@ -11,24 +11,24 @@ anything no longer true (git keeps history), keep the whole file to ~1 screen.
 ## Facts (generated)
 
 <!-- facts:begin -->
-_Generated 2026-11-12 04:44 by status.sh — do not hand-edit this block._
+_Generated 2026-11-12 06:44 by status.sh — do not hand-edit this block._
 
 | | |
 |--|--|
-| Branch | `main` |
-| Ahead/behind upstream | 4 ahead / 0 behind upstream |
+| Branch | `v0.13.1-full-access` |
+| Ahead/behind upstream | no upstream configured |
 | Dirty files | 1 |
 | Worktrees | 1 (incl. primary) |
-| Last session token | claude — 2026-11-12 — PUSHED |
-| agent-log.md | 295 lines |
+| Last session token | claude — 2026-11-12 — HOLD |
+| agent-log.md | 303 lines |
 
 Recent commits:
 ```
+f2893c9 feat: v0.13.1 — full access is the default, --strict-mcp-config is the lock-down option
+6a2a081 agents: claude session end 2026-11-12 (PUSHED)
 14a9d54 fix: brace the escape variable in colour codes (shellcheck SC1087)
 1428e8b agents: claude session end 2026-11-11 (HOLD)
 5e7b469 docs: record the two-lane real run and the open gaps for v0.13.0
-1c3c0cf feat: v0.13.0 — a night no longer dies waiting for a human
-c65eba8 agents: claude session end 2026-11-11 (PUSHED)
 ```
 <!-- facts:end -->
 

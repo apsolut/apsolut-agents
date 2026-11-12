@@ -298,3 +298,6 @@ v0.13.0 shipped to main
 - The human's decision: workers run with every permission, so restricting MCP by default makes no sense; the lock-down should be advertised as an option. Removed --strict-mcp-config from the template cmd_claude line; HEARTBEAT comment now describes it as an optional lock-down; doctor prints an uncounted cyan `note` (full access, how to lock down) or an `ok` when the flag is set; README "What you get" has a bullet for it.
 - Left as is: the GROK_CLAUDE_*_ENABLED=0 prefix on the Grok line (it stops Grok borrowing Claude Code's servers, hooks and skills). Same kind of restriction; the human has not ruled on it.
 - Not run locally: tests/goal-loop.sh (CI runs it on the PR).
+
+### claude — 2026-11-12 — HOLD
+v0.13.1 on branch, CI then the human's word
