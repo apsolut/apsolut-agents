@@ -42,3 +42,5 @@ jobs:
           git config --global user.email ci@example.invalid
           git config --global user.name ci
           sh tests/goal-loop.sh
+      - name: two lanes started together, four rounds
+        run: sh tests/stress-two-lanes.sh 4

@@ -67,9 +67,9 @@ the other scripts). Nothing new to configure.
   merge undone by a journal that could not be deleted, unsaved work lost on restart,
   a rollback that passed with dirty files, a copied-or-not file deleted anyway, and
   four smaller ones) are fixed in this release too.
-- A stress run outside the suite: two lanes started together on four cards, ten
-  rounds (five goal, five plain), with the end-of-night state checked after each.
-  v0.13.1: every goal round lost a lane. v0.13.2: ten of ten clean.
+- `tests/stress-two-lanes.sh` (new, four rounds in CI): two lanes started together on
+  four cards, with the end-of-night state checked after each round. Ten rounds
+  locally: on v0.13.1 every goal round lost a lane; on v0.13.2 ten of ten are clean.
 
 ### Known, not fixed
 - A TERM is acted on when the running CLI call returns, which can be as long as the
