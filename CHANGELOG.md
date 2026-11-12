@@ -15,6 +15,16 @@ upgrade an installed workspace with `sh .apsolut-agents/scripts/upgrade.sh`.
   `note` (not counted) saying the worker has full access and how to lock it down,
   and an `ok` when the flag is present.
 
+### Fixed
+- **Two lanes no longer overwrite each other's night report.** Each lane used to
+  write the whole `runs/night-<date>.md`, so the last one to finish erased how the
+  other ended, including a "Lane parked" line. The report is now rebuilt from every
+  lane's result: one `Ended:` line per lane, and each parked lane listed under
+  "Waiting on you". A single-lane report is unchanged.
+- **The morning reviewer runs once per night**, from the last lane to finish. Two
+  lanes ending close together used to write the same review files at once.
+- `tests/goal-loop.sh`: scenario 25.
+
 ## v0.13.0 — 2026-11-11
 
 A night no longer dies waiting for a human. Before this, a credential prompt sat

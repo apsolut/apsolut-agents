@@ -348,6 +348,27 @@ NRC=0; ( cd "$R" && CLICOLOR_FORCE=1 sh .apsolut-agents/scripts/nightshift.sh fa
 check "forced colour paints the blocked card red and lists it" 'grep -q "$ESC\[31mblocked T-01" "$T/ns.out" && grep -q "Waiting on you" "$T/ns.out" && grep -q "T-01 blocked" "$T/ns.out"'
 check "NO_COLOR wins over a forced colour" '( cd "$R" && NO_COLOR=1 CLICOLOR_FORCE=1 sh .apsolut-agents/scripts/doctor.sh 2>&1 || true ) | grep -q "ok" && ! ( cd "$R" && NO_COLOR=1 CLICOLOR_FORCE=1 sh .apsolut-agents/scripts/doctor.sh 2>&1 || true ) | grep -q "$ESC"'
 
+echo "[25] two lanes, one report: the second lane to finish keeps the first lane's ending"
+setup "" ''
+card T-01 "make: a.txt"
+# another lane already ended this night parked, and the night is still open
+echo "$(D) $(date +%s)" > "$W/runs/.night-current"
+printf '%s\n%s\n' "2026-01-01 01:00 — reason: waiting on a human: the other CLI stopped answering — spend: \$0 / \$50" "- **Lane parked, waiting on a human: the other CLI stopped answering.** Fix it." > "$W/runs/.lane-end-$(D)-other"
+RC=0; ( cd "$R" && sh .apsolut-agents/scripts/nightshift.sh fake --drain ) > "$T/ns.out" 2>&1 || RC=$?
+RP="$W/runs/night-$(D).md"
+check "exit 0 and the report names both lanes" '[ "$RC" -eq 0 ] && grep -q "^# Night report .* (lanes: fake, other)" "$RP"'
+check "each lane has its own Ended line" 'grep -q "^Ended: .* — lane: fake$" "$RP" && grep -q "^Ended: .*the other CLI stopped answering.* — lane: other$" "$RP"'
+check "the other lane is still waiting on the human" 'grep -q "Lane parked, waiting on a human: the other CLI stopped answering.*(lane: other)" "$RP"'
+check "nightshift.sh shows its own lane ending" 'grep -q "reason: .* — lane: fake" "$T/ns.out" && ! grep -q "reason: waiting on a human.* — lane: other" "$T/ns.out"'
+check "the last lane standing ran the audit" 'grep -q "^## Attention" "$RP"'
+setup "" ''
+card T-01 "make: a.txt"
+# a live second lane: the audit waits for it, and the night stays open
+mkdir -p "$W/claims/.lane-other"; echo $$ > "$W/claims/.lane-other/pid"
+RC=0; ( cd "$R" && sh .apsolut-agents/scripts/runner.sh fake --drain ) > /dev/null 2>&1 || RC=$?
+check "with another lane alive: no audit yet, the night stays open, single-lane format" '[ "$RC" -eq 0 ] && ! grep -q "^## Attention" "$W/runs/night-$(D).md" && [ -f "$W/runs/.night-current" ] && grep -q "(lane: fake)" "$W/runs/night-$(D).md"'
+rmdir "$W/claims/.lane-other" 2>/dev/null || true
+
 echo
 echo "goal-loop: $PASSN ok, $FAILN failed"
 [ -z "${KEEP:-}" ] || echo "kept fixtures:$TMPS"

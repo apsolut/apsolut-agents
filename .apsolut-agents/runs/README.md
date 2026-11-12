@@ -25,6 +25,8 @@ to the run file.
 
 - `night-<date>.md`: the morning packet. It holds the goal state, the card table,
   "Waiting on you", and the reviewer's "Attention" section. Read Attention first.
+  One file for the whole night: with several lanes it has one `Ended:` line per
+  lane, and the last lane to finish runs the reviewer.
 - `trail-<date>.tsv`: the decision trail, one row per decision (ts, lane, phase,
   decision, why, evidence, result). It is append-only. A wrong row is superseded by a
   new row, never edited. Humans add rows with `scripts/trail.sh`.

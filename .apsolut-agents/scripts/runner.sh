@@ -50,7 +50,8 @@ if [ -f "$NIGHTF" ]; then
     [ $(( NOW - ne )) -lt 64800 ] && { DATE=$nd; REUSED=yes; } ;;
   esac
 fi
-[ "$REUSED" = yes ] || echo "$DATE $NOW" > "$NIGHTF"
+# a new night starts with no lane results; a lane joining an open night keeps the others'
+[ "$REUSED" = yes ] || { echo "$DATE $NOW" > "$NIGHTF"; rm -f "$WS/runs/.lane-end-$DATE-"*; }
 REPORT="$WS/runs/night-$DATE.md"; SPENDF="$WS/runs/.spend-$DATE"
 HO="$WS/runs/handoffs"; EVD="$WS/runs/evidence"
 mkdir -p "$HO" "$EVD"
@@ -402,7 +403,7 @@ cleanup() {
     [ -f "$c" ] && [ "$(fm_get "$c" status)" = "writing" ] && fm_set "$c" status waiting
     tick "released claim $CURRENT_ID on exit"
   fi
-  for l in .planning .integrate; do
+  for l in .planning .integrate .report; do
     [ "$(cat "$WS/claims/$l/pid" 2>/dev/null || true)" = "$$" ] && rm -rf "${WS:?}/claims/$l"
   done
   [ -n "$P_DIR" ] && rm -rf "$P_DIR"
@@ -705,10 +706,29 @@ finish() { # $1 reason, $2 exit code
     else fm_set "$NIGHT_CARD" status abandoned; fi
     GOALSTATE=$(command tail -15 "$WS/runs/.done-$DATE.out" 2>/dev/null || echo "(predicate never checked)")
   fi
+  # The report is one file for the whole night. Each lane leaves its own result in
+  # runs/.lane-end-<date>-<agent> (line 1: how it ended, line 2: what it waits on),
+  # and whichever lane finishes rebuilds the report from all of them, so a second
+  # lane never erases the first one's ending.
+  LEND="$WS/runs/.lane-end-$DATE-$AGENT"
   {
-    echo "# Night report — $DATE (lane: $AGENT)"
-    echo
-    echo "Ended: $(date '+%Y-%m-%d %H:%M') — reason: $1 — spend: \$$(spent) / \$$BUDGET"
+    echo "$(date '+%Y-%m-%d %H:%M') — reason: $1 — spend: \$$(spent) / \$$BUDGET"
+    case "$1" in "waiting on a human"*) echo "- **Lane parked, $1.** Unfinished cards are still \`waiting\` with their attempts returned: fix it, then start the runner again.";; esac
+  } > "$LEND"
+  lock .report || true
+  LANES=""
+  for l in "$WS/runs/.lane-end-$DATE-"*; do [ -f "$l" ] && LANES="$LANES ${l##*/.lane-end-"$DATE"-}"; done
+  LANES=${LANES# }
+  case "$LANES" in *" "*) MULTI=yes;; *) MULTI=no;; esac
+  {
+    if [ "$MULTI" = yes ]; then
+      echo "# Night report — $DATE (lanes: $(printf '%s' "$LANES" | sed 's/ /, /g'))"
+      for a in $LANES; do echo; echo "Ended: $(sed -n 1p "$WS/runs/.lane-end-$DATE-$a") — lane: $a"; done
+    else
+      echo "# Night report — $DATE (lane: $AGENT)"
+      echo
+      echo "Ended: $(sed -n 1p "$LEND")"
+    fi
     echo
     if [ "$GOAL_MODE" = yes ]; then
       echo "## Goal"
@@ -739,7 +759,12 @@ finish() { # $1 reason, $2 exit code
     echo
     w=0
     [ -f "$WS/ANDON" ] && { echo "- **Andon raised:** $(sed -n 's/^reason: //p' "$WS/ANDON") — clear with \`sh .apsolut-agents/scripts/andon.sh clear\`"; w=1; }
-    case "$1" in "waiting on a human"*) echo "- **Lane parked, $1.** Unfinished cards are still \`waiting\` with their attempts returned: fix it, then start the runner again."; w=1;; esac
+    for a in $LANES; do
+      pl=$(sed -n 2p "$WS/runs/.lane-end-$DATE-$a")
+      [ -n "$pl" ] || continue
+      if [ "$MULTI" = yes ]; then echo "$pl (lane: $a)"; else echo "$pl"; fi
+      w=1
+    done
     [ -f "$WS/runs/STUCK-$DATE.md" ] && { echo "- **Planner is stuck:** runs/STUCK-$DATE.md — $(head -c 300 "$WS/runs/STUCK-$DATE.md" | tr '\n' ' ')"; w=1; }
     for f in "$WS"/work/*.md; do is_card "$f" || continue;
       id=$(fm_get "$f" id); st=$(fm_get "$f" status); vf=$(fm_get "$f" verified)
@@ -755,10 +780,18 @@ finish() { # $1 reason, $2 exit code
     echo "Decision trail: runs/trail-$DATE.tsv (\`column -s\$'\\t' -t runs/trail-$DATE.tsv\`) · handoffs: runs/handoffs/"
     echo
     echo "Nothing merged into \`$BASEBR\` — \`worktree.sh review\`, then \`done <id> --merge\` for what you accept."
-  } > "$REPORT"
+  } > "$REPORT.tmp.$$"
+  mv -f "$REPORT.tmp.$$" "$REPORT"
+  unlock .report
+  others=no
+  for l in "$WS"/claims/.lane-*; do
+    [ -d "$l" ] && [ "$l" != "$LANE" ] && kill -0 "$(cat "$l/pid" 2>/dev/null || echo 0)" 2>/dev/null && others=yes
+  done
   trail stop "ended the night" "$1" "runs/$(basename "$REPORT")" "spend \$$(spent)"
-  # cross-model morning audit of the trail (show-me-your-work's "Attention" section)
-  if [ -n "$REVIEWER" ] && awk "BEGIN{exit !($(spent) < $BUDGET)}" && [ -s "$WS/runs/trail-$DATE.tsv" ]; then
+  # cross-model morning audit of the trail (show-me-your-work's "Attention" section).
+  # Only the last lane standing runs it: it then sees the whole night, and two lanes
+  # never write the same review files at once.
+  if [ -n "$REVIEWER" ] && [ "$others" = no ] && awk "BEGIN{exit !($(spent) < $BUDGET)}" && [ -s "$WS/runs/trail-$DATE.tsv" ]; then
     AP="$WS/runs/night-$DATE-attention.md"; rm -f "$AP"
     p_begin
     pv AGENT "$REVIEWER"; pv REPORT "$REPORT"; pv TRAIL "$WS/runs/trail-$DATE.tsv"; pv HANDOFFS_DIR "$HO"
@@ -778,10 +811,6 @@ finish() { # $1 reason, $2 exit code
       printf '\n## Attention\nreviewer %s produced no attention file — see runs/.review-%s.out\n' "$REVIEWER" "$DATE" >> "$REPORT"
     fi
   fi
-  others=no
-  for l in "$WS"/claims/.lane-*; do
-    [ -d "$l" ] && [ "$l" != "$LANE" ] && kill -0 "$(cat "$l/pid" 2>/dev/null || echo 0)" 2>/dev/null && others=yes
-  done
   [ "$others" = no ] && rm -f "$NIGHTF"
   tick "night end: $1 (report: runs/$(basename "$REPORT"))"
   notify "ended: $1 — spend \$$(spent). Report ready."

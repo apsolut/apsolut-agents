@@ -62,7 +62,10 @@ REPORT=$(ls -t "$WS"/runs/night-[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9].md 2>
 if [ -n "$REPORT" ]; then
   case "$rc" in 0) c=$GRN ;; 7|6) c=$YEL ;; *) c=$RED ;; esac
   echo
-  printf '%s%s%s\n' "$c" "$(sed -n 's/^Ended: //p' "$REPORT" | head -1)" "$OFF"
+  # with several lanes the report has one "Ended:" line each: show this lane's
+  ended=$(sed -n 's/^Ended: //p' "$REPORT" | grep " — lane: $AGENT\$" | head -1 || true)
+  [ -n "$ended" ] || ended=$(sed -n 's/^Ended: //p' "$REPORT" | head -1)
+  printf '%s%s%s\n' "$c" "$ended" "$OFF"
   wait_on=$(awk '/^## Waiting on you/{f=1;next} /^## |^Decision trail:/{f=0} f&&NF' "$REPORT")
   if [ -n "$wait_on" ] && [ "$wait_on" != "(nothing)" ]; then
     printf '%sWaiting on you:%s\n%s\n' "$BLD" "$OFF" "$wait_on"
