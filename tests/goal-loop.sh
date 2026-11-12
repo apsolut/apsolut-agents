@@ -384,6 +384,54 @@ check "exit 0 (the card landed after the key came back)" '[ "$RC" -eq 0 ] && gre
 check "it parked on signing, not on a merge conflict" 'grep -q "the merge could not be signed" "$W/runs/trail-$(D).tsv" && grep -q "resumed the lane" "$W/runs/trail-$(D).tsv" && ! grep -q "^status: blocked" "$W/work/T-01.md"'
 check "the attempt was returned" '[ "$(cat "$W/runs/.attempts-$(D)-T-01")" = 1 ]'
 
+echo "[27] a role that leaves a folder nobody can delete does not end the lane"
+setup "a.txt and b.txt exist" 'test -f a.txt \&\& test -f b.txt'
+sed -i "s|^cmd_fake: .*|cmd_fake: FAKE_STUCK=1 sh $FAKE|; s|^cmd_fakev: .*|cmd_fakev: FAKE_STUCK=1 sh $FAKE|" "$W/HEARTBEAT.md"; git -C "$R" commit -qam stuck
+card T-01 "make: a.txt"
+run
+check "exit 0 (goal met) and the lane did not die" '[ "$RC" -eq 0 ] && grep -q "reason: goal met" "$W/runs/night-$(D).md" && ! grep -q "DIED" "$W/agent-log.md"'
+check "the verifier evidence was still kept" '[ -s "$W/runs/evidence/T-01-verify1/proof.log" ]'
+check "the planner card landed and the reviewer notes are in the report" 'grep -q "^integrated: $(NB)" "$W"/work/G*r1-1.md && grep -q "^## Attention" "$W/runs/night-$(D).md"'
+
+echo "[28] a stopped runner stops, says so, and the next start heals the night"
+setup "a.txt exists" 'test -f a.txt'
+cat > "$R/run-tests.sh" <<EOF
+for t in t_*.sh; do [ -f "\$t" ] || continue; sh "\$t" || exit 1; done
+# a slow check on the night branch, once: the test stops the runner in the middle of it
+case "\$PWD" in *NIGHT-*) if [ -f "$T/slow" ]; then rm -f "$T/slow"; : > "$T/in-green"; sleep 8; fi;; esac
+EOF
+git -C "$R" commit -qam "slow green on the night branch"
+: > "$T/slow"
+card T-01 "make: a.txt"
+( cd "$R" && sh .apsolut-agents/scripts/runner.sh fake --drain ) > "$T/runner.out" 2>&1 &
+RPID=$!
+i=0; until [ -f "$T/in-green" ] || [ "$i" -ge 240 ]; do sleep 1; i=$((i+1)); done
+LP=$(cat "$W/claims/.lane-fake/pid" 2>/dev/null || echo "")
+[ -n "$LP" ] && kill -TERM "$LP" 2>/dev/null || true
+RC=0; wait "$RPID" || RC=$?
+check "TERM ends the runner (exit 143)" '[ -n "$LP" ] && [ "$RC" -eq 143 ]'
+check "the log says the lane died, with no report" 'grep -q "DIED: the runner stopped without a report (exit 143)" "$W/agent-log.md" && [ ! -f "$W/runs/night-$(D).md" ]'
+check "the card is back on the board, its claim and the lane are released" 'grep -q "^status: waiting" "$W/work/T-01.md" && [ ! -d "$W/claims/T-01" ] && [ ! -d "$W/claims/.lane-fake" ]'
+check "the half-done merge is on record" '[ -s "$W/runs/.integrating-$(D)" ]'
+run
+check "the next start rolls the night branch back and lands the card" '[ "$RC" -eq 0 ] && grep -q "rolled the night branch back" "$W/agent-log.md" && grep -q "^integrated: $(NB)" "$W/work/T-01.md"'
+check "the card restarted clean, and landed with one merge" 'grep -q "reset T-01 to where its interrupted attempt started" "$W/agent-log.md" && [ "$(git -C "$R" rev-list --merges --count "main..$(NB)")" -eq 1 ]'
+check "the report is written and nothing is left behind" 'grep -q "reason: goal met" "$W/runs/night-$(D).md" && [ ! -f "$W/runs/.integrating-$(D)" ] && [ ! -f "$W/runs/.pre-$(D)-T-01" ]'
+# a journal that outlived an accepted merge (its file could not be deleted) must not
+# undo that merge: the card carries the mark
+echo "$(NB) $MAIN0 T-01" > "$W/runs/.integrating-$(D)"
+run
+check "a journal left after an accepted merge rolls nothing back" '[ "$RC" -eq 0 ] && git -C "$R" cat-file -e "$(NB):a.txt" && [ ! -f "$W/runs/.integrating-$(D)" ] && [ "$(grep -c "rolled the night branch back" "$W/agent-log.md")" -eq 1 ]'
+
+echo "[29] a card saved with Windows line endings runs like any other"
+setup "a.txt exists" 'test -f a.txt'
+card T-01 "make: a.txt"
+sed -i 's/$/\r/' "$W/work/T-01.md"
+run
+check "exit 0 (goal met)" '[ "$RC" -eq 0 ] && grep -q "reason: goal met" "$W/runs/night-$(D).md"'
+check "the card got its worktree, was verified and integrated" 'grep -q "^worktree: .*-wt-" "$W/work/T-01.md" && grep -q "^verified: test-verified" "$W/work/T-01.md" && grep -q "^integrated: $(NB)" "$W/work/T-01.md"'
+check "the board lists it" '( cd "$R" && sh .apsolut-agents/scripts/status.sh >/dev/null 2>&1 ); grep -q "T-01" "$W/STATUS.md"'
+
 echo
 echo "goal-loop: $PASSN ok, $FAILN failed"
 [ -z "${KEEP:-}" ] || echo "kept fixtures:$TMPS"

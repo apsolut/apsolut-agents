@@ -53,6 +53,9 @@ fi
 # a new night starts with no lane results; a lane joining an open night keeps the others'
 [ "$REUSED" = yes ] || { echo "$DATE $NOW" > "$NIGHTF"; rm -f "$WS/runs/.lane-end-$DATE-"*; }
 REPORT="$WS/runs/night-$DATE.md"; SPENDF="$WS/runs/.spend-$DATE"
+# written before a merge into the night branch, removed once the merge is rolled back
+# or the card is marked integrated: "<night branch> <tip before the merge> <card id>"
+INTEGJ="$WS/runs/.integrating-$DATE"
 HO="$WS/runs/handoffs"; EVD="$WS/runs/evidence"
 mkdir -p "$HO" "$EVD"
 # Role output is written INSIDE the worktree (a sandboxed CLI may not be able to
@@ -68,9 +71,12 @@ fm_set() { awk -v k="$2" -v v="$3" 'NR==1&&$0~/^---\r?$/{f=1;print;next}
   f&&index($0,k":")==1{print k": "v;done=1;next}{print}' \
   "$1" > "$1.tmp.$$" && mv -f "$1.tmp.$$" "$1"; }
 num_or() { case "$1" in ''|*[!0-9.]*|*.*.*) echo "$2";; *) echo "$1";; esac; }
+# a time limit must be a whole number above zero: `timeout 0` means "no limit", and
+# nobody who wrote 0 meant a call that may run forever
+pos_int_or() { case "$1" in ''|*[!0-9]*) echo "$2";; *) if [ "$1" -gt 0 ]; then echo "$1"; else echo "$2"; fi;; esac; }
 
-TIMEOUT_MIN=$(num_or "$(cfg card_timeout_minutes)" 45)
-HELPER_MIN=$(num_or "$(cfg helper_timeout_minutes)" 20)
+TIMEOUT_MIN=$(pos_int_or "$(cfg card_timeout_minutes)" 45)
+HELPER_MIN=$(pos_int_or "$(cfg helper_timeout_minutes)" 20)
 MAX_ATTEMPTS=$(num_or "$(cfg max_attempts_per_card)" 2)
 MAX_FAILS=$(num_or "$(cfg max_consecutive_failures_lane)" 3)
 # waiting on a human (v0.13): how long a parked lane waits for a signing key or a
@@ -92,7 +98,10 @@ VERIFY_LEVEL=$(cfg verify_level); VERIFY_LEVEL=${VERIFY_LEVEL:-test}
 # risk_verifier_agent (else verifier_agent), and in goal mode it never integrates on
 # its check: alone. Empty risk_tags = off.
 RISK_TAGS=$(cfg risk_tags | tr ',[]' '   '); RISK_VERIFIER=$(cfg risk_verifier_agent)
-CHECK_MIN=$(num_or "$(cfg check_timeout_minutes)" 30)
+CHECK_MIN=$(pos_int_or "$(cfg check_timeout_minutes)" 30)
+# the runner's own commits and merges are signed: a signing program that waits for a
+# human (a locked key manager) must not hold the lane for ever
+GIT_MAX=$(pos_int_or "$(cfg git_timeout_seconds)" 300)
 SETUP=$(cfg setup_cmd)
 PER_MIN=$(num_or "$(cfg cost_per_minute_usd)" 0.15)
 MAX_BACKOFF=$(num_or "$(cfg max_backoffs_per_card)" 3)
@@ -164,14 +173,22 @@ in_stop_window() { awk -v n="$(now_hhmm)" -v s="$STOP" 'BEGIN{n=int(n);s=int(s);
 # the stop gate re-arms once the clock leaves the window (past noon or past midnight).
 ARMED=yes; in_stop_window && ARMED=no
 
-notify() { [ -n "$NTFY" ] && curl -s -d "night-shift[$AGENT]: $1" "$NTFY" >/dev/null 2>&1 || true; }
+notify() { [ -n "$NTFY" ] && curl -s --connect-timeout 10 --max-time 20 -d "night-shift[$AGENT]: $1" "$NTFY" >/dev/null 2>&1 || true; }
 tick() { printf 'TICK: %s %s %s\n' "$AGENT" "$(date '+%m-%d %H:%M')" "$1" >> "$LOG"; }
 trail() { TRAIL_LANE=$AGENT TRAIL_DATE=$DATE sh "$WS/scripts/trail.sh" "$@" 2>/dev/null || true; }
 spent() { num_or "$(cat "$SPENDF" 2>/dev/null || echo 0)" 0; }
 add_spend() { # lanes share the ledger: read-modify-write under a mutex
-  n=0; until mkdir "$SPENDF.lock" 2>/dev/null; do n=$((n+1)); [ "$n" -ge 50 ] && rm -rf "$SPENDF.lock"; sleep 0.2; done
-  awk "BEGIN{printf \"%.2f\", $(spent) + $(num_or "$1" 0)}" > "$SPENDF.tmp.$$" && mv "$SPENDF.tmp.$$" "$SPENDF"
-  rm -rf "$SPENDF.lock"
+  # best effort: after ~10s take the mutex by force, after ~20s write without it. A
+  # ledger that is off by one card beats a lane stuck on a lock it cannot remove.
+  n=0
+  until mkdir "$SPENDF.lock" 2>/dev/null; do
+    n=$((n+1))
+    if [ "$n" -eq 50 ]; then rm -rf "$SPENDF.lock" 2>/dev/null || true; fi
+    [ "$n" -ge 100 ] && break
+    sleep 0.2
+  done
+  awk "BEGIN{printf \"%.2f\", $(spent) + $(num_or "$1" 0)}" > "$SPENDF.tmp.$$" && mv -f "$SPENDF.tmp.$$" "$SPENDF" || true
+  rm -rf "$SPENDF.lock" 2>/dev/null || true
 }
 # $1 = CLI output file, $2 = minutes the call ran → its reported cost; with none (a
 # timeout, a CLI that prints no cost) the larger of cost_fallback_usd and
@@ -296,7 +313,8 @@ run_cli() { # $1 agent, $2 cwd, $3 minutes, $4 prompt file, $5 output file → C
 # where a role writes its output inside a worktree, and how the runner collects it
 out_path() { mkdir -p "$1/$OUTD"; rm -rf "${1:?}/$OUTD/$2"; echo "$1/$OUTD/$2"; }
 collect() { # $1 in-worktree file, $2 runs/ destination — copy if the role wrote it
-  if [ -s "$1" ]; then cp "$1" "$2"; rm -f "$1"; fi
+  # never fatal: a file a lingering child still holds (Windows) must not end the lane
+  if [ -s "$1" ] && cp "$1" "$2" 2>/dev/null; then rm -f "$1" 2>/dev/null || true; fi
 }
 
 # --- tamper canary: no agent may edit the rules it runs under --------------------
@@ -395,28 +413,53 @@ if ! mkdir "$LANE" 2>/dev/null; then
 fi
 echo $$ > "$LANE/pid"
 
-CURRENT_ID=""
+CURRENT_ID=""; FINISHED=no
 cleanup() {
+  crc=$?
+  # every step is attempted whatever the one before it did, and nothing runs twice
+  set +e
+  trap - EXIT INT TERM
   if [ -n "$CURRENT_ID" ] && [ -d "$WS/claims/$CURRENT_ID" ]; then
-    rm -rf "$WS/claims/$CURRENT_ID"
+    # the card first, then its claim: a card left "writing" with no claim is found by
+    # nobody, a claim left on a waiting card is recovered at the next start
     c="$WS/work/$CURRENT_ID.md"
     [ -f "$c" ] && [ "$(fm_get "$c" status)" = "writing" ] && fm_set "$c" status waiting
+    rm -rf "$WS/claims/$CURRENT_ID"
     tick "released claim $CURRENT_ID on exit"
   fi
   for l in .planning .integrate .report; do
-    [ "$(cat "$WS/claims/$l/pid" 2>/dev/null || true)" = "$$" ] && rm -rf "${WS:?}/claims/$l"
+    [ "$(cat "$WS/claims/$l/pid" 2>/dev/null)" = "$$" ] && rm -rf "${WS:?}/claims/$l"
   done
   [ -n "$P_DIR" ] && rm -rf "$P_DIR"
+  # Only finish() writes a report. A runner that stops any other way (a signal, a
+  # command that failed under set -e) says so where the human looks, and leaves its
+  # ending for the report another lane may still write: a dead lane must never look
+  # like a quiet one.
+  if [ "$FINISHED" != yes ]; then
+    tick "DIED: the runner stopped without a report (exit $crc) — this log and runs/trail-$DATE.tsv hold the night so far"
+    echo "$(date '+%Y-%m-%d %H:%M') — reason: the runner stopped without a report (exit $crc) — spend: \$$(spent) / \$$BUDGET" > "$WS/runs/.lane-end-$DATE-$AGENT"
+    notify "DIED: the runner stopped without a report (exit $crc)"
+  fi
   rm -rf "$LANE"
 }
-trap cleanup EXIT INT TERM
+# INT and TERM end the runner. With cleanup as their handler the shell released the
+# claims and then carried on with the night, so a stopped lane kept working.
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 lock() { # $1 name → spin up to ~10 min for a cross-lane mutex
-  n=0
+  n=0; nopid=0
   until mkdir "$WS/claims/$1" 2>/dev/null; do
-    lp=$(cat "$WS/claims/$1/pid" 2>/dev/null || true)
-    if [ -n "$lp" ] && ! kill -0 "$lp" 2>/dev/null; then rm -rf "${WS:?}/claims/$1"; continue; fi
     n=$((n+1)); [ "$n" -ge 120 ] && return 1
+    lp=$(cat "$WS/claims/$1/pid" 2>/dev/null || true)
+    # a holder that died: its pid is gone, or it never got to write one (seen three
+    # times in a row, so a lock taken this instant is not mistaken for a dead one)
+    if [ -z "$lp" ]; then nopid=$((nopid+1)); else nopid=0; fi
+    if { [ -n "$lp" ] && ! kill -0 "$lp" 2>/dev/null; } || [ "$nopid" -ge 3 ]; then
+      rm -rf "${WS:?}/claims/$1" 2>/dev/null || true
+      nopid=0; sleep 1; continue
+    fi
     sleep 5
   done
   echo $$ > "$WS/claims/$1/pid"
@@ -432,12 +475,16 @@ unlock() { rm -rf "${WS:?}/claims/$1"; }
 probe_role() { # $1 agent → 0 when its CLI answers; else PROBE_WHY and PROBE_OUT say why not
   PROBE_DIR=$(mktemp -d); PROBE_OUT=""; pbrc=0; PROBE_WHY=""
   rcmd=$(cfg "cmd_$1")
+  # the answer goes to a file, not a pipe: a child the CLI leaves behind would keep a
+  # pipe open, and the probe would wait for it long after its 180 seconds
+  pbf="$WS/runs/.probe-$AGENT-$1.out"
   if [ "$(cfg "prompt_$1")" = stdin ]; then
-    PROBE_OUT=$( cd "$PROBE_DIR" && call_env 3 && printf 'Reply with the single word: ok\n' | timeout -k 10 180 sh -c "$rcmd" 2>&1 ) || pbrc=$?
+    ( cd "$PROBE_DIR" && call_env 3 && printf 'Reply with the single word: ok\n' | timeout -k 10 180 sh -c "$rcmd" ) > "$pbf" 2>&1 || pbrc=$?
   else
-    PROBE_OUT=$( cd "$PROBE_DIR" && call_env 3 && timeout -k 10 180 sh -c "$rcmd \"\$1\"" runner "Reply with the single word: ok" < /dev/null 2>&1 ) || pbrc=$?
+    ( cd "$PROBE_DIR" && call_env 3 && timeout -k 10 180 sh -c "$rcmd \"\$1\"" runner "Reply with the single word: ok" ) < /dev/null > "$pbf" 2>&1 || pbrc=$?
   fi
-  rm -rf "$PROBE_DIR"
+  PROBE_OUT=$(cat "$pbf" 2>/dev/null || true)
+  rm -rf "$PROBE_DIR" 2>/dev/null || true
   [ "$pbrc" -ne 0 ] && PROBE_WHY="exited non-zero"
   [ -z "$PROBE_WHY" ] && printf '%s' "$PROBE_OUT" | grep -q '"is_error"[[:space:]]*:[[:space:]]*true' && PROBE_WHY="returned is_error:true"
   [ -z "$PROBE_WHY" ] && printf '%s' "$PROBE_OUT" | grep -qE '"stopReason"[[:space:]]*:[[:space:]]*"cancelled"|"denied_actions"[[:space:]]*:[[:space:]]*\[\{' && PROBE_WHY="ended the turn early (cancelled, or a tool was denied)"
@@ -452,7 +499,7 @@ for r in $ROLES; do
     printf '%s\n' "$PROBE_OUT" | command tail -5 >&2
     tick "preflight probe FAILED ($r): $why — lane refused"
     notify "preflight probe for $r failed ($why) — lane refused"
-    exit 1
+    FINISHED=yes; exit 1
   fi
 done
 tick "preflight probe ok ($ROLES)"
@@ -461,13 +508,15 @@ tick "preflight probe ok ($ROLES)"
 for c in "$WS"/claims/*/; do
   [ -d "$c" ] || continue
   id=$(basename "$c")
-  case "$id" in .lane-*|.planning|.integrate) continue;; esac
+  case "$id" in .*) continue;; esac   # lanes and mutexes, not card claims
   pid=$(cat "$c/pid" 2>/dev/null || echo "")
   ft=$(date -r "$c" +%s 2>/dev/null || echo 0)
   age=$(( ( $(date +%s) - ft ) / 60 ))
   if { [ -z "$pid" ] || ! kill -0 "$pid" 2>/dev/null; } && [ "$age" -ge "$STALE_MIN" ]; then
-    rm -rf "$c"
-    [ -f "$WS/work/$id.md" ] && fm_set "$WS/work/$id.md" status waiting
+    # the card first, then its claim. A card the dead runner had already marked
+    # review or blocked keeps that result.
+    [ -f "$WS/work/$id.md" ] && [ "$(fm_get "$WS/work/$id.md" status)" = writing ] && fm_set "$WS/work/$id.md" status waiting
+    rm -rf "$c" 2>/dev/null || true
     tick "recovered stale claim $id (pid ${pid:-none} dead, ${age}m old)"
   fi
 done
@@ -480,9 +529,13 @@ done
 # In the morning, `worktree.sh done NIGHT-<date> --merge` lands the night as one
 # proven merge.
 night_setup() {
+  # All of it under the lock. Lanes started together each see "no night yet": the
+  # one that waits must look again once it holds the lock, and must not read or
+  # write the night card while the first lane is still filling it in. The wait is
+  # long because the first lane may be running setup_cmd.
+  lock .integrate || lock .integrate || { echo "error: could not take the integration lock" >&2; exit 1; }
   NIGHT_WT=""; [ -f "$NIGHT_CARD" ] && NIGHT_WT=$(fm_get "$NIGHT_CARD" worktree)
   if [ -z "$NIGHT_WT" ] || [ "$NIGHT_WT" = null ] || [ ! -d "$NIGHT_WT" ]; then
-    lock .integrate || { echo "error: could not take the integration lock" >&2; exit 1; }
     sh "$WS/scripts/worktree.sh" spawn night "$NIGHT_ID" >/dev/null
     setup_wt "$(fm_get "$NIGHT_CARD" worktree)" || { unlock .integrate; finish "harness: setup_cmd failed in the night worktree (runs/.setup-$NIGHT_ID.out)" 4; }
     fm_set "$NIGHT_CARD" title "Night integration $DATE — $(gcfg goal | cut -c1-60)"
@@ -491,12 +544,54 @@ night_setup() {
     fm_set "$NIGHT_CARD" base "$(git -C "$REPO" rev-parse HEAD)"
     printf '\n## Night integration\nCards verified tonight are merged here (--no-ff, one merge per card).\nFinish predicate: `%s`\nMorning: `sh .apsolut-agents/scripts/worktree.sh done %s --merge`\n' \
       "$DONE_CMD" "$NIGHT_ID" >> "$NIGHT_CARD"
-    unlock .integrate
     trail night "opened the night integration branch" "goal mode: verified cards accumulate here" "$NIGHT_ID" open
   fi
   fm_set "$NIGHT_CARD" status writing
   NIGHT_WT=$(fm_get "$NIGHT_CARD" worktree); NIGHT_BR=$(fm_get "$NIGHT_CARD" branch)
   NIGHT_BASE=$(fm_get "$NIGHT_CARD" base)
+  heal_night
+  unlock .integrate
+}
+# Put the night branch back on a known tip. A refused merge must never stay on it:
+# every later card starts from that branch. → 0 when the tip is where it should be
+roll_night_back() { # $1 commit
+  git -C "$NIGHT_WT" merge --abort >/dev/null 2>&1 || true
+  for rw in 0 3 10; do
+    [ "$rw" -eq 0 ] || sleep "$rw"
+    git -C "$NIGHT_WT" reset --hard -q "$1" 2>/dev/null && break
+  done
+  git -C "$NIGHT_WT" clean -fdq -e .apsolut-agents 2>/dev/null || true
+  if [ "$(git -C "$NIGHT_WT" rev-parse HEAD 2>/dev/null)" = "$1" ] && \
+     [ -z "$(git -C "$NIGHT_WT" status --porcelain -uno 2>/dev/null | grep -v '\.apsolut-agents' || true)" ]; then
+    return 0
+  fi
+  # the files could not be put back (something holds one open). Take the branch off
+  # the refused merge at least, so nothing that reads the branch gets that code; the
+  # caller still treats this as a failed rollback.
+  git -C "$NIGHT_WT" reset --soft -q "$1" 2>/dev/null || true
+  return 1
+}
+# Call with the .integrate lock held. A runner that died between a merge and its
+# checks left the journal behind: undo that merge before anything builds on it.
+heal_night() {
+  [ -f "$INTEGJ" ] || return 0
+  hb=$(awk 'NR==1{print $1}' "$INTEGJ" 2>/dev/null || true); hp=$(awk 'NR==1{print $2}' "$INTEGJ" 2>/dev/null || true)
+  hc=$(awk 'NR==1{print $3}' "$INTEGJ" 2>/dev/null || true)
+  if [ -z "$hp" ] || [ "$hb" != "$NIGHT_BR" ]; then rm -f "$INTEGJ" 2>/dev/null || true; return 0; fi
+  # the card is marked integrated before the journal is removed: a journal whose card
+  # carries the mark is left over from a merge that was accepted, and stays merged
+  if [ -n "$hc" ] && [ "$(fm_get "$WS/work/$hc.md" integrated 2>/dev/null || true)" = "$NIGHT_BR" ]; then
+    rm -f "$INTEGJ" 2>/dev/null || true; return 0
+  fi
+  if roll_night_back "$hp"; then
+    tick "rolled the night branch back to $(printf '%.7s' "$hp"): a runner stopped in the middle of a merge"
+    trail integrate "rolled the night branch back" "a runner stopped in the middle of a merge" "$NIGHT_BR @ $(printf '%.7s' "$hp")" healed
+    rm -f "$INTEGJ" 2>/dev/null || true
+  else
+    # keep the journal: the next start tries again. Nothing may build on this branch.
+    tick "andon: the night branch could not be rolled back to $(printf '%.7s' "$hp") after an interrupted merge"
+    TRAIL_LANE=$AGENT sh "$WS/scripts/andon.sh" raise "the night branch could not be rolled back after an interrupted merge — it may hold code nobody accepted" >/dev/null 2>&1 || true
+  fi
 }
 # setup_cmd (HEARTBEAT): bootstrap a fresh worktree (install deps, link a seeded
 # node_modules or .venv) once, outside every attempt's clock and outside green_cmd.
@@ -511,9 +606,12 @@ setup_wt() { # $1 worktree → 0 ok
 }
 integrate() { # $1 id, $2 branch, $3 log, $4 card check (optional) → 0 merged, green (and checked) on the night branch
   lock .integrate || return 1
+  heal_night
+  if [ -f "$WS/ANDON" ]; then unlock .integrate; return 1; fi
   pre=$(git -C "$NIGHT_WT" rev-parse HEAD); ok=yes
+  echo "$NIGHT_BR $pre $1" > "$INTEGJ"
   echo "=== integrate $1 into $NIGHT_BR @ $pre ===" >> "$3"
-  git -C "$NIGHT_WT" merge --no-ff --no-edit -q -m "night: integrate $1 ($2)" "$2" >> "$3" 2>&1 || ok=no
+  timeout -k 10 "$GIT_MAX" git -C "$NIGHT_WT" merge --no-ff --no-edit -q -m "night: integrate $1 ($2)" "$2" >> "$3" 2>&1 || ok=no
   [ "$ok" = no ] && echo "MERGE CONFLICT with the night branch: $(git -C "$NIGHT_WT" diff --name-only --diff-filter=U | tr '\n' ' ')" >> "$3"
   if [ "$ok" = yes ]; then
     echo "green_cmd @ $(git -C "$NIGHT_WT" rev-parse HEAD) (night)" >> "$3"
@@ -529,16 +627,28 @@ integrate() { # $1 id, $2 branch, $3 log, $4 card check (optional) → 0 merged,
   [ "$ok" = yes ] && [ -n "$(git -C "$NIGHT_WT" status --porcelain -uno | grep -v '\.apsolut-agents' || true)" ] && {
     echo "GREEN RED on the night branch: green_cmd changed tracked files" >> "$3"; ok=no; }
   [ "$ok" = yes ] && git -C "$NIGHT_WT" clean -fdq -e .apsolut-agents 2>/dev/null || true
-  if [ "$ok" = no ]; then
-    git -C "$NIGHT_WT" merge --abort >/dev/null 2>&1 || true
-    git -C "$NIGHT_WT" reset --hard -q "$pre" 2>/dev/null || true
-    git -C "$NIGHT_WT" clean -fdq -e .apsolut-agents 2>/dev/null || true
+  if [ "$ok" = yes ]; then
+    # Accepted. The card says so first, the journal goes second, both under the
+    # lock: whatever stops the runner in between, the next one reads it correctly
+    # (mark present: the merge stays; mark absent: the merge is rolled back).
+    fm_set "$WS/work/$1.md" integrated "$NIGHT_BR"
+    fm_set "$WS/work/$1.md" status review
+    [ "$(fm_get "$WS/work/$1.md" integrated 2>/dev/null || true)" = "$NIGHT_BR" ] && rm -f "$INTEGJ" 2>/dev/null
+  elif roll_night_back "$pre"; then
+    rm -f "$INTEGJ" 2>/dev/null || true
+  else
+    # the refused merge is still on the night branch: stop every lane before
+    # another card builds on code nobody accepted. The journal stays for the next start.
+    echo "could not roll the night branch back to $pre" >> "$3"
+    TRAIL_LANE=$AGENT sh "$WS/scripts/andon.sh" raise "the night branch could not be rolled back after a refused merge of $1 — it may hold code nobody accepted" >/dev/null 2>&1 || true
   fi
   unlock .integrate
   [ "$ok" = yes ]
 }
 goal_met() { # 0 = the finish predicate passes on the night branch
   lock .integrate || return 1
+  heal_night
+  if [ -f "$WS/ANDON" ]; then unlock .integrate; return 1; fi
   at=$(git -C "$NIGHT_WT" rev-parse HEAD); rc=0
   echo "done_cmd @ $at: $DONE_CMD" > "$WS/runs/.done-$DATE.out"
   run_check "$NIGHT_WT" "$DONE_CMD" "$WS/runs/.done-$DATE.out" || rc=$?
@@ -652,7 +762,7 @@ NONE of these reached the night branch. Attack the premise the last round shared
   for f in "$PSTAGE"/*.md; do [ -f "$f" ] && cp "$f" "$STAGE/"; done
   [ -n "$(git -C "$PSNAP" status --porcelain -uno 2>/dev/null)" ] && \
     trail plan "discarded planner edits to its snapshot" "the planner may only write cards" "$STAGE" discarded
-  git -C "$NIGHT_WT" worktree remove --force "$PSNAP" >/dev/null 2>&1 || rm -rf "$PSNAP"
+  git -C "$NIGHT_WT" worktree remove --force "$PSNAP" >/dev/null 2>&1 || rm -rf "${PSNAP:?}" 2>/dev/null || true
   git -C "$NIGHT_WT" worktree prune >/dev/null 2>&1 || true
   if throttled "$STAGE/.out" "$prc" && ! ls "$STAGE"/*.md >/dev/null 2>&1; then
     echo $(( R - 1 )) > "$ROUND_FILE"
@@ -670,14 +780,20 @@ NONE of these reached the night branch. Attack the premise the last round shared
     case "$(basename "$f")" in STUCK.md|.*) continue;; esac
     [ "$n" -lt "$MAX_CARDS" ] || { trail plan "dropped $(basename "$f")" "over max_cards_per_round" "$f" dropped; continue; }
     if why=$(card_ok "$f"); then
-      cp "$f" "$WS/work/"; id=$(fm_get "$f" id)
-      fm_set "$WS/work/$id.md" planned_by "$PLANNER r$R"
-      fm_set "$WS/work/$id.md" updated "$DATE"
+      id=$(fm_get "$f" id)
+      # finish the staged copy, then publish it in one step: another lane must never
+      # see, and claim, a card that is still being rewritten
+      fm_set "$f" planned_by "$PLANNER r$R"
+      fm_set "$f" updated "$DATE"
       # a planner does not pick lanes or pin branches: any lane may claim its cards
-      fm_set "$WS/work/$id.md" owner any
-      fm_set "$WS/work/$id.md" branch null; fm_set "$WS/work/$id.md" worktree null
-      ACC="$ACC $id"; n=$((n+1))
-      trail plan "accepted card $id" "$(fm_get "$f" title)" "work/$id.md" accepted
+      fm_set "$f" owner any
+      fm_set "$f" branch null; fm_set "$f" worktree null
+      if cp "$f" "$WS/work/.$id.md.new" 2>/dev/null && mv -f "$WS/work/.$id.md.new" "$WS/work/$id.md" 2>/dev/null; then
+        ACC="$ACC $id"; n=$((n+1))
+        trail plan "accepted card $id" "$(fm_get "$f" title)" "work/$id.md" accepted
+      else
+        trail plan "could not publish $id" "copying the card into work/ failed" "$f" error
+      fi
     else
       trail plan "rejected $(basename "$f")" "$why" "$f" rejected
     fi
@@ -789,7 +905,15 @@ finish() { # $1 reason, $2 exit code
     echo
     echo "Nothing merged into \`$BASEBR\` — \`worktree.sh review\`, then \`done <id> --merge\` for what you accept."
   } > "$REPORT.tmp.$$"
-  mv -f "$REPORT.tmp.$$" "$REPORT"
+  if ! mv -f "$REPORT.tmp.$$" "$REPORT" 2>/dev/null; then
+    if cp "$REPORT.tmp.$$" "$REPORT" 2>/dev/null; then rm -f "$REPORT.tmp.$$" 2>/dev/null || true
+    else
+      # the old file cannot be replaced (open in another program?): this night's
+      # report is the new file, and everything below names that one
+      tick "could not replace runs/$(basename "$REPORT") — this night's report is runs/$(basename "$REPORT").tmp.$$"
+      REPORT="$REPORT.tmp.$$"
+    fi
+  fi
   if [ "$RLOCK" = yes ]; then unlock .report; fi
   trail stop "ended the night" "$1" "runs/$(basename "$REPORT")" "spend \$$(spent)"
   # cross-model morning audit of the trail (show-me-your-work's "Attention" section).
@@ -817,9 +941,9 @@ finish() { # $1 reason, $2 exit code
     guard_end "reviewer $REVIEWER" || true
     collect "$APW" "$AP"
     [ -n "$at" ] && [ "$(tree_state "$RD")" != "$st0" ] && restore_tree "$RD" "$at" "$WS/runs/.review-$DATE.stray.diff"
-    if [ -n "$RSNAP" ]; then git -C "$NIGHT_WT" worktree remove --force "$RSNAP" >/dev/null 2>&1 || rm -rf "${RSNAP:?}"; fi
+    if [ -n "$RSNAP" ]; then git -C "$NIGHT_WT" worktree remove --force "$RSNAP" >/dev/null 2>&1 || rm -rf "${RSNAP:?}" 2>/dev/null || true; fi
     if [ -s "$AP" ]; then
-      { echo; cat "$AP"; } >> "$REPORT"
+      { echo; cat "$AP" 2>/dev/null || true; } >> "$REPORT"
     else
       printf '\n## Attention\nreviewer %s produced no attention file — see runs/.review-%s.out\n' "$REVIEWER" "$DATE" >> "$REPORT"
     fi
@@ -828,6 +952,7 @@ finish() { # $1 reason, $2 exit code
   tick "night end: $1 (report: runs/$(basename "$REPORT"))"
   notify "ended: $1 — spend \$$(spent). Report ready."
   sh "$WS/scripts/status.sh" >/dev/null 2>&1 || true
+  FINISHED=yes
   exit "${2:-0}"
 }
 
@@ -939,7 +1064,8 @@ deps_digest() { # $1 card → what its after: cards did (latest handoff), for th
     md_body "$h" Notes 10
   done | head -80
 }
-release() { rm -rf "$WS/claims/$ID"; CURRENT_ID=""; }
+# the attempt reached an end the runner decided: drop its start marker with the claim
+release() { rm -f "$WS/runs/.pre-$DATE-$ID" 2>/dev/null || true; rm -rf "$WS/claims/$ID"; CURRENT_ID=""; }
 VBLOCKS=0
 
 while :; do
@@ -1010,6 +1136,7 @@ while :; do
 
   BR=$(fm_get "$CARD" branch); WT=$(fm_get "$CARD" worktree)
   if [ -z "$BR" ] || [ "$BR" = "null" ] || [ ! -d "${WT:-/nonexistent}" ]; then
+    rm -f "$WS/runs/.pre-$DATE-$ID" 2>/dev/null || true   # a fresh worktree holds nothing interrupted
     if [ -n "$NIGHT_BR" ]; then
       sh "$WS/scripts/worktree.sh" spawn "$AGENT" "$ID" --base "$NIGHT_BR" >/dev/null
     else
@@ -1029,6 +1156,37 @@ while :; do
        fm_set "$CARD" status blocked
        release; FAILS=$((FAILS+1)); continue;;
   esac
+  # A start marker that is still here belongs to an attempt whose runner stopped
+  # half-way: its commits and files are still in the worktree. Keep them under a ref
+  # and go back to where that attempt started, so check: is judged on a clean tree
+  # and this attempt is a real one.
+  PJ="$WS/runs/.pre-$DATE-$ID"
+  if [ -f "$PJ" ]; then
+    jp=$(cat "$PJ" 2>/dev/null || true)
+    if [ -n "$jp" ] && git -C "$WT" cat-file -e "$jp^{commit}" 2>/dev/null; then
+      jdirty=$(git -C "$WT" status --porcelain | grep -v '\.apsolut-agents' || true)
+      if [ "$(git -C "$WT" rev-parse HEAD)" != "$jp" ] || [ -n "$jdirty" ]; then
+        # keep all of it: commits under a ref, files not yet committed as a patch
+        [ "$(git -C "$WT" rev-parse HEAD)" != "$jp" ] && git -C "$WT" update-ref "refs/apsolut/attempts/$ID-interrupted" HEAD 2>/dev/null || true
+        if [ -n "$jdirty" ]; then
+          git -C "$WT" add -A -- ':!.apsolut-agents' 2>/dev/null || true
+          git -C "$WT" diff --cached --binary HEAD > "$WS/runs/$ID-interrupted.diff" 2>/dev/null || true
+        fi
+        git -C "$WT" reset --hard -q "$jp" 2>/dev/null || true
+        git -C "$WT" clean -fdq -e .apsolut-agents 2>/dev/null || true
+        if [ "$(git -C "$WT" rev-parse HEAD)" != "$jp" ] || [ -n "$(git -C "$WT" status --porcelain -uno | grep -v '\.apsolut-agents' || true)" ]; then
+          # not clean: an attempt started here would be judged on the wrong tree. The
+          # marker stays, so the card restarts properly once it is set to waiting.
+          tick "blocked $ID (harness): its worktree could not be put back after an interrupted attempt"
+          fm_set "$CARD" status blocked; fm_set "$CARD" updated "$DATE"
+          printf '\nAttempted: restart after an interrupted attempt, night %s\nFailed because: the worktree could not be reset to where that attempt started\nBlocked by: harness\nWould unblock: close whatever still has a file open in %s, then set status: waiting\n' "$DATE" "$WT" >> "$CARD"
+          rm -rf "$WS/claims/$ID"; CURRENT_ID=""
+          continue
+        fi
+        tick "reset $ID to where its interrupted attempt started (what it had done is kept: refs/apsolut/attempts/$ID-interrupted, runs/$ID-interrupted.diff)"
+      fi
+    fi
+  fi
   # goal mode: every attempt starts from the current night tip. A retry after a
   # merge conflict, or a card whose dependency landed meanwhile, builds on what is
   # integrated now. (After a red reset the card branch has no commits of its own,
@@ -1037,6 +1195,7 @@ while :; do
     git -C "$WT" merge --ff-only -q "$NIGHT_BR" >/dev/null 2>&1 || true
   fi
   PRE=$(git -C "$WT" rev-parse HEAD)
+  echo "$PRE" > "$PJ"
 
   # harness-vs-card attribution: green must pass on the PRISTINE worktree before any
   # agent runs. A worktree contains only TRACKED files and green_cmd runs with cwd
@@ -1073,7 +1232,7 @@ while :; do
   fi
 
   N=$(( $(cat "$WS/runs/.attempts-$DATE-$ID" 2>/dev/null || echo 0) + 1 ))
-  CB=$(num_or "$(fm_get "$CARD" budget | tr -dc '0-9')" "$TIMEOUT_MIN")
+  CB=$(pos_int_or "$(fm_get "$CARD" budget | tr -dc '0-9')" "$TIMEOUT_MIN")
   OUT="$WS/runs/$ID-attempt$N.out"
   HF="$HO/$ID-attempt$N.md"; rm -f "$HF"; VP=""
   PREVFAIL="$WS/runs/$ID-attempt$(( N - 1 )).fail"
@@ -1143,7 +1302,7 @@ while :; do
       # refs/apsolut/* manually, same posture as worktree folders.
       if [ -n "$(git -C "$WT" status --porcelain | grep -v '\.apsolut-agents' || true)" ]; then
         git -C "$WT" add -A -- ':!.apsolut-agents' 2>/dev/null || git -C "$WT" add -A
-        git -C "$WT" commit -q -m "$ID: salvaged before throttle backoff (attempt $N)" || true
+        timeout -k 10 "$GIT_MAX" git -C "$WT" commit -q -m "$ID: salvaged before throttle backoff (attempt $N)" || true
       fi
       [ "$(git -C "$WT" rev-parse HEAD)" != "$PRE" ] && git -C "$WT" update-ref "refs/apsolut/attempts/$ID-$N-backoff-$bo" HEAD 2>/dev/null || true
       git -C "$WT" reset --hard -q "$PRE" 2>/dev/null || true
@@ -1170,7 +1329,7 @@ while :; do
 
   if [ -n "$(git -C "$WT" status --porcelain | grep -v '\.apsolut-agents' || true)" ]; then
     git -C "$WT" add -A -- ':!.apsolut-agents' 2>/dev/null || git -C "$WT" add -A
-    git -C "$WT" commit -q -m "$ID: uncommitted work salvaged by runner (attempt $N)" >> "$OUT" 2>&1 || { sign_ok || SIGNLOST=yes; }
+    timeout -k 10 "$GIT_MAX" git -C "$WT" commit -q -m "$ID: uncommitted work salvaged by runner (attempt $N)" >> "$OUT" 2>&1 || { sign_ok || SIGNLOST=yes; }
   fi
   if [ "${SIGNLOST:-no}" = yes ]; then
     SIGNLOST=no
@@ -1282,9 +1441,14 @@ while :; do
     collect "$VPW" "$VP"
     # evidence outlives the worktree cleanup: screenshots, logs, repro scripts
     if [ -n "$(ls -A "$SCRW" 2>/dev/null)" ]; then
-      rm -rf "${EVD:?}/$ID-verify$N"; mv "$SCRW" "$EVD/$ID-verify$N" 2>/dev/null || cp -r "$SCRW" "$EVD/$ID-verify$N"
+      rm -rf "${EVD:?}/$ID-verify$N" 2>/dev/null || true
+      # the scratch folder goes only once its content is safe under runs/evidence
+      if mv "$SCRW" "$EVD/$ID-verify$N" 2>/dev/null || cp -r "$SCRW" "$EVD/$ID-verify$N" 2>/dev/null; then
+        rm -rf "$SCRW" 2>/dev/null || true
+      fi
+    else
+      rm -rf "$SCRW" 2>/dev/null || true
     fi
-    rm -rf "$SCRW"
     if [ "$(tree_state "$WT")" != "$st0" ]; then
       restore_tree "$WT" "$HEADC" "$WS/runs/$ID-verify$N.stray.diff"
       VLEVEL=verifier-blocked; why="the verifier edited tracked files; its verdict was thrown away"
@@ -1334,11 +1498,13 @@ while :; do
     release; continue
   fi
 
-  fm_set "$CARD" status review
+  # the card stays "writing" until its merge is decided: a runner that stops during
+  # the merge leaves a card the next start puts back on the board, not one that
+  # reads as finished and never lands
   INTEG=""
   if [ -n "$NIGHT_BR" ] && [ "$PASS" = yes ]; then
     if integrate "$ID" "$BR" "$OUT" "$CHK"; then
-      fm_set "$CARD" integrated "$NIGHT_BR"; INTEG=", integrated into $NIGHT_BR"
+      fm_set "$CARD" integrated "$NIGHT_BR"; fm_set "$CARD" status review; INTEG=", integrated into $NIGHT_BR"
       trail integrate "merged $ID into the night branch" "green and verified ($VLEVEL)" "$NIGHT_BR @ $(git -C "$NIGHT_WT" rev-parse --short HEAD)" integrated
     else
       # the merge commit is signed: a key that locked after the worker's commit is
@@ -1356,6 +1522,7 @@ while :; do
       release; continue
     fi
   fi
+  fm_set "$CARD" status review
   FAILS=0
   printf '\n### %s — %s (night shift)\n- %s done (attempt %s): green, verified %s%s. Output: runs/%s\n' \
     "$AGENT" "$DATE" "$ID" "$N" "$VLEVEL" "$INTEG" "$(basename "$OUT")" >> "$LOG"

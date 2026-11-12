@@ -45,7 +45,7 @@ DEST="$TB/.apsolut-agents"
 
 # --- locate the payload: local template/ next to this script, else fetch from GitHub
 CLEANUP=""
-trap 'if [ -n "$CLEANUP" ]; then rm -rf "$CLEANUP"; fi' EXIT
+trap 'if [ -n "$CLEANUP" ]; then cd / 2>/dev/null; rm -rf "$CLEANUP" 2>/dev/null || true; fi' EXIT
 SCRIPTDIR=$(cd "$(dirname "$0" 2>/dev/null || echo .)" 2>/dev/null && pwd || echo "")
 # a local template/ dir is only trusted if it is OUR payload: under `curl | sh`,
 # $0 is "sh" and SCRIPTDIR falls back to the cwd — any project that happens to ship
@@ -60,7 +60,7 @@ else
   echo "fetching payload ($TAG) from $REPO_URL ..."
   # fetch to a file rather than piping into tar, so a 404 reports as itself
   # instead of "gzip: stdin: unexpected end of file"
-  curl -fsSL "$REPO_URL/archive/$REF.tar.gz" -o "$CLEANUP/payload.tar.gz" \
+  curl -fsSL --connect-timeout 20 --max-time 600 "$REPO_URL/archive/$REF.tar.gz" -o "$CLEANUP/payload.tar.gz" \
     || { echo "error: could not fetch '$TAG' from $REPO_URL — check the tag name" >&2; exit 1; }
   tar xzf "$CLEANUP/payload.tar.gz" -C "$CLEANUP"
   SRC=$(ls -d "$CLEANUP"/apsolut-agents-*/template)

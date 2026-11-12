@@ -30,6 +30,7 @@ case "$P" in "Your complete instructions are in the file "*)
   case "$f" in /*) echo "fake-agent: pointer must be relative to the cwd: $f" >&2; exit 3;; esac
   P=$(cat "$f");;
 esac
+P=$(printf '%s\n' "$P" | tr -d '\r')   # a prompt built from a CRLF card: read it as text
 after() { printf '%s\n' "$P" | sed -n "s/.*$1[[:space:]]*//p" | head -1; }
 has() { case "$P" in *"$1"*) return 0;; esac; return 1; }
 
@@ -41,8 +42,20 @@ if [ -n "${FAKE_LOGOUT:-}" ]; then
   esac
   if [ -f "$FAKE_LOGOUT" ]; then echo "Not logged in · Please run /login"; exit 1; fi
 fi
+# FAKE_STUCK=1: a read-only role leaves a folder that cannot be deleted for a while,
+# the way a child process left behind does on Windows. $1 folder, $2 "chmod" to make
+# it undeletable on other systems too (only for folders the runner itself made).
+stuck() {
+  [ -n "${FAKE_STUCK:-}" ] && [ -d "$1" ] || return 0
+  : > "$1/.left-behind"
+  case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*) ( cd "$1" && cmd.exe //c "ping -n 15 127.0.0.1" > /dev/null 2>&1 < /dev/null & ) ;;
+    *) [ "${2:-}" = chmod ] && chmod 555 "$1" ;;
+  esac
+  return 0
+}
 case "$P" in
-  "Reply with the single word: ok") echo ok; exit 0 ;;
+  "Reply with the single word: ok") stuck . chmod; echo ok; exit 0 ;;
 esac
 
 case "$P" in
@@ -60,6 +73,7 @@ case "$P" in
   fi
   scr=$(printf '%s\n' "$P" | sed -n 's/.*go under \(.*\) only\..*/\1/p' | head -1)
   [ -n "$scr" ] && echo "evidence for $f" > "$scr/proof.log"
+  [ -n "$scr" ] && stuck "$scr"
   printf '## Verification\n%s\n\n## Execution\n- cat %s -> %s\n\n## Findings\n%s\n\n## Notes\n- fake verifier\n' \
     "$lvl" "$f" "$(cat "$f" 2>/dev/null || echo missing)" "$why" > "$out"
   echo '{"total_cost_usd": 0.01}'
@@ -68,6 +82,7 @@ case "$P" in
   stage=$(printf '%s\n' "$P" | sed -n 's/.*as its own file in \(.*\)\/ named exactly.*/\1/p' | head -1)
   next=$(printf '%s\n' "$P" | sed -n 's/.*with ids continuing from \([^ ]*\) (.*/\1/p' | head -1)
   mkdir -p "$stage"
+  stuck . chmod
   if has stuck-please; then
     printf 'The goal needs a product decision: which colour.\nWould unblock: the human picks one.\n' > "$stage/STUCK.md"
     echo '{"total_cost_usd": 0.01}'; exit 0
@@ -111,6 +126,7 @@ EOF
 *"the morning reviewer"*)
   out=$(printf '%s\n' "$P" | sed -n 's/^Write exactly this to \(.*\), and nowhere else:$/\1/p' | head -1)
   printf '## Attention\nreviewed by fake\nCall: 🟢 merge as is\n- No flags\n\n## Waiting on the human\n- (none)\n' > "$out"
+  stuck . chmod
   echo '{"total_cost_usd": 0.01}'
   ;;
 *"working alone and headless"*)

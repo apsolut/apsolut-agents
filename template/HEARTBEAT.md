@@ -43,6 +43,10 @@ cost_per_minute_usd: 0.15
 # that it ends the night with exit 7 and says so in the report. 0 = end at once.
 human_wait_minutes: 60
 park_poll_seconds: 300
+# How long one of the runner's own signed commits or merges may take. A signing
+# program that waits for a human (a locked key manager) then fails the step and the
+# lane parks, where it used to wait for ever.
+git_timeout_seconds: 300
 # a provider throttle (a FAILED call whose last lines say 429/quota/overloaded; never
 # our own timeout) is not an attempt, up to this many per card per night
 max_backoffs_per_card: 3

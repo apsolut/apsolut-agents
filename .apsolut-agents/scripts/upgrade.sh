@@ -42,11 +42,12 @@ CUR=$(cat "$WS/VERSION" 2>/dev/null) || CUR=""
 CUR=$(printf '%s' "$CUR" | tr -d ' \r\n')
 [ -n "$CUR" ] || CUR=unknown
 
-TMP=$(mktemp -d); trap 'rm -rf "$TMP" "$APSOLUT_UPGRADE_SELF"' EXIT
+# leave the folder before deleting it: Windows refuses to remove the current directory
+TMP=$(mktemp -d); trap 'cd / 2>/dev/null; rm -rf "$TMP" "$APSOLUT_UPGRADE_SELF" 2>/dev/null || true' EXIT
 case "$TAG" in main) REF=refs/heads/main ;; *) REF=refs/tags/$TAG ;; esac
 echo "fetching payload ($TAG) from $REPO_URL ..."
 # fetch to a file rather than piping into tar, so a 404 reports as itself
-curl -fsSL "$REPO_URL/archive/$REF.tar.gz" -o "$TMP/payload.tar.gz" \
+curl -fsSL --connect-timeout 20 --max-time 600 "$REPO_URL/archive/$REF.tar.gz" -o "$TMP/payload.tar.gz" \
   || { echo "error: could not fetch '$TAG' from $REPO_URL — check the tag name" >&2; exit 1; }
 tar xzf "$TMP/payload.tar.gz" -C "$TMP"
 SRC=$(ls -d "$TMP"/apsolut-agents-*/template)

@@ -142,6 +142,9 @@ Every rule a script can check lives in `runner.sh`, not in a prompt:
 - **Nothing waits at a prompt.** A credential or login prompt fails at once. A locked
   signing key or a signed-out CLI parks the lane without spending a card, and the
   night resumes when it comes back.
+- **A stopped or crashed lane says so, and the night heals.** Ctrl-C ends the runner.
+  A lane that dies writes `DIED` to the log. The next start rolls back a half-done
+  merge and restarts the interrupted card from a clean tree.
 - **Agents cannot edit their own rules.** A change to the config, the prompts or the
   scripts during a run stops the night (the tamper canary). Any agent can stop the
   line (`andon.sh raise`); only you restart it.

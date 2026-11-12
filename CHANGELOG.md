@@ -3,6 +3,84 @@
 All notable changes to apsolut-agents. Pin a release with `install.sh --tag vX.Y.Z`;
 upgrade an installed workspace with `sh .apsolut-agents/scripts/upgrade.sh`.
 
+## v0.13.2 — 2026-11-12
+
+A stability release. It comes from one audit of `main`: a stress test of two lanes
+started in the same moment, and two independent Codex reviews (the whole runner, then
+the other scripts). Nothing new to configure.
+
+### Fixed
+- **Two lanes started together in goal mode: the second one died.** Both saw "no
+  night yet"; the one that waited for the lock opened the night branch again and
+  stopped on "a branch named ... already exists" (exit 255, no report). It happened
+  in 4 of 4 stress rounds. The whole of the night's set-up now runs under the lock.
+- **Stopping a runner did not stop it.** On Ctrl-C or `kill` the runner released its
+  claim and its lane, then carried on with the night. INT and TERM now end it (exit
+  130 or 143) once the command it is waiting for returns.
+- **A lane that died was silent.** Only a normal end writes a report, so a runner
+  that stopped any other way left nothing. It now writes a `DIED` line to
+  `agent-log.md`, notifies, and leaves its ending for another lane's report.
+  `nightshift.sh` shows it in red and no longer presents an older report as this
+  night's.
+- **A runner that stopped during a merge left the night branch and the card half
+  done.** The tip before a merge is now on disk (`runs/.integrating-<date>`) until the
+  merge is rolled back or the card is marked integrated; the next start, or the next lane to merge, rolls it
+  back. The card stays `writing` until its merge is decided, so it returns to the
+  board. An interrupted attempt restarts from where it began; what it had done is kept at
+  `refs/apsolut/attempts/<id>-interrupted` and `runs/<id>-interrupted.diff`. Before, a card with a `check:`
+  came back as "check already passes" and was blocked.
+- **A refused merge that could not be rolled back stayed on the night branch.** The
+  rollback is retried, checked on the files as well as the tip, and raises the Andon
+  if the branch is still wrong.
+- **The runner's own signed commits and merges had no time limit.** A signing program
+  waiting for a human held the lane for ever; only the check before each card was
+  bounded. They now run under `git_timeout_seconds` (default 300) and the lane parks.
+- **A folder that could not be deleted ended the lane (Windows).** A folder cannot be
+  removed while a process a CLI left behind is still inside it. Verifier evidence,
+  role output and the reviewer's snapshot are now cleaned up without ending the lane.
+- Smaller, all in `runner.sh`:
+  - a lock whose holder died could spin without pause or limit;
+  - the spend ledger's mutex could loop for ever;
+  - the notification call had no timeout;
+  - the login probe read its answer through a pipe a leftover child could hold open;
+  - `card_timeout_minutes: 0` (and the helper and check limits) meant "no limit";
+  - the start-up recovery reset a card to `waiting` even when the dead runner had
+    already marked it `review` or `blocked`;
+  - a planner card could be claimed by another lane while it was still being
+    rewritten.
+- `worktree.sh done`: a worktree folder still open in an editor or terminal stopped
+  the command after the merge had landed, before the card was updated. It now warns
+  and finishes.
+- `worktree.sh`, `status.sh`: cards with Windows line endings are read the way
+  `runner.sh` reads them. (Git Bash's awk already hides the difference; Linux, macOS
+  and WSL do not.)
+- `install.sh`, `upgrade.sh`: downloads have a time limit, and the clean-up leaves its
+  temporary folder before deleting it.
+- `delegate.sh`: a claim folder that cannot be deleted no longer leaves the claim
+  marked as released while it still exists.
+
+### Tests
+- `tests/goal-loop.sh`: scenarios 27 (a role leaves an undeletable folder), 28 (a
+  runner stopped in the middle of a merge, then restarted), 29 (a card with Windows
+  line endings). 27 and 28 fail on v0.13.1 and pass here.
+- The fixes were then reviewed by Codex as a diff. Its eight findings (an accepted
+  merge undone by a journal that could not be deleted, unsaved work lost on restart,
+  a rollback that passed with dirty files, a copied-or-not file deleted anyway, and
+  four smaller ones) are fixed in this release too.
+- A stress run outside the suite: two lanes started together on four cards, ten
+  rounds (five goal, five plain), with the end-of-night state checked after each.
+  v0.13.1: every goal round lost a lane. v0.13.2: ten of ten clean.
+
+### Known, not fixed
+- A TERM is acted on when the running CLI call returns, which can be as long as the
+  card's time cap.
+- `delegate.sh` and `worktree.sh done` run `green_cmd` with no time limit.
+- A killed `delegate.sh` supervisor can release its claim while its agent runs on.
+- A reset that fails in a card worktree is ignored, so a retry can start dirty.
+- `worktree.sh --jar` and `--reject` archive no binary changes, no untracked file
+  over 1 MiB and no ignored files.
+- Parking and the git time limit have only been tested with a fake signing program.
+
 ## v0.13.1 — 2026-11-12
 
 ### Changed

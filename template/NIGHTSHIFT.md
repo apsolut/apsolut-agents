@@ -102,6 +102,11 @@ the Cursor plugins: every rule a script can check moved out of the prompts.
 | a block says what blocked it (v0.12) | every blocked card carries `Blocked by: task \| rule \| cli`: the work failed, a runner rule refused it, or the CLI never finished. The night report repeats it |
 | nothing waits at a prompt (v0.13) | the runner and `delegate.sh` export `GIT_TERMINAL_PROMPT=0`, `GCM_INTERACTIVE=never` and `GH_PROMPT_DISABLED=1`: a credential or login prompt fails at once instead of sitting until the card's time cap |
 | a human problem parks the lane (v0.13) | a locked signing key or a CLI that lost its login cannot be fixed by a retry. The runner checks signing before every card and probes the CLI after a failed call. The card goes back to `waiting` with its attempt returned, and the lane waits up to `human_wait_minutes` (looking every `park_poll_seconds`), then ends with exit 7. It does not count toward the breaker, and a signed-out verifier no longer raises the Andon |
+| a stop is a stop (v0.13.2) | Ctrl-C or `kill` ends the runner with exit 130 or 143, as soon as the command it is waiting for returns. It puts its card back on the board and releases its claim. Before, the runner released the claim and then carried on with the night |
+| a dead lane says so (v0.13.2) | only a normal end writes a report. A runner that stops any other way writes a `DIED` line to `agent-log.md`, sends the notification, and leaves its ending for the report another lane writes. `nightshift.sh` shows it in red and does not present an older report as this night's |
+| a stop in the middle of a merge heals (v0.13.2) | before a merge into the night branch the runner records the tip it started from (`runs/.integrating-<date>`). The next start, or the next lane to merge, rolls a half-done merge back. A refused merge that cannot be rolled back raises the Andon. A card whose attempt was interrupted restarts from where that attempt started; what it had done is kept at `refs/apsolut/attempts/<id>-interrupted` and, for files not yet committed, `runs/<id>-interrupted.diff`. If the worktree cannot be reset, the card is blocked, never started on a tree that is not clean |
+| the runner's own git steps end (v0.13.2) | its signed commits and merges run under `git_timeout_seconds` (default 300). A signing program that waits for a human fails the step, and the lane parks |
+| lanes started together share one night (v0.13.2) | the night branch is opened under a lock that every lane takes first. Before, the second of two lanes started in the same moment died on "a branch named ... already exists" |
 | a crash does not reset the night | `runs/.night-current` keeps the night (branch, spend, rounds) across a restart within 18 h |
 | cost is honest | no cost in the output → `max(cost_fallback_usd, minutes × cost_per_minute_usd)`; the spend ledger is locked across lanes |
 
@@ -179,6 +184,8 @@ them (filename = id, Goal + Done when, test-first) → work/ → loop
   | 6 | planner wrote `STUCK.md` (needs a human decision), plateau (two plan rounds in a row landed nothing), or `max_plan_rounds` used up |
   | 5 | Andon raised, or the tamper canary fired |
   | 7 | waiting on a human: commits cannot be signed, or a CLI lost its login, and nobody fixed it within `human_wait_minutes` (or before `stop_time`). No card was blocked or charged an attempt for it |
+  | 130, 143 | stopped by Ctrl-C or `kill`. No report: `agent-log.md` has a `DIED` line. Start the runner again to go on with the same night |
+  | other | the runner died (a command failed that should not have). Same `DIED` line, same restart |
   | 2 / 3 / 4 | breaker / budget / harness, as before |
 
 - **A plateau means pivot, and the predicate never relaxes.** When a round lands

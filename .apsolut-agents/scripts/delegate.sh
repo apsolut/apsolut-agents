@@ -231,7 +231,7 @@ run|--detached-child)
     [ -f "$CLAIM/stopped" ] && return 0
     if [ -d "$CLAIM" ]; then
       [ "$(fm_get "$CARD" status)" = "writing" ] && fm_set "$CARD" status waiting
-      rm -rf "$CLAIM"
+      rm -rf "$CLAIM" 2>/dev/null || true
       tick "released claim $ID on exit"
     fi
   }
@@ -352,7 +352,7 @@ $(cat "$CARD")"
     printf -- '- THROTTLED: %s round %s hit provider rate/quota limits — not counted as a round. Output: runs/%s\n' \
       "$ID" "$ROUND" "$(basename "$OUT")" >> "$LOG"
     tick "throttled $ID round $ROUND (provider limit — round not counted)"
-    RELEASED=yes; rm -rf "$CLAIM"
+    rm -rf "$CLAIM" 2>/dev/null || true; RELEASED=yes
     echo
     echo "$ID round $ROUND: THROTTLED — the provider rate-limited or errored, not the delegate."
     echo "  output:  runs/$(basename "$OUT")"
@@ -401,7 +401,7 @@ $(cat "$CARD")"
     "$ID" "$ROUND" "$VERDICT" "$RC" "$NCOMMITS" "${DIFFSTAT:-no diff}" "$(spent)" >> "$LOG"
   tick "result $ID round $ROUND: $VERDICT (rc=$RC)"
 
-  RELEASED=yes; rm -rf "$CLAIM"
+  rm -rf "$CLAIM" 2>/dev/null || true; RELEASED=yes
 
   echo
   echo "$ID round $ROUND: $VERDICT (rc=$RC, $NCOMMITS commit(s), ${DIFFSTAT:-no diff})"

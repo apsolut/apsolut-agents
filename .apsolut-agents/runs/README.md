@@ -42,6 +42,12 @@ to the run file.
 - `<id>-attempt<n>.parked.diff`: the work of an attempt that could not be committed
   because the signing key locked mid-card. The attempt was not counted; the lane
   parked (NIGHTSHIFT.md, "a human problem parks the lane").
+- `.integrating-<date>` and `.pre-<date>-<id>`: journals. The first exists while a merge into
+  the night branch is being checked, the second while an attempt runs. If a runner
+  dies, the next start reads them to roll the merge back and to restart the card
+  from where the attempt began. Leave them alone.
+- `<id>-interrupted.diff`: files an interrupted attempt had changed but not yet
+  committed, saved before the card restarted clean (`git apply` brings them back).
 
 ## Not here
 

@@ -29,8 +29,8 @@ paint() {
   awk -v a="$AGENT" -v red="$RED" -v grn="$GRN" -v yel="$YEL" -v dim="$DIM" -v off="$OFF" '
     { line = $0; sub("^TICK: " a " [0-9][0-9]-[0-9][0-9] ", "", line)
       t = substr(line, 1, 5); msg = substr(line, 7); c = ""
-      if (msg ~ /^(blocked|red )|BLOCKED|FAILED|BREAKER|BUDGET CAP|andon|Andon|tamper/) c = red
-      else if (msg ~ /PARKED|backoff|will retry|waiting on a human|unverified|SKIP/) c = yel
+      if (msg ~ /^(blocked|red )|BLOCKED|FAILED|BREAKER|BUDGET CAP|andon|Andon|tamper|DIED/) c = red
+      else if (msg ~ /PARKED|backoff|will retry|waiting on a human|unverified|SKIP|rolled the night branch back|interrupted attempt/) c = yel
       else if (msg ~ /^(green|integrated|resumed|night end)|goal met|verified|merged/) c = grn
       printf "%s%s%s  %s%s%s\n", dim, t, off, c, msg, (c == "" ? "" : off); fflush() }'
 }
@@ -58,7 +58,19 @@ rc=0
 sh "$WS/scripts/runner.sh" "$@" || rc=$?
 touch "$STOPF"; wait "$FOLLOW" 2>/dev/null || true
 
-REPORT=$(ls -t "$WS"/runs/night-[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9].md 2>/dev/null | head -1 || true)
+# a runner that wrote no "night end" line wrote no report either: the newest report
+# on disk is an older night's, so do not show it as this one
+if ! sed -n "$(( seen + 1 )),\$p" "$LOG" 2>/dev/null | grep -q "^TICK: $AGENT .* night end: "; then
+  echo
+  printf '%sThe runner stopped without a report (exit %s).%s agent-log.md and runs/trail-*.tsv hold the night so far.\n' "$RED" "$rc" "$OFF"
+  exit "$rc"
+fi
+
+# the runner names its report in its last line; the newest on disk is the fallback
+rname=$(sed -n "$(( seen + 1 )),\$p" "$LOG" 2>/dev/null | sed -n "s/^TICK: $AGENT .* night end: .*(report: \(runs\/[^)]*\))\$/\1/p" | tail -1)
+REPORT=""
+if [ -n "$rname" ] && [ -f "$WS/$rname" ]; then REPORT="$WS/$rname"; fi
+[ -n "$REPORT" ] || REPORT=$(ls -t "$WS"/runs/night-[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9].md 2>/dev/null | head -1 || true)
 if [ -n "$REPORT" ]; then
   case "$rc" in 0) c=$GRN ;; 7|6) c=$YEL ;; *) c=$RED ;; esac
   echo

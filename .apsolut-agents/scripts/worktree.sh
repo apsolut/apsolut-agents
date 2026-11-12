@@ -32,18 +32,20 @@ fm_set() { # $1=file $2=key $3=value — set (replace, or INSERT if missing) a f
   # Insert-if-missing matters: hand-written cards often lack branch:/worktree: keys, and a
   # replace-only fm_set silently drops the spawn record — the runner then refuses the card
   # with "worktree path '' is not a spawned worktree" (found by the doctor test board).
+  # \r? everywhere: a card saved with Windows line endings (an editor, or git with
+  # core.autocrlf) is still a card. runner.sh reads them the same way.
   awk -v k="$2" -v v="$3" '
-    NR==1 && $0=="---" { infm=1; print; next }
-    infm && $0=="---"  { if (!done) print k ": " v; infm=0; print; next }
+    NR==1 && $0 ~ /^---\r?$/ { infm=1; print; next }
+    infm && $0 ~ /^---\r?$/  { if (!done) print k ": " v; infm=0; print; next }
     infm && index($0, k ":") == 1 { print k ": " v; done=1; next }
     { print }
-  ' "$1" > "$1.tmp" && mv "$1.tmp" "$1"
+  ' "$1" > "$1.tmp.$$" && mv -f "$1.tmp.$$" "$1"
 }
 fm_get() { # $1=file $2=key
   awk -v k="$2" '
-    NR==1 && $0=="---" { infm=1; next }
-    infm && $0=="---"  { exit }
-    infm && index($0, k ":") == 1 { sub("^" k ":[ \t]*", ""); sub("[ \t]*#.*$", ""); print; exit }
+    NR==1 && $0 ~ /^---\r?$/ { infm=1; next }
+    infm && $0 ~ /^---\r?$/  { exit }
+    infm && index($0, k ":") == 1 { sub("^" k ":[ \t]*", ""); sub("[ \t]*#.*$", ""); sub(/\r$/, ""); print; exit }
   ' "$1"
 }
 
@@ -529,8 +531,12 @@ done)
   if [ -n "$WT" ] && [ "$WT" != "null" ] && [ -d "$WT" ]; then
     case "$(basename "$WT")" in
       "$NAME"-wt-*)
-        git -C "$REPO" worktree remove "$WT" --force
-        echo "removed worktree: $WT" ;;
+        if git -C "$REPO" worktree remove "$WT" --force 2>/dev/null; then
+          echo "removed worktree: $WT"
+        else
+          echo "warning: could not remove the worktree folder $WT (is a program still open in it?)." >&2
+          echo "         Close it, delete the folder, then run: git worktree prune" >&2
+        fi ;;
       *)
         echo "refusing to remove '$WT' — not a spawned worktree path ($NAME-wt-*); remove manually if intended" >&2 ;;
     esac

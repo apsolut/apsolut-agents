@@ -14,12 +14,13 @@ NOW=$(date '+%Y-%m-%d %H:%M')
 # --- helper: read one key from a work file's flat-YAML frontmatter ---------------
 fm_get() { # $1=file $2=key
   awk -v k="$2" '
-    NR==1 && $0=="---" { infm=1; next }
-    infm && $0=="---"  { exit }
+    NR==1 && $0 ~ /^---\r?$/ { infm=1; next }
+    infm && $0 ~ /^---\r?$/  { exit }
     infm {
       if (index($0, k ":") == 1) {
         sub("^" k ":[ \t]*", "")
         sub("[ \t]*#.*$", "")
+        sub(/\r$/, "")
         print; exit
       }
     }' "$1"
