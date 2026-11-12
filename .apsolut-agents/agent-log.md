@@ -333,3 +333,7 @@ v0.13.1 shipped to main
 
 ### claude — 2026-11-12 — HOLD
 v0.13.2 crash-safety on a branch; CI green; the human decides
+
+### claude — 2026-11-12 — TODO.md (local, git-ignored)
+- The human asked for a TODO.md holding everything that is not done, kept out of git. It is at the repo root and ignored in `.gitignore`, so it exists only on the human's machine: what waits on the human, known defects not fixed, what was never run with real models, housekeeping. Ideas stay in FUTURE.md.
+- Seen while writing it, listed there, not fixed: the hand-written part of PROJECT_STATE.md is out of date (next action 1 still says v0.13.0 is not pushed; the ownership table says v0.11.0 and v0.12.0 are not tagged).

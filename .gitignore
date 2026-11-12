@@ -1,6 +1,9 @@
 # machine-local worktree pointer (see template/WORKTREES.md)
 .primary
 
+# the human's local list of what is not done (ideas live in FUTURE.md)
+/TODO.md
+
 # idea-pipeline drafts (promote PRD.md out before committing)
 ideas/
 .apsolut/
