@@ -11,24 +11,24 @@ anything no longer true (git keeps history), keep the whole file to ~1 screen.
 ## Facts (generated)
 
 <!-- facts:begin -->
-_Generated 2026-11-12 08:17 by status.sh — do not hand-edit this block._
+_Generated 2026-11-12 08:24 by status.sh — do not hand-edit this block._
 
 | | |
 |--|--|
-| Branch | `lane-reports` |
-| Ahead/behind upstream | no upstream configured |
+| Branch | `main` |
+| Ahead/behind upstream | 6 ahead / 0 behind upstream |
 | Dirty files | 1 |
 | Worktrees | 1 (incl. primary) |
-| Last session token | claude — 2026-11-12 — HOLD |
-| agent-log.md | 314 lines |
+| Last session token | claude — 2026-11-12 — PUSHED |
+| agent-log.md | 321 lines |
 
 Recent commits:
 ```
+eabe5e9 agents: claude session end 2026-11-12 (HOLD)
 968b6fa docs: .claude/ as an optional protect entry; log the stability pass
 1dc7fb0 fix: six runner defects found by an independent Codex review
 c92fe2e fix: two lanes share one night report without erasing each other
 f0dab38 agents: claude session end 2026-11-12 (HOLD)
-f2893c9 feat: v0.13.1 — full access is the default, --strict-mcp-config is the lock-down option
 ```
 <!-- facts:end -->
 

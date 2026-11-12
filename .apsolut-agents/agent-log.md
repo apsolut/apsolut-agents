@@ -312,3 +312,10 @@ v0.13.1 on branch, CI then the human's word
 
 ### claude — 2026-11-12 — HOLD
 stability pass on lane-reports; CI then the human's word
+
+### claude — 2026-11-12 — v0.13.1 shipped to main
+- The human said "ship". PR #3 (full access by default) and PR #4 (one report for all lanes, six runner fixes from the Codex review) were green in CI; fast-forwarded main to both, tagged v0.13.1.
+- Still open for the human: the GROK_CLAUDE_*_ENABLED=0 prefix on the Grok line; a harder real night (retry, blocked card, lane conflict, a really locked key).
+
+### claude — 2026-11-12 — PUSHED
+v0.13.1 shipped to main
