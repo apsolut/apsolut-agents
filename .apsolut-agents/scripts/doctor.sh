@@ -22,7 +22,7 @@ PASS=0; WARN=0; FAIL=0
 if [ -n "${NO_COLOR:-}" ]; then COLOR=no
 elif [ "${CLICOLOR_FORCE:-0}" = 1 ] || [ -t 1 ]; then COLOR=yes
 else COLOR=no; fi
-if [ "$COLOR" = yes ]; then E=$(printf '\033'); CG="$E[32m"; CY="$E[33m"; CR="$E[31m"; CO="$E[0m"
+if [ "$COLOR" = yes ]; then E=$(printf '\033'); CG="${E}[32m"; CY="${E}[33m"; CR="${E}[31m"; CO="${E}[0m"
 else CG=""; CY=""; CR=""; CO=""; fi
 ok()   { PASS=$((PASS+1)); printf '  %sok%s    %s\n' "$CG" "$CO" "$1"; }
 warn() { WARN=$((WARN+1)); printf '  %sWARN%s  %s\n' "$CY" "$CO" "$1"; }

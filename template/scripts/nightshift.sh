@@ -21,7 +21,7 @@ elif [ "${CLICOLOR_FORCE:-0}" = 1 ] || [ -t 1 ]; then COLOR=yes
 else COLOR=no; fi
 E=$(printf '\033')
 if [ "$COLOR" = yes ]; then
-  RED="$E[31m"; GRN="$E[32m"; YEL="$E[33m"; MAG="$E[1;35m"; DIM="$E[2m"; BLD="$E[1m"; OFF="$E[0m"
+  RED="${E}[31m"; GRN="${E}[32m"; YEL="${E}[33m"; MAG="${E}[1;35m"; DIM="${E}[2m"; BLD="${E}[1m"; OFF="${E}[0m"
 else RED=""; GRN=""; YEL=""; MAG=""; DIM=""; BLD=""; OFF=""; fi
 
 # one TICK line in, one coloured line out: "HH:MM  what happened"
