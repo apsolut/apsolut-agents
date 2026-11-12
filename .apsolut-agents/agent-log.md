@@ -337,3 +337,11 @@ v0.13.2 crash-safety on a branch; CI green; the human decides
 ### claude — 2026-11-12 — TODO.md (local, git-ignored)
 - The human asked for a TODO.md holding everything that is not done, kept out of git. It is at the repo root and ignored in `.gitignore`, so it exists only on the human's machine: what waits on the human, known defects not fixed, what was never run with real models, housekeeping. Ideas stay in FUTURE.md.
 - Seen while writing it, listed there, not fixed: the hand-written part of PROJECT_STATE.md is out of date (next action 1 still says v0.13.0 is not pushed; the ownership table says v0.11.0 and v0.12.0 are not tagged).
+
+### claude — 2026-11-12 — v0.13.2 shipped to main
+- The human said to commit and push everything but the local TODO.md to main. PR #5 was green in CI on 16eb6a7 (shellcheck, install-smoke, goal-loop with the four-round two-lane stress step); main fast-forwarded to it, tagged v0.13.2.
+- PROJECT_STATE.md, hand-written part, brought up to date: the ownership table (v0.11.0 to v0.13.2 are on main and tagged), next action 1 (what waits on the human), the list of merged branches that can be deleted.
+- Still open for the human: one run with the real signing key locked; a harder real night with real models; the GROK_CLAUDE_*_ENABLED=0 prefix on the Grok line; Antigravity's consumer-plan terms. Known defects not fixed are in CHANGELOG v0.13.2 "Known, not fixed" and PROJECT_STATE next action 2.
+
+### claude — 2026-11-12 — PUSHED
+v0.13.2 shipped to main
