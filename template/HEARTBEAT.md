@@ -98,6 +98,9 @@ setup_cmd:
 # protect: git pathspecs no card may change, on every night (GOAL.md protect: adds
 # the goal's own). A card diff touching one is red. Put the judge here: the green
 # script, test config, CI config.   protect: run-tests.sh .github/ vitest.config.ts
+# Optional: add .claude/ (and .codex/, .cursor/) if no card should change the hooks
+# and settings the CLIs load from the repo. Off by default: some cards are about
+# exactly those files.
 protect:
 # added lines matching this extended regex turn an attempt red (symptom patches).
 # Delete the line to use the default; leave the value empty to switch it off.

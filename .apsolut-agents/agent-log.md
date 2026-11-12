@@ -301,3 +301,11 @@ v0.13.0 shipped to main
 
 ### claude — 2026-11-12 — HOLD
 v0.13.1 on branch, CI then the human's word
+
+### claude — 2026-11-12 — stability pass on the runner (branch lane-reports, on top of v0.13.1-full-access)
+- The human asked "next?" after saying stability matters most. Did the items that need no human.
+- One night report for all lanes: each lane writes runs/.lane-end-<date>-<agent>; finish() rebuilds the report from all of them under a .report lock. The reviewer runs only from the last lane standing. Scenario 25.
+- Independent review: Codex read runner.sh read-only (prompt gave it the functions to look at and failure classes, not my conclusions). Six findings; I checked each against the code and all were real. Two were in the report change above (both lanes seeing each other alive; releasing a lock not taken), one in v0.13.0 (a key locking before the integration merge counted as a merge conflict), three older (reviewer resetting the night worktree under a joining lane; shared fm_set temp file; reviewer's untracked files left in the night worktree). All fixed. Scenario 26 and a snapshot check added.
+- Not tested: the same-moment finish races (no deterministic way); they rest on reading the code.
+- `.claude/` protection: not made a default. The human's stance is full access by default, and some cards are about those files. Documented as an optional protect: entry in HEARTBEAT.md.
+- tests/goal-loop.sh locally: 94 ok, 0 failed.
