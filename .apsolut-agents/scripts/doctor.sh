@@ -22,10 +22,12 @@ PASS=0; WARN=0; FAIL=0
 if [ -n "${NO_COLOR:-}" ]; then COLOR=no
 elif [ "${CLICOLOR_FORCE:-0}" = 1 ] || [ -t 1 ]; then COLOR=yes
 else COLOR=no; fi
-if [ "$COLOR" = yes ]; then E=$(printf '\033'); CG="${E}[32m"; CY="${E}[33m"; CR="${E}[31m"; CO="${E}[0m"
-else CG=""; CY=""; CR=""; CO=""; fi
+if [ "$COLOR" = yes ]; then E=$(printf '\033'); CG="${E}[32m"; CY="${E}[33m"; CR="${E}[31m"; CC="${E}[36m"; CO="${E}[0m"
+else CG=""; CY=""; CR=""; CC=""; CO=""; fi
 ok()   { PASS=$((PASS+1)); printf '  %sok%s    %s\n' "$CG" "$CO" "$1"; }
 warn() { WARN=$((WARN+1)); printf '  %sWARN%s  %s\n' "$CY" "$CO" "$1"; }
+note() { printf '  %snote%s  %s
+' "$CC" "$CO" "$1"; }   # a tip: not counted
 fail() { FAIL=$((FAIL+1)); printf '  %sFAIL%s  %s\n' "$CR" "$CO" "$1"; }
 
 cfg() { [ -f "$HB" ] && sed -n "s/^$1:[[:space:]]*//p" "$HB" | head -1 | tr -d '\r' || true; }
@@ -92,7 +94,7 @@ else
       claude)
         case "$cl" in *--disallowedTools*|*--disallowed-tools*) ;; *) warn "cmd_$a: no --disallowedTools Agent,Task — claude can spawn its own subagents, outside the card clock and the spend ledger";; esac
         case "$cl" in *--max-budget-usd*) ;; *) warn "cmd_$a: no --max-budget-usd \$APSOLUT_CALL_BUDGET_USD — one card can overshoot night_budget_usd";; esac
-        case "$cl" in *--strict-mcp-config*) ;; *) warn "cmd_$a: no --strict-mcp-config — a headless claude loads the signed-in account's MCP servers and claude.ai connectors: a bypassed worker can call them, and every call carries about 8,000 more tokens (add it, with --mcp-config .mcp.json if cards need a project server)";; esac ;;
+        case "$cl" in *--strict-mcp-config*) ok "cmd_$a: locked down (--strict-mcp-config): the worker cannot reach the account's MCP servers and connectors" ;; *) note "cmd_$a: full access — the worker can use your account's MCP servers and connectors. To lock a night down, add --strict-mcp-config (see HEARTBEAT.md)";; esac ;;
       grok)
         case "$cl" in *--no-subagents*) ;; *) warn "cmd_$a: no --no-subagents — grok starts background subagents the runner neither waits for nor charges";; esac
         case "$cl" in *GROK_CLAUDE_MCPS_ENABLED=0*) ;; *) warn "cmd_$a: grok loads your Claude Code MCP servers, hooks and skills by default — put GROK_CLAUDE_MCPS_ENABLED=0 GROK_CLAUDE_HOOKS_ENABLED=0 (see template/HEARTBEAT.md) in front of the command";; esac ;;

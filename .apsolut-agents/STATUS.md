@@ -3,7 +3,7 @@
 
 # STATUS board
 
-_Last generated: 2026-11-12 04:44 by status.sh_
+_Last generated: never — run `sh .apsolut-agents/scripts/status.sh`_
 
 ## Work units
 
@@ -23,12 +23,11 @@ Status set: `waiting` · `writing` · `need-feedback` · `review` · `done` · `
 
 | | |
 |--|--|
-| Branch | `main` |
-| Ahead/behind upstream | 4 ahead / 0 behind upstream |
-| Dirty files | 1 |
-| Last session token | claude — 2026-11-12 — PUSHED |
+| Branch | — |
+| Ahead/behind upstream | — |
+| Dirty files | — |
+| Last session token | — |
 
 ## Warnings
 
 - _(none)_
-- next decision id: D-008

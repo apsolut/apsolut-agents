@@ -36,6 +36,11 @@ and the planner added the card the two hand-written ones had missed.
   worktree, with a time cap, a spend cap and a circuit breaker.
 - **A goal loop.** Give it a command that fails until the product is done. When the
   board runs dry and the command is still red, a planner writes the next cards.
+- **Full access by default, one flag to lock down.** Workers run with everything
+  your CLI has, your MCP servers and connectors included, so a card is not stopped
+  by a missing tool. For a night that must not reach your mail or CRM, add
+  `--strict-mcp-config` to the Claude line. `doctor.sh` tells you which mode you
+  are in.
 - **An independent verifier.** A different model runs each change and returns a
   verdict. The author's "done" is treated as a claim.
 - **Agents that drive agents.** Any agent can dispatch another agent's CLI on a card,

@@ -3,6 +3,18 @@
 All notable changes to apsolut-agents. Pin a release with `install.sh --tag vX.Y.Z`;
 upgrade an installed workspace with `sh .apsolut-agents/scripts/upgrade.sh`.
 
+## v0.13.1 — 2026-11-12
+
+### Changed
+- **`--strict-mcp-config` is off the default `cmd_claude` line again.** v0.13.0 made
+  it the default; that restricted workers that are otherwise run with every
+  permission. Workers now start with everything the CLI has, and the flag is the
+  documented way to lock a night down. If you copied the v0.13.0 line and want
+  full access, remove the flag.
+- `doctor.sh` no longer warns about a Claude line without the flag. It prints a
+  `note` (not counted) saying the worker has full access and how to lock it down,
+  and an `ok` when the flag is present.
+
 ## v0.13.0 — 2026-11-11
 
 A night no longer dies waiting for a human. Before this, a credential prompt sat

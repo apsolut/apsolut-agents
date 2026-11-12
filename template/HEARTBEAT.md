@@ -141,14 +141,15 @@ notify_url:
 ## - A list flag (claude --disallowedTools, --allowedTools, --tools, --add-dir,
 ##   --mcp-config) swallows the next word. Never leave one last on an arg-mode line:
 ##   it would eat the prompt. doctor.sh fails such a line.
-## - claude --strict-mcp-config (default since v0.13). A headless claude otherwise loads
-##   the MCP servers and claude.ai connectors of the signed-in account (mail, chat,
-##   CRM, ...), and with permissions bypassed a worker can call them. The flag drops
-##   all of them. Measured on claude 2.1.322 with a one-word prompt: 42,000 tokens of
-##   start-up context without it, 33,600 with it. It also drops a project .mcp.json:
-##   if your cards need that server, add `--mcp-config .mcp.json` to the line.
-##   Adding --disable-slash-commands (no skills, no commands) measured 28,800. It is
-##   left off because a project skill can be part of how a card gets done.
+## - Workers run with everything your CLI has. A headless claude loads the MCP servers
+##   and claude.ai connectors of the signed-in account (mail, chat, CRM, ...), and a
+##   worker may use them to get a card done. That is the default on purpose.
+##   Optional lock-down: add --strict-mcp-config to the claude line and the worker
+##   keeps only the code and the shell. It cannot reach your mail or CRM, and each
+##   call starts lighter (measured on claude 2.1.322, one-word prompt: 42,000 tokens
+##   of start-up context without the flag, 33,600 with it). The flag also drops a
+##   project .mcp.json; add `--mcp-config .mcp.json` to keep that one server.
+##   Adding --disable-slash-commands (no skills, no commands) measured 28,800.
 ## - grok reads your Claude Code and Cursor setup by default: MCP servers, hooks,
 ##   skills, rules, agents. The GROK_CLAUDE_*_ENABLED=0 variables in front of the grok
 ##   line switch that off, so a Grok worker runs on its own configuration and its
@@ -158,7 +159,7 @@ notify_url:
 ## - codex prints no cost and no is_error: a failed call is its exit code, and its
 ##   spend is cost_fallback_usd / cost_per_minute_usd (settable per agent, see Limits).
 prompt_claude: stdin
-cmd_claude: claude -p --dangerously-skip-permissions --strict-mcp-config --disallowedTools Agent,Task --max-budget-usd $APSOLUT_CALL_BUDGET_USD --output-format json
+cmd_claude: claude -p --dangerously-skip-permissions --disallowedTools Agent,Task --max-budget-usd $APSOLUT_CALL_BUDGET_USD --output-format json
 cmd_grok: GROK_CLAUDE_MCPS_ENABLED=0 GROK_CLAUDE_HOOKS_ENABLED=0 GROK_CLAUDE_SKILLS_ENABLED=0 GROK_CLAUDE_RULES_ENABLED=0 GROK_CLAUDE_AGENTS_ENABLED=0 grok --always-approve --no-subagents --output-format json -p
 cmd_agy: agy --dangerously-skip-permissions --output-format json --print-timeout ${APSOLUT_SOFT_TIMEOUT_MIN}m -p
 prompt_codex: stdin
