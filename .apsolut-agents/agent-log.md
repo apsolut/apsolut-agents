@@ -309,3 +309,6 @@ v0.13.1 on branch, CI then the human's word
 - Not tested: the same-moment finish races (no deterministic way); they rest on reading the code.
 - `.claude/` protection: not made a default. The human's stance is full access by default, and some cards are about those files. Documented as an optional protect: entry in HEARTBEAT.md.
 - tests/goal-loop.sh locally: 94 ok, 0 failed.
+
+### claude — 2026-11-12 — HOLD
+stability pass on lane-reports; CI then the human's word
