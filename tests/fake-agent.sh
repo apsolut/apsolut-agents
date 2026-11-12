@@ -48,6 +48,9 @@ esac
 case "$P" in
 *"the independent verifier"*)
   if has "verifier-crash: yes"; then echo "fake verifier: crashed"; exit 1; fi
+  # "verifier-locks-key: <file>": the signing key locks while the verifier works (once)
+  k=$(printf '%s\n' "$P" | sed -n 's/^verifier-locks-key: //p' | head -1)
+  if [ -n "$k" ] && [ -f "$k" ] && [ ! -f "$k.vlocked" ]; then mv "$k" "$k.vlocked"; fi
   out=$(after 'nothing else in the repo:')
   f=$(printf '%s\n' "$P" | sed -n 's/^make: //p' | head -1)
   if [ -n "$f" ] && [ "$(cat "$f" 2>/dev/null)" = "right" ]; then

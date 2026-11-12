@@ -66,7 +66,7 @@ fm_get() { awk -v k="$2" 'NR==1&&$0~/^---\r?$/{f=1;next} f&&$0~/^---\r?$/{exit}
 fm_set() { awk -v k="$2" -v v="$3" 'NR==1&&$0~/^---\r?$/{f=1;print;next}
   f&&$0~/^---\r?$/{if(!done)print k": "v;f=0;print;next}
   f&&index($0,k":")==1{print k": "v;done=1;next}{print}' \
-  "$1" > "$1.tmp" && mv "$1.tmp" "$1"; }
+  "$1" > "$1.tmp.$$" && mv -f "$1.tmp.$$" "$1"; }
 num_or() { case "$1" in ''|*[!0-9.]*|*.*.*) echo "$2";; *) echo "$1";; esac; }
 
 TIMEOUT_MIN=$(num_or "$(cfg card_timeout_minutes)" 45)
@@ -715,7 +715,15 @@ finish() { # $1 reason, $2 exit code
     echo "$(date '+%Y-%m-%d %H:%M') — reason: $1 — spend: \$$(spent) / \$$BUDGET"
     case "$1" in "waiting on a human"*) echo "- **Lane parked, $1.** Unfinished cards are still \`waiting\` with their attempts returned: fix it, then start the runner again.";; esac
   } > "$LEND"
-  lock .report || true
+  # Inside the lock this lane marks itself as ending and looks for lanes that are
+  # alive and not ending. Exactly one of several lanes finishing together sees none:
+  # that one runs the reviewer and closes the night.
+  RLOCK=no; if lock .report; then RLOCK=yes; fi
+  : > "$LANE/ending" 2>/dev/null || true
+  others=no
+  for l in "$WS"/claims/.lane-*; do
+    [ -d "$l" ] && [ "$l" != "$LANE" ] && [ ! -f "$l/ending" ] && kill -0 "$(cat "$l/pid" 2>/dev/null || echo 0)" 2>/dev/null && others=yes
+  done
   LANES=""
   for l in "$WS/runs/.lane-end-$DATE-"*; do [ -f "$l" ] && LANES="$LANES ${l##*/.lane-end-"$DATE"-}"; done
   LANES=${LANES# }
@@ -782,11 +790,7 @@ finish() { # $1 reason, $2 exit code
     echo "Nothing merged into \`$BASEBR\` — \`worktree.sh review\`, then \`done <id> --merge\` for what you accept."
   } > "$REPORT.tmp.$$"
   mv -f "$REPORT.tmp.$$" "$REPORT"
-  unlock .report
-  others=no
-  for l in "$WS"/claims/.lane-*; do
-    [ -d "$l" ] && [ "$l" != "$LANE" ] && kill -0 "$(cat "$l/pid" 2>/dev/null || echo 0)" 2>/dev/null && others=yes
-  done
+  if [ "$RLOCK" = yes ]; then unlock .report; fi
   trail stop "ended the night" "$1" "runs/$(basename "$REPORT")" "spend \$$(spent)"
   # cross-model morning audit of the trail (show-me-your-work's "Attention" section).
   # Only the last lane standing runs it: it then sees the whole night, and two lanes
@@ -795,7 +799,15 @@ finish() { # $1 reason, $2 exit code
     AP="$WS/runs/night-$DATE-attention.md"; rm -f "$AP"
     p_begin
     pv AGENT "$REVIEWER"; pv REPORT "$REPORT"; pv TRAIL "$WS/runs/trail-$DATE.tsv"; pv HANDOFFS_DIR "$HO"
-    RD=${NIGHT_WT:-$(mktemp -d)}; APW=$(out_path "$RD" attention.md)
+    # Like the planner, the reviewer reads a detached snapshot of the night tip: a
+    # lane that joins and integrates while it reads is never undone by its clean-up,
+    # and nothing it leaves behind stays in the night worktree.
+    RSNAP=""
+    if [ -n "$NIGHT_WT" ]; then
+      RSNAP=$(mktemp -d)/review
+      git -C "$NIGHT_WT" worktree add -q --detach "$RSNAP" "$(git -C "$NIGHT_WT" rev-parse HEAD)" >/dev/null 2>&1 || RSNAP=""
+    fi
+    RD=${RSNAP:-$(mktemp -d)}; APW=$(out_path "$RD" attention.md)
     pv NIGHT_BRANCH "${NIGHT_BR:-(none — plain board night)}"; pv BASE "$BASEBR"; pv REPO "$REPO"; pv OUT_PATH "$APW"
     p_render review "$WS/runs/.review-$DATE.prompt"
     st0=$(tree_state "$RD"); at=$(git -C "$RD" rev-parse HEAD 2>/dev/null || true)
@@ -805,6 +817,7 @@ finish() { # $1 reason, $2 exit code
     guard_end "reviewer $REVIEWER" || true
     collect "$APW" "$AP"
     [ -n "$at" ] && [ "$(tree_state "$RD")" != "$st0" ] && restore_tree "$RD" "$at" "$WS/runs/.review-$DATE.stray.diff"
+    if [ -n "$RSNAP" ]; then git -C "$NIGHT_WT" worktree remove --force "$RSNAP" >/dev/null 2>&1 || rm -rf "${RSNAP:?}"; fi
     if [ -s "$AP" ]; then
       { echo; cat "$AP"; } >> "$REPORT"
     else
@@ -1328,6 +1341,14 @@ while :; do
       fm_set "$CARD" integrated "$NIGHT_BR"; INTEG=", integrated into $NIGHT_BR"
       trail integrate "merged $ID into the night branch" "green and verified ($VLEVEL)" "$NIGHT_BR @ $(git -C "$NIGHT_WT" rev-parse --short HEAD)" integrated
     else
+      # the merge commit is signed: a key that locked after the worker's commit is
+      # not the card's failure
+      if ! sign_ok; then
+        trail integrate "kept $ID off the night branch" "the merge could not be signed" "runs/$(basename "$OUT")" parked
+        unattempt
+        park "$(sign_why); $ID was green and is redone once signing works" sign_ok
+        continue
+      fi
       # merges are tasks: a card that cannot land is red, and its retry starts
       # from the current night tip with the conflict or the red output in its prompt
       trail integrate "kept $ID off the night branch" "merge conflict or green red after the merge" "runs/$(basename "$OUT")" refused

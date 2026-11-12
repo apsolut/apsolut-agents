@@ -106,6 +106,7 @@ check "one merge commit per card on the night branch" '[ "$(git -C "$R" rev-list
 check "NIGHT card left in review" 'grep -q "^status: review" "$W/work/NIGHT-$(date +%Y-%m-%d).md"'
 check "trail has verify, integrate, plan and goal rows" 'for p in verify integrate plan goal; do cut -f3 "$W/runs/trail-$(date +%Y-%m-%d).tsv" | grep -qx "$p" || exit 1; done'
 check "reviewer attention appended to the report" 'grep -q "^## Attention" "$W/runs/night-$(date +%Y-%m-%d).md"'
+check "the reviewer read a snapshot and it is gone" '[ "$(git -C "$R" worktree list | grep -c "/review")" -eq 0 ]'
 check "morning merge lands the night" '( cd "$R" && sh .apsolut-agents/scripts/worktree.sh done "NIGHT-$(date +%Y-%m-%d)" --merge ) >/dev/null 2>&1 && git -C "$R" cat-file -e main:b.txt'
 
 echo "[2] verifier rejects attempt 1, advisor feeds attempt 2"
@@ -368,6 +369,20 @@ mkdir -p "$W/claims/.lane-other"; echo $$ > "$W/claims/.lane-other/pid"
 RC=0; ( cd "$R" && sh .apsolut-agents/scripts/runner.sh fake --drain ) > /dev/null 2>&1 || RC=$?
 check "with another lane alive: no audit yet, the night stays open, single-lane format" '[ "$RC" -eq 0 ] && ! grep -q "^## Attention" "$W/runs/night-$(D).md" && [ -f "$W/runs/.night-current" ] && grep -q "(lane: fake)" "$W/runs/night-$(D).md"'
 rmdir "$W/claims/.lane-other" 2>/dev/null || true
+
+echo "[26] a key that locks before the merge into the night branch parks; the card keeps its attempt"
+setup "a.txt exists" 'test -f a.txt' "human_wait_minutes: 2
+park_poll_seconds: 1"
+card T-01 "make: a.txt
+verifier-locks-key: $T/key-unlocked"
+signing
+: > "$T/key-unlocked"
+when_parked ': > "$T/key-unlocked"'
+run
+wait
+check "exit 0 (the card landed after the key came back)" '[ "$RC" -eq 0 ] && grep -q "^integrated: $(NB)" "$W/work/T-01.md"'
+check "it parked on signing, not on a merge conflict" 'grep -q "the merge could not be signed" "$W/runs/trail-$(D).tsv" && grep -q "resumed the lane" "$W/runs/trail-$(D).tsv" && ! grep -q "^status: blocked" "$W/work/T-01.md"'
+check "the attempt was returned" '[ "$(cat "$W/runs/.attempts-$(D)-T-01")" = 1 ]'
 
 echo
 echo "goal-loop: $PASSN ok, $FAILN failed"

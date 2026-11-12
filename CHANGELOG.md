@@ -23,7 +23,19 @@ upgrade an installed workspace with `sh .apsolut-agents/scripts/upgrade.sh`.
   "Waiting on you". A single-lane report is unchanged.
 - **The morning reviewer runs once per night**, from the last lane to finish. Two
   lanes ending close together used to write the same review files at once.
-- `tests/goal-loop.sh`: scenario 25.
+- Found by an independent Codex review of the runner, all fixed:
+  - **The morning reviewer could erase a card another lane had just landed.** It
+    worked inside the night worktree and reset it afterwards. It now reads a
+    detached snapshot, as the planner does, and leaves nothing behind there.
+  - **A signing key that locked just before the merge into the night branch** was
+    counted as a merge conflict and cost the card an attempt. The lane now parks and
+    the attempt is returned.
+  - Two lanes finishing in the same moment could trip over one temp file while
+    updating the night card, or each see the other as still running so that neither
+    ran the reviewer or closed the night.
+  - A lane that could not take the report lock released the other lane's lock.
+- `tests/goal-loop.sh`: scenarios 25 and 26, and a check that the reviewer's
+  snapshot is removed. The same-moment races have no test.
 
 ## v0.13.0 — 2026-11-11
 
