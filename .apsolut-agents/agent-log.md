@@ -330,3 +330,6 @@ v0.13.1 shipped to main
 - Grok was asked for the second audit headless in a throwaway clone: it returned three opening sentences and no findings (exit 0). Not looked into; Codex did that audit.
 - Tests: scenarios 27, 28, 29. 27 and 28 fail on v0.13.1 (8 of 10 checks) and pass here. Stress on the first round of fixes: 10 of 10 rounds clean.
 - Not fixed, listed in CHANGELOG "Known, not fixed" and PROJECT_STATE: TERM waits for the running CLI call; delegate/worktree green_cmd without a time limit; delegate supervisor TERM; swallowed reset failures in card worktrees; archive gaps in --jar/--reject; never tested with a real locked key.
+
+### claude — 2026-11-12 — HOLD
+v0.13.2 crash-safety on a branch; CI green; the human decides

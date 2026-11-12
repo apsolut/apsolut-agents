@@ -11,24 +11,24 @@ anything no longer true (git keeps history), keep the whole file to ~1 screen.
 ## Facts (generated)
 
 <!-- facts:begin -->
-_Generated 2026-11-12 08:24 by status.sh — do not hand-edit this block._
+_Generated 2026-11-12 09:45 by status.sh — do not hand-edit this block._
 
 | | |
 |--|--|
-| Branch | `main` |
-| Ahead/behind upstream | 6 ahead / 0 behind upstream |
+| Branch | `v0.13.2-crash-safety` |
+| Ahead/behind upstream | 1 ahead / 0 behind upstream |
 | Dirty files | 1 |
 | Worktrees | 1 (incl. primary) |
-| Last session token | claude — 2026-11-12 — PUSHED |
-| agent-log.md | 321 lines |
+| Last session token | claude — 2026-11-12 — HOLD |
+| agent-log.md | 335 lines |
 
 Recent commits:
 ```
+fde8e13 test: two lanes started together, as a stress test in the repo and in CI
+2ccced3 fix: v0.13.2 — a stopped or crashed lane says so, and the night heals
+b866867 agents: claude session end 2026-11-12 (PUSHED)
 eabe5e9 agents: claude session end 2026-11-12 (HOLD)
 968b6fa docs: .claude/ as an optional protect entry; log the stability pass
-1dc7fb0 fix: six runner defects found by an independent Codex review
-c92fe2e fix: two lanes share one night report without erasing each other
-f0dab38 agents: claude session end 2026-11-12 (HOLD)
 ```
 <!-- facts:end -->
 
