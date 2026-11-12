@@ -285,3 +285,11 @@ Grok credited via its official account
 
 ### claude — 2026-11-11 — HOLD
 v0.13.0 fail-fast on branch v0.13-fail-fast; human reviews before main
+
+### claude — 2026-11-12 — v0.13.0 shipped to main
+- The human said "ship". Pushed v0.13-fail-fast, opened PR #2 for CI. shellcheck failed once (SC1087: `"$E[31m"` reads as an array index); fixed with `${E}[` in doctor.sh and nightshift.sh (14a9d54). Second run: shellcheck, goal-loop, install-smoke all pass. Fast-forwarded main, tagged v0.13.0.
+- The human's priorities, stated today: token and money accounting is not important (the target user runs on subscriptions); stability comes first, and they want things double-checked. This moves the spend-line and Codex-spend items off the list and the untested real-model paths (retry, blocked card, conflict, real locked key) to the top.
+- The human kept --strict-mcp-config undecided; explained, recommended keeping it.
+
+### claude — 2026-11-12 — PUSHED
+v0.13.0 shipped to main

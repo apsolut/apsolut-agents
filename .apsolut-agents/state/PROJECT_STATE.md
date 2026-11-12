@@ -11,24 +11,24 @@ anything no longer true (git keeps history), keep the whole file to ~1 screen.
 ## Facts (generated)
 
 <!-- facts:begin -->
-_Generated 2026-11-11 07:10 by status.sh — do not hand-edit this block._
+_Generated 2026-11-12 04:44 by status.sh — do not hand-edit this block._
 
 | | |
 |--|--|
-| Branch | `v0.13-fail-fast` |
-| Ahead/behind upstream | no upstream configured |
+| Branch | `main` |
+| Ahead/behind upstream | 4 ahead / 0 behind upstream |
 | Dirty files | 1 |
 | Worktrees | 1 (incl. primary) |
-| Last session token | claude — 2026-11-11 — HOLD |
-| agent-log.md | 287 lines |
+| Last session token | claude — 2026-11-12 — PUSHED |
+| agent-log.md | 295 lines |
 
 Recent commits:
 ```
+14a9d54 fix: brace the escape variable in colour codes (shellcheck SC1087)
+1428e8b agents: claude session end 2026-11-11 (HOLD)
 5e7b469 docs: record the two-lane real run and the open gaps for v0.13.0
 1c3c0cf feat: v0.13.0 — a night no longer dies waiting for a human
 c65eba8 agents: claude session end 2026-11-11 (PUSHED)
-dce492c docs: record who drew each agent icon
-73f044a agents: claude session end 2026-11-11 (PUSHED)
 ```
 <!-- facts:end -->
 
