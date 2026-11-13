@@ -124,6 +124,10 @@ EOF
     rm -rf "$T" 2>/dev/null || true
   else
     badn=$((badn+1)); echo "round $i ($mode): PROBLEMS — fixture kept at $T$problems"
+    # CI throws the fixture away: say here where each lane stopped
+    for l in l1 l2; do echo "    --- last lines of lane $l ($T/$l.out)"; tail -15 "$T/$l.out" 2>/dev/null | sed 's/^/    | /'; done
+    echo "    --- DIED, released and error lines in agent-log.md"
+    grep -E "DIED|released claim|error" "$W/agent-log.md" 2>/dev/null | tail -10 | sed 's/^/    | /'
   fi
 done
 echo "stress: $okn rounds ok, $badn with problems"

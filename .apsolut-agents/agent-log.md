@@ -365,3 +365,8 @@ v0.14.0 (spend caps off by default, D-008) is finished in the working tree on `m
 
 ### claude — 2026-11-13 — HOLD
 v0.14.0 plus the status.sh fix: 20 tracked files changed in the working tree on `main`, nothing committed. The human commits tonight. Suggested: a branch and a PR so CI runs shellcheck (not run here), then tag `v0.14.0`.
+
+### claude — 2026-11-13 — v0.14.0 pushed as PR #6; one stress round failed in CI
+- Branch `v0.14.0-spend-caps-off`, PR #6 (the human said to commit and push). CI on 490a122: shellcheck, install-smoke and goal-loop (124 ok) pass; the two-lane stress step failed 1 of 4 rounds: round 1 (goal), one lane exited 255. Every other check of that round passed (both lanes' endings in the report, one Attention section, all four cards verified and integrated, no claim dropped).
+- Not reproduced: 12 rounds in Git Bash and 16 under WSL Linux, all ok. The CI log could not say where the lane stopped, because the fixture is thrown away; `tests/stress-two-lanes.sh` now prints the last lines of each lane and the DIED/error lines of a failed round.
+- Not looked into further, and not caused by anything I can tie to this change. Listed in TODO.md "Known defects".
