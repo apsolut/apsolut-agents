@@ -120,7 +120,9 @@ for f in README.md INSTALL.md PROJECT.md PROTOCOL.md WORKTREES.md CLAUDE-SNIPPET
 done
 NEXTD=""
 if [ -f "$WS/decisions/DECISIONS.md" ]; then
-  hi=$(grep -o 'D-[0-9][0-9]*' "$WS/decisions/DECISIONS.md" | sed 's/D-//' | sort -n | tail -1 || true)
+  # leading zeros come off first: to the shell 008 is a bad octal number (the script
+  # died on the eighth decision) and 010 is eight
+  hi=$(grep -o 'D-[0-9][0-9]*' "$WS/decisions/DECISIONS.md" | sed 's/^D-0*\([0-9]\)/\1/' | sort -n | tail -1 || true)
   [ -n "$hi" ] && NEXTD="- next decision id: D-$(printf '%03d' $((hi + 1)))
 "
 fi

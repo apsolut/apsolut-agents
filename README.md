@@ -18,6 +18,15 @@ every change before it counts. Nothing lands on your default branch until you me
 
 No server, no daemon, no framework. Markdown + git + POSIX sh (Git Bash on Windows).
 
+> [!CAUTION]
+> **Spend caps are off by default.** A night runs until the board is empty, the stop
+> time or the circuit breaker, however much it uses. On a subscription plan that is
+> the right default: nothing is charged per call.
+>
+> **Paying per call (an API key)? Switch the cap on before the first night:** set
+> `night_budget_usd: 100` in `.apsolut-agents/HEARTBEAT.md`. See
+> [Spend caps](#spend-caps-off-by-default).
+
 > **Status: early.** Plain nights have run on a real project. The goal loop (v0.9+)
 > is tested end to end in CI against a scripted stand-in agent, and has carried real
 > models through one small night (the recording below). Two lanes (Claude and Grok
@@ -33,7 +42,7 @@ and the planner added the card the two hand-written ones had missed.
 ## What you get
 
 - **Night shift.** One runner per agent works a board of cards, each in its own git
-  worktree, with a time cap, a spend cap and a circuit breaker.
+  worktree, with a time cap and a circuit breaker, and a spend cap you can switch on.
 - **A goal loop.** Give it a command that fails until the product is done. When the
   board runs dry and the command is still red, a planner writes the next cards.
 - **Full access by default, one flag to lock down.** Workers run with everything
@@ -160,9 +169,9 @@ Details: [`template/NIGHTSHIFT.md`](template/NIGHTSHIFT.md). History of each rul
 - **…an orchestration server or framework?** There is nothing to host. The state is
   files in your repo: read it with `cat`, review it with `git diff`, delete it with
   `rm -r`.
-- **…an agent in a `while` loop?** A loop has no independent check, no budget, no
-  record of why it did what it did, and nothing that stops it from weakening the
-  tests to get to green.
+- **…an agent in a `while` loop?** A loop has no independent check, no cap on time or
+  attempts, no record of why it did what it did, and nothing that stops it from
+  weakening the tests to get to green.
 
 ## Install
 
@@ -247,8 +256,8 @@ cannot merge, cannot write to the coordination folder, and cannot spawn delegate
 of its own (depth cap). Do not put `claude --bare` on a `cmd_` line in
 `HEARTBEAT.md`: that flag ignores the signed-in account, so the delegate reports
 "Not logged in" while your own terminal is signed in. Every round is one unmerged branch and one `git diff` away from
-being discarded. Rounds, fan-out, and daily spend are all capped; agents can't raise a
-cap. Protocol: [`template/DELEGATION.md`](template/DELEGATION.md).
+being discarded. Rounds and fan-out are capped, and daily spend can be; agents can't
+raise a cap. Protocol: [`template/DELEGATION.md`](template/DELEGATION.md).
 
 The unattended variant is the night shift above: same cards, same claim mutex, same
 spend ledger, so the two never collide. [`template/NIGHTSHIFT.md`](template/NIGHTSHIFT.md).
@@ -283,14 +292,29 @@ can open a labelled issue (an alert, a failed deploy, a teammate) can feed the b
 ## Run the preflight first
 
 `scripts/doctor.sh <agent>` checks everything in one command: tools, config, every
-card's contract and `after:` graph, green on a pristine worktree, rolling cost against
-the budget, and a live probe of the agent's CLI. Then one supervised
-`runner.sh <agent> --once` catches the misconfiguration that would otherwise burn the
-whole night. The runner also probes the CLI on boot and refuses the lane if the
-model cannot answer.
+card's contract and `after:` graph, green on a pristine worktree, rolling cost
+(against the budget when one is set), and a live probe of the agent's CLI. Then one
+supervised `runner.sh <agent> --once` catches the misconfiguration that would
+otherwise burn the whole night. The runner also probes the CLI on boot and refuses
+the lane if the model cannot answer.
 
-On a subscription plan the dollar figures are notional: nothing is charged per call,
-and the budgets measure how fast you use your plan's window.
+## Spend caps (off by default)
+
+On a subscription plan the dollar figures are notional: nothing is charged per call.
+So no spend cap is set out of the box, and a night ends on its stop time, the circuit
+breaker or an empty board. Spend is still recorded in `runs/.spend-<date>` and printed
+in the night report (`spend: $4.20 (no cap)`).
+
+If you pay per call, switch a cap on in `.apsolut-agents/HEARTBEAT.md`. Empty or `0`
+means no cap; any number above zero is a hard stop.
+
+| Key | What it caps |
+|---|---|
+| `night_budget_usd` | One night, across every lane. Checked between cards, so a night can overshoot by about one card. |
+| `call_budget_usd` | One CLI call, for a CLI with a spend flag (`claude --max-budget-usd`, already on the default line). |
+| `delegate_budget_usd` | One day of daytime delegation. Empty follows `night_budget_usd`. |
+
+`doctor.sh` says which way the night cap is set.
 
 ## This repo dogfoods itself
 

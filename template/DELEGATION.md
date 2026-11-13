@@ -79,10 +79,10 @@ cmd_grok:   grok --always-approve --no-subagents --output-format json -p
 cmd_codex:  codex exec --dangerously-bypass-approvals-and-sandbox --disable multi_agent --json -
 ```
 
-The extra flags switch off each CLI's own subagents and cap one call's spend. A
-delegate that spawns its own helpers works outside the depth cap, the round clock and
-the spend ledger. `HEARTBEAT.md` explains each flag, and `doctor.sh` warns about a
-`cmd_` line that lacks them.
+The extra flags switch off each CLI's own subagents and, when a spend cap is set, cap
+one call's spend. A delegate that spawns its own helpers works outside the depth cap,
+the round clock and the spend ledger. `HEARTBEAT.md` explains each flag, and
+`doctor.sh` warns about a `cmd_` line that lacks them.
 
 Do not add `--bare` to any of these. `claude --bare` ignores the signed-in claude.ai
 account: it skips OAuth and the keychain and accepts only an API key, so a delegate
@@ -112,7 +112,7 @@ to do by accident. The containment is structural, not advisory:
 | Never write under `.apsolut-agents/` | prompt contract + `git add` pathspec excludes it |
 | Cannot spawn its own delegates | `APSOLUT_AGENT_DEPTH` + `delegate_max_depth` |
 | Bounded blast radius | one branch per card, unmerged until a human-or-foreman reads the diff |
-| Bounded spend | shared `runs/.spend-<date>` ledger + `delegate_budget_usd` hard stop |
+| Bounded spend (optional, off by default) | shared `runs/.spend-<date>` ledger + `delegate_budget_usd` hard stop once you set it |
 | Bounded fan-out | `delegate_max_concurrent` counted from live claims |
 
 Everything a delegate does is one `git diff` away from being seen, and one unmerged
@@ -129,7 +129,7 @@ branch away from being discarded. That's the whole design.
 | `delegate_max_concurrent` | 2 | Fan-out. Counted from live claims, so it holds even if the depth env var doesn't propagate through a CLI. |
 | `delegate_max_rounds` | 4 | Infinite correction loops on a card that's wrong. |
 | `delegate_timeout_minutes` | `card_timeout_minutes`, else 45 | A wedged delegate. Per-card override: `budget:` on the card, or `--budget <min>`. |
-| `delegate_budget_usd` | `night_budget_usd`, else 25 | Runaway spend. Shared ledger with Night Shift: the same daily cap covers both. |
+| `delegate_budget_usd` | `night_budget_usd`, else no cap | Runaway spend when you pay per call. Off by default: empty falls back to `night_budget_usd`, and `0` or nothing set anywhere means no cap. Shared ledger with Night Shift: the same daily cap covers both. |
 
 Two caps deserve their reasoning stated, because they look like friction:
 

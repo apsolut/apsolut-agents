@@ -432,6 +432,65 @@ check "exit 0 (goal met)" '[ "$RC" -eq 0 ] && grep -q "reason: goal met" "$W/run
 check "the card got its worktree, was verified and integrated" 'grep -q "^worktree: .*-wt-" "$W/work/T-01.md" && grep -q "^verified: test-verified" "$W/work/T-01.md" && grep -q "^integrated: $(NB)" "$W/work/T-01.md"'
 check "the board lists it" '( cd "$R" && sh .apsolut-agents/scripts/status.sh >/dev/null 2>&1 ); grep -q "T-01" "$W/STATUS.md"'
 
+echo "[30] spend caps: off unless set, 0 is off too, a number above zero is a hard stop"
+# the fixture sets night_budget_usd: 50. One card costs 0.06 here (worker 0.05, verifier 0.01).
+setup "" ''
+sed -i 's/^night_budget_usd: 50$/night_budget_usd: 0.05/' "$W/HEARTBEAT.md"
+card T-01 "make: a.txt"
+card T-02 "make: b.txt"
+run
+check "a cap that is set ends the night once the ledger reaches it (exit 3)" '[ "$RC" -eq 3 ] && grep -q "reason: budget — spend: \$0.06 / \$0.05" "$W/runs/night-$(D).md"'
+check "the card that fitted is done, the next one never started" 'grep -q "^status: review" "$W/work/T-01.md" && grep -q "^status: waiting" "$W/work/T-02.md" && [ ! -f "$W/runs/T-02-attempt1.out" ]'
+# no cap: the ledger starts above the $100 an empty key used to mean
+setup "" ''
+sed -i 's/^night_budget_usd: 50$/night_budget_usd:/' "$W/HEARTBEAT.md"
+mkdir -p "$W/runs"; echo 150.00 > "$W/runs/.spend-$(D)"
+card T-01 "make: a.txt"
+run
+check "an empty night_budget_usd is no cap: the night runs whatever the ledger holds" '[ "$RC" -eq 0 ] && grep -q "^status: review" "$W/work/T-01.md" && grep -q "spend: \$150\.[0-9]* (no cap)" "$W/runs/night-$(D).md"'
+check "the lane says so when it starts" 'grep -q "night start (budget off," "$W/agent-log.md"'
+check "a cmd_ line with a spend flag still gets a number" 'grep -q "^env: budget=1000000.00 " "$W/runs/T-01-attempt1.out"'
+setup "" '' "call_budget_usd: 3"
+sed -i 's/^night_budget_usd: 50$/night_budget_usd: 0/' "$W/HEARTBEAT.md"
+card T-01 "make: a.txt"
+run
+check "night_budget_usd: 0 is no cap, not a night that ends before its first card" '[ "$RC" -eq 0 ] && grep -q "^status: review" "$W/work/T-01.md" && grep -q "(no cap)" "$W/runs/night-$(D).md"'
+check "call_budget_usd caps a call by itself" 'grep -q "^env: budget=3.00 " "$W/runs/T-01-attempt1.out"'
+# delegate.sh reads the same ledger and has its own key
+dstatus() { ( cd "$R" && sh .apsolut-agents/scripts/delegate.sh status ) 2>&1; }
+drun() { DRC=0; ( cd "$R" && sh .apsolut-agents/scripts/delegate.sh run fake T-01 ) > "$T/delegate.out" 2>&1 || DRC=$?; }
+setup "" '' "delegate_budget_usd: 5"
+mkdir -p "$W/runs"; echo 6.00 > "$W/runs/.spend-$(D)"
+card T-01 "make: a.txt"
+drun
+check "delegate.sh: a cap that is set refuses the dispatch" '[ "$DRC" -eq 1 ] && grep -q "has reached \$5 (delegate_budget_usd)" "$T/delegate.out" && [ ! -d "$W/claims/T-01" ]'
+sed -i 's/^delegate_budget_usd: 5$/delegate_budget_usd: 0/' "$W/HEARTBEAT.md"
+check "delegate.sh: 0 is no cap, even while the night has one" 'dstatus | grep -q "spend today: \$6.00 (no cap)"'
+drun
+check "delegate.sh: with no cap the dispatch goes out" 'grep -q "^dispatching fake on T-01" "$T/delegate.out" && ! grep -q "has reached" "$T/delegate.out"'
+sed -i 's/^delegate_budget_usd: 0$/delegate_budget_usd:/' "$W/HEARTBEAT.md"
+check "delegate.sh: an empty delegate cap follows the night cap" 'dstatus | grep -q "spend today: \$[0-9.]* / \$50"'
+sed -i 's/^night_budget_usd: 50$/night_budget_usd:/' "$W/HEARTBEAT.md"
+check "delegate.sh: no cap when neither key is set" 'dstatus | grep -q "spend today: \$[0-9.]* (no cap)"'
+
+echo "[31] the eighth decision (D-008) does not stop the board or the session end"
+# to the shell 008 is a bad octal number and 010 is eight
+stat() { SRC=0; ( cd "$R" && sh .apsolut-agents/scripts/status.sh ) > "$T/status.out" 2>&1 || SRC=$?; }
+setup "" ''
+# a decisions file that holds only the placeholder entry
+{ head -1 "$W/decisions/DECISIONS.md"; echo '### D-0NN — <title>  (<date>)'; } > "$T/dec"
+mv "$T/dec" "$W/decisions/DECISIONS.md"
+stat
+check "with no decision yet the next id is D-001" '[ "$SRC" -eq 0 ] && grep -q "^- next decision id: D-001$" "$W/STATUS.md"'
+printf '\n### D-008 — the eighth  (a date)\n' >> "$W/decisions/DECISIONS.md"
+stat
+check "with D-008 in the file status.sh still exits 0 and names D-009" '[ "$SRC" -eq 0 ] && grep -q "^- next decision id: D-009$" "$W/STATUS.md"'
+SRC=0; ( cd "$R" && sh .apsolut-agents/scripts/session-end.sh fake HOLD "a test" ) > "$T/send.out" 2>&1 || SRC=$?
+check "session-end.sh finishes and regenerates the facts" '[ "$SRC" -eq 0 ] && grep -q "facts regenerated" "$T/send.out"'
+printf '\n### D-010 — the tenth  (a date)\n' >> "$W/decisions/DECISIONS.md"
+stat
+check "D-010 is ten: the next id is D-011" '[ "$SRC" -eq 0 ] && grep -q "^- next decision id: D-011$" "$W/STATUS.md"'
+
 echo
 echo "goal-loop: $PASSN ok, $FAILN failed"
 [ -z "${KEEP:-}" ] || echo "kept fixtures:$TMPS"

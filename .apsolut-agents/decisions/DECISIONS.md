@@ -68,3 +68,10 @@ Template:
 - **Rejected:** resolving cards by scanning frontmatter everywhere (spreads O(n) scans through every script and keeps two sources of truth); dual-key support (same problem, plus ambiguity when they disagree).
 - **Status:** implemented
 - **Owners / applies to:** LICENSE; template/scripts/runner.sh, delegate.sh, status.sh; template/work/_TEMPLATE.md
+
+### D-008 — Spend caps are opt-in: off by default  (2026-11-13)
+- **Decision:** `night_budget_usd` and `delegate_budget_usd` ship empty, and empty, absent or `0` means no cap. A number above zero is the same hard stop as before. Spend is still recorded in the ledger and the report. The README says so in a caution block at the top, with the one line that switches a cap on. This replaces the "per-night hard budget cap ($25 default)" clause of D-004; the rest of D-004 stands.
+- **Why:** Chosen by the human 2026-11-13. The people who run this are on subscription plans, where nothing is charged per call, so a dollar cap protects nothing and can stop good work. In another project the caps had already been worked around by setting both to 1000000, because `0` blocked everything and an empty value fell back to the default.
+- **Rejected:** keeping a default cap and documenting a large number as the way out (a magic number in every `HEARTBEAT.md`); removing `--max-budget-usd` from the default Claude line (existing lines carry it and no upgrade rewrites them, so the scripts must hand it a number either way: 1000000 while no cap is set); removing the cap code (people who pay per call need it).
+- **Status:** implemented (v0.14.0, working tree, not committed)
+- **Owners / applies to:** template/scripts/runner.sh, delegate.sh, doctor.sh; template/HEARTBEAT.md, NIGHTSHIFT.md, DELEGATION.md; README.md; tests/goal-loop.sh scenario 30

@@ -55,7 +55,12 @@ MAXDEPTH=$(num_or "$(cfg delegate_max_depth)" 2)
 MAXCONC=$(num_or "$(cfg delegate_max_concurrent)" 2)
 MAXROUNDS=$(num_or "$(cfg delegate_max_rounds)" 4)
 TIMEOUT_MIN=$(num_or "$(cfg delegate_timeout_minutes)" "$(num_or "$(cfg card_timeout_minutes)" 45)")
-BUDGET=$(num_or "$(cfg delegate_budget_usd)" "$(num_or "$(cfg night_budget_usd)" 25)")
+# the daily spend cap is optional and off by default: delegate_budget_usd, else
+# night_budget_usd; empty, absent or 0 = no cap
+BUDGET=$(num_or "$(cfg delegate_budget_usd)" "$(num_or "$(cfg night_budget_usd)" 0)")
+capped() { awk -v b="$BUDGET" 'BEGIN{exit !(b+0 > 0)}'; }
+# what $APSOLUT_CALL_BUDGET_USD holds when nothing caps a call (same as runner.sh)
+NO_CAP_USD=1000000
 FALLBACK_COST=$(num_or "$(cfg cost_fallback_usd)" 2)
 GREEN=$(cfg green_cmd)
 
@@ -85,7 +90,8 @@ status)
   done
   [ "$found" = no ] && echo "(no active claims)"
   echo
-  echo "spend today: \$$(spent) / \$$BUDGET   caps: depth<$MAXDEPTH concurrent<=$MAXCONC rounds<=$MAXROUNDS"
+  if capped; then st="\$$(spent) / \$$BUDGET"; else st="\$$(spent) (no cap)"; fi
+  echo "spend today: $st   caps: depth<$MAXDEPTH concurrent<=$MAXCONC rounds<=$MAXROUNDS"
   echo "cards in review (ready for you to judge):"
   for f in "$WS"/work/*.md; do
     [ -f "$f" ] || continue
@@ -193,7 +199,7 @@ run|--detached-child)
     echo "error: $NACTIVE active claims >= delegate_max_concurrent ($MAXCONC) — 'delegate.sh status', then stop or accept one before starting another" >&2
     exit 1
   fi
-  if awk "BEGIN{exit !($(spent) >= $BUDGET)}"; then
+  if capped && awk -v s="$(spent)" -v b="$BUDGET" 'BEGIN{exit !(s+0 >= b+0)}'; then
     echo "error: today's spend \$$(spent) has reached \$$BUDGET (delegate_budget_usd) — a human raises this, not an agent" >&2
     exit 1
   fi
@@ -301,7 +307,7 @@ $(cat "$CARD")"
     APSOLUT_CALL_MINUTES=$CB
     APSOLUT_SOFT_TIMEOUT_MIN=$(( CB > 1 ? CB - 1 : 1 ))
     cbud=$(cfg call_budget_usd); case "$cbud" in ''|*[!0-9.]*|*.*.*) cbud=0;; esac
-    APSOLUT_CALL_BUDGET_USD=$(awk -v b="$BUDGET" -v s="$(spent)" -v c="$cbud" 'BEGIN{r=b-s; if(c>0&&c<r)r=c; if(r<0.01)r=0.01; printf "%.2f", r}')
+    APSOLUT_CALL_BUDGET_USD=$(awk -v b="$BUDGET" -v s="$(spent)" -v c="$cbud" -v big="$NO_CAP_USD" 'BEGIN{r=(b+0>0)?b-s:big; if(c>0&&c<r)r=c; if(r<0.01)r=0.01; printf "%.2f", r}')
     export APSOLUT_CALL_MINUTES APSOLUT_SOFT_TIMEOUT_MIN APSOLUT_CALL_BUDGET_USD
     if [ "$PMODE" = stdin ]; then
       exec timeout -k 30 $(( CB * 60 )) sh -c "$CMD" < "$PFILE"

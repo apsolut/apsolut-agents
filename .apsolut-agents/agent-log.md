@@ -345,3 +345,23 @@ v0.13.2 crash-safety on a branch; CI green; the human decides
 
 ### claude — 2026-11-12 — PUSHED
 v0.13.2 shipped to main
+
+### claude — 2026-11-13 — v0.14.0: spend caps off by default (working tree on main, not committed)
+- The human asked for the budget limits to be off from the start, with a red note at the top of the README saying the option can be switched on. Background: in another project both caps had been set to 1000000 as a way out, because `0` blocked everything and an empty value fell back to the default. Recorded as D-008.
+- Scripts (`template/scripts/`, copied to this repo's `.apsolut-agents/scripts/`): `night_budget_usd` and `delegate_budget_usd` empty, absent or `0` = no cap; a number above zero is the same hard stop as before (exit 3, `reason: budget`; a refused dispatch). Before: empty meant $100 a night and $25 a day, `0` ended the night before its first card. With no cap `$APSOLUT_CALL_BUDGET_USD` is 1000000.00, so the default Claude line with `--max-budget-usd` still gets a number; `call_budget_usd` still caps one call by itself. The report reads `spend: $4.20 (no cap)`, the start line `budget off`.
+- `doctor.sh`: the `--max-budget-usd` warning only with a cap set; with no night cap a `note` (not counted) and no "no spend history yet" warning.
+- `template/HEARTBEAT.md` ships the three keys empty with the reason and the one line that switches a cap on. `NIGHTSHIFT.md`, `DELEGATION.md` and the root README say "optional, off by default"; the README has a `> [!CAUTION]` block at the top and a short "Spend caps" section.
+- Not changed: this repo's own `HEARTBEAT.md` still says 100 / 25. It is the human's file and a cap is the human's to lift.
+- Checked: `tests/goal-loop.sh` 120 of 120 (30 scenarios, Git Bash on Windows); new scenario 30 has 12 checks, 8 of them fail on v0.13.2. `tests/stress-two-lanes.sh 4`: 4 rounds ok. The CI install-smoke steps by hand: install equals payload, refresh, wire, VERSION stamped 0.14.0. A real call, `claude -p --max-budget-usd 1000000.00` on claude 2.1.323: answered, `is_error:false`. `sh -n` on every script. Not run: shellcheck (not installed here; CI runs it).
+- The `PROJECT.md` leakage check prints six dated comments in `runner.sh` and `doctor.sh` ("field incident 2026-08-11"). They were there before this change; not touched.
+- Waits on the human: commit, PR, tag. A copy elsewhere that holds 1000000 can go back to empty after `upgrade.sh`.
+
+### claude — 2026-11-13 — HOLD
+v0.14.0 (spend caps off by default, D-008) is finished in the working tree on `main`: 19 tracked files changed, nothing committed, nothing pushed. The human said they commit tonight, so no agent commits this. For the commit: all 19 files belong to the one change (the entry above lists them by area). Suggested: a branch and a PR rather than straight onto `main`, because shellcheck has not run on this change and CI runs it; everything else in CI was run by hand and passed. After the merge: tag `v0.14.0`. Still the human's call: this repo's own `HEARTBEAT.md` keeps 100 / 25 until they empty it. The local `TODO.md` holds the full list.
+
+### claude — 2026-11-13 — status.sh died on D-008 (fixed, same working tree)
+- Running `session-end.sh` for the handoff failed: `status.sh` line 125, "008: value too great for base". The next decision id was computed with shell arithmetic, which reads `008` as a bad octal number (and `010` as eight). This repo's own D-008 was the first to hit it. Leading zeros now come off first (`template/scripts/status.sh`, copied to `.apsolut-agents/scripts/`). CHANGELOG v0.14.0 "Fixed".
+- Scenario 31 in `tests/goal-loop.sh`: D-008 and D-010 in the decisions file, then `status.sh` and `session-end.sh`. 3 of its 4 checks fail on v0.13.2. Full suite: 124 ok, 0 failed (31 scenarios).
+
+### claude — 2026-11-13 — HOLD
+v0.14.0 plus the status.sh fix: 20 tracked files changed in the working tree on `main`, nothing committed. The human commits tonight. Suggested: a branch and a PR so CI runs shellcheck (not run here), then tag `v0.14.0`.

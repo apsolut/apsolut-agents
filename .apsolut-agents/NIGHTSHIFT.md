@@ -21,8 +21,8 @@ sh .apsolut-agents/scripts/runner.sh claude --once # ONE card through the pipeli
 sh .apsolut-agents/scripts/runner.sh claude --drain # until the board is empty / goal met, no idle wait
 ```
 
-Config lives in `HEARTBEAT.md` (instance file — yours): timeouts, the night and
-per-call budgets, breaker thresholds, `green_cmd`, the role agents and risk routing,
+Config lives in `HEARTBEAT.md` (instance file — yours): timeouts, the optional night and
+per-call spend caps (off by default), breaker thresholds, `green_cmd`, the role agents and risk routing,
 per-agent headless commands, ntfy.sh URL. Run `scripts/doctor.sh <agent>` after every
 edit and every upgrade: no upgrade rewrites this file, and doctor says what it lacks.
 
@@ -86,7 +86,7 @@ the Cursor plugins: every rule a script can check moved out of the prompts.
 | the judge is not the worker's | `protect:` pathspecs (HEARTBEAT + GOAL.md): a card diff touching one is red; a night diff touching one cannot meet the goal. The card is snapshotted at claim, so a worker editing its own `verify:` or Done-when changes nothing. |
 | test first | `check:` runs before (must fail) and after (must pass) |
 | no symptom patches | `forbid_added:` regex over added lines (`.skip(`, `.only(`, `@ts-ignore`, `eslint-disable`, …) → red |
-| one call cannot outspend the night (v0.11) | `$APSOLUT_CALL_BUDGET_USD` (`call_budget_usd`, never more than what is left of the night) goes to a CLI with a spend flag; a worker that hits it is blocked, not retried |
+| with a spend cap set, one call cannot outspend the night (v0.11) | `$APSOLUT_CALL_BUDGET_USD` (`call_budget_usd`, never more than what is left of the night) goes to a CLI with a spend flag; a worker that hits it is blocked, not retried. With no cap set the variable holds 1000000 |
 | exit 0 is not "finished" (v0.11) | a CLI that reports `is_error`, a cancelled turn, a denied tool or its own turn limit is red whatever it exited with; its own timeout reads as a timeout |
 | lanes do not fan out by themselves (v0.11) | the `cmd_` lines switch off each CLI's native subagents; `doctor.sh` warns about a line that does not |
 | a throttle is a failed call | only a non-zero exit or `is_error`, judged on the last 40 lines; every call is charged; `max_backoffs_per_card` then it counts as an attempt |
@@ -221,8 +221,11 @@ them (filename = id, Goal + Done when, test-first) → work/ → loop
   pristine worktree; if it fails there, the night refuses as a **harness** failure
   (exit 4) instead of blocking good cards and tripping the breaker.
 - Runner cannot push (spawn seals that worktree's pushurl) and never merges — branches only. HOLD stays human.
-- Per-night **hard budget cap** (`night_budget_usd`), per-card time cap, lane circuit
-  breaker (N consecutive failures → stop), provider 429/quota → backoff, not failure.
+- Per-card time cap, lane circuit breaker (N consecutive failures → stop), provider
+  429/quota → backoff, not failure.
+- Optional per-night **hard spend cap** (`night_budget_usd`). Off by default: empty or
+  0 = no cap, because on a subscription plan nothing is charged per call. If you pay
+  per call, set it before the first night. Spend is recorded either way.
 - Boot recovery: stale claims (dead pid + old) are released on every start.
 - Kill cleanup: process-tree kill via `timeout -k`, then `index.lock` removal and
   `reset --hard` on failure — a wedged attempt never poisons the next one.
@@ -275,10 +278,10 @@ now feed the board.
 ## Phase gates (don't skip)
 
 Before any run: `sh .apsolut-agents/scripts/doctor.sh <agent>` — tools, HEARTBEAT
-sanity, card contract + `after:` graph, green on the primary, rolling cost vs
-budget, and a live CLI probe, in one command. Exit 1 = do not start the night.
+sanity, card contract + `after:` graph, green on the primary, rolling cost (against
+the budget when one is set), and a live CLI probe, in one command. Exit 1 = do not start the night.
 
 v0: 3 supervised `--once` runs — zero double-claims, zero touches of the default
-branch, every green branch builds, budget respected. v1: 5 clean unattended solo
+branch, every green branch builds, a set budget respected. v1: 5 clean unattended solo
 nights. v2: add the second lane + `heartbeat.sh` (future — not shipped yet). Full rationale: the night-shift
 PRD in `runs/` (or `ideas/` while drafting).

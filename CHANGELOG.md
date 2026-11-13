@@ -3,6 +3,50 @@
 All notable changes to apsolut-agents. Pin a release with `install.sh --tag vX.Y.Z`;
 upgrade an installed workspace with `sh .apsolut-agents/scripts/upgrade.sh`.
 
+## v0.14.0 — 2026-11-13
+
+Spend caps are off by default. This is run on subscription plans, where nothing is
+charged per call: a dollar cap protects nothing there, and it can end a night or
+refuse a delegation that was going well.
+
+### Changed
+- **`night_budget_usd` and `delegate_budget_usd` are empty in the template, and empty
+  means no cap.** Before, an empty or missing key fell back to $100 a night and $25 a
+  day of delegation. A night now ends on `stop_time`, the circuit breaker, the Andon
+  or an empty board. Spend is still recorded in `runs/.spend-<date>` and printed in
+  the report, as `spend: $4.20 (no cap)`.
+- **`0` means no cap too.** Before, `night_budget_usd: 0` ended the night before its
+  first card (exit 3) and `delegate_budget_usd: 0` refused every dispatch.
+  `delegate_budget_usd: 0` switches the cap off for delegation even while the night
+  has one; left empty it still follows `night_budget_usd`.
+- **An installed `HEARTBEAT.md` is not rewritten**, so a workspace that says
+  `night_budget_usd: 100` keeps its cap. To switch it off, empty the value or set
+  `0`. To switch a cap on, set a number above zero: that is the whole option, and
+  it is then the same hard stop as before (exit 3, `reason: budget`).
+- With no cap set, `$APSOLUT_CALL_BUDGET_USD` is `1000000.00`, so a `cmd_` line that
+  passes it on (`claude --max-budget-usd $APSOLUT_CALL_BUDGET_USD`, the default line)
+  keeps working and never trips. Checked against claude 2.1.323. `call_budget_usd`
+  still caps one call by itself.
+- `doctor.sh`: the warning about a Claude line without `--max-budget-usd` only
+  appears when a cap is set. With no night cap it prints a `note` (not counted) that
+  says so and how to set one, and no longer warns "no spend history yet".
+- README: a caution block at the top says the caps are off and how to switch one on,
+  and a short "Spend caps" section lists the three keys.
+
+### Fixed
+- **`status.sh` died on a project's eighth decision**, and `session-end.sh` with it
+  (exit 1, facts and board not regenerated). It worked out the next decision id with
+  the shell, and to the shell `008` and `009` are bad octal numbers; `010` counted as
+  eight, so the board would have said `D-009` after `D-010`. Leading zeros now come
+  off first. Found here, on this repo's own D-008.
+
+### Tests
+- `tests/goal-loop.sh`: scenario 30. A cap that is set still ends the night and still
+  refuses a dispatch; an empty key and `0` do neither; the `cmd_` line gets a number
+  either way. 8 of its 12 checks fail on v0.13.2.
+- Scenario 31: `status.sh` and `session-end.sh` with D-008 and D-010 in the decisions
+  file. 3 of its 4 checks fail on v0.13.2.
+
 ## v0.13.2 — 2026-11-12
 
 A stability release. It comes from one audit of `main`: a stress test of two lanes

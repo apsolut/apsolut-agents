@@ -84,7 +84,12 @@ MAX_FAILS=$(num_or "$(cfg max_consecutive_failures_lane)" 3)
 HUMAN_WAIT=$(num_or "$(cfg human_wait_minutes)" 60); HUMAN_WAIT=${HUMAN_WAIT%%.*}
 PARK_POLL=$(num_or "$(cfg park_poll_seconds)" 300); PARK_POLL=${PARK_POLL%%.*}
 [ "${PARK_POLL:-0}" -ge 1 ] || PARK_POLL=1
-BUDGET=$(num_or "$(cfg night_budget_usd)" "$(num_or "$(cfg night_budget)" 100)")
+# the spend cap is optional and off by default: night_budget_usd empty, absent or 0 =
+# no cap. A number above zero is a hard stop, checked between cards.
+BUDGET=$(num_or "$(cfg night_budget_usd)" "$(num_or "$(cfg night_budget)" 0)")
+# what $APSOLUT_CALL_BUDGET_USD holds when nothing caps a call: a cmd_ line that
+# passes it on (claude --max-budget-usd) needs a number, and this one is never reached
+NO_CAP_USD=1000000
 FALLBACK_COST=$(num_or "$(cfg cost_fallback_usd)" 2)
 STOP=$(cfg stop_time | tr -d ':'); STOP=${STOP:-0700}
 POLL=$(num_or "$(cfg idle_poll_seconds)" 300)
@@ -177,6 +182,13 @@ notify() { [ -n "$NTFY" ] && curl -s --connect-timeout 10 --max-time 20 -d "nigh
 tick() { printf 'TICK: %s %s %s\n' "$AGENT" "$(date '+%m-%d %H:%M')" "$1" >> "$LOG"; }
 trail() { TRAIL_LANE=$AGENT TRAIL_DATE=$DATE sh "$WS/scripts/trail.sh" "$@" 2>/dev/null || true; }
 spent() { num_or "$(cat "$SPENDF" 2>/dev/null || echo 0)" 0; }
+# capped: the night has a spend cap. over_budget: it has one, and the ledger reached it.
+capped() { awk -v b="$BUDGET" 'BEGIN{exit !(b+0 > 0)}'; }
+over_budget() { capped && awk -v s="$(spent)" -v b="$BUDGET" 'BEGIN{exit !(s+0 >= b+0)}'; }
+# how the spend reads in a report ("$4.20 / $100", "$4.20 (no cap)") and the cap in a
+# start line ("$100", "off")
+spend_txt() { if capped; then echo "\$$(spent) / \$$BUDGET"; else echo "\$$(spent) (no cap)"; fi; }
+if capped; then BUDGET_TXT="\$$BUDGET"; else BUDGET_TXT=off; fi
 add_spend() { # lanes share the ledger: read-modify-write under a mutex
   # best effort: after ~10s take the mutex by force, after ~20s write without it. A
   # ledger that is off by one card beats a lane stuck on a lock it cannot remove.
@@ -207,11 +219,12 @@ charge() {
   add_spend "$c"
 }
 # What one CLI call may spend: call_budget_usd, and never more than what is left of
-# the night. night_budget_usd is only checked between cards, so without a per-call
-# cap one card can overshoot it. A cmd_ line passes it on to a CLI that has a spend
-# flag (claude --max-budget-usd $APSOLUT_CALL_BUDGET_USD).
+# the night when the night has a cap. night_budget_usd is only checked between cards,
+# so without a per-call cap one card can overshoot it. A cmd_ line passes it on to a
+# CLI that has a spend flag (claude --max-budget-usd $APSOLUT_CALL_BUDGET_USD). With
+# neither cap set the value is NO_CAP_USD, so that line still gets a number.
 call_budget() {
-  awk -v b="$BUDGET" -v s="$(spent)" -v c="$CALL_BUDGET" 'BEGIN{r=b-s; if(c>0&&c<r)r=c; if(r<0.01)r=0.01; printf "%.2f", r}'
+  awk -v b="$BUDGET" -v s="$(spent)" -v c="$CALL_BUDGET" -v big="$NO_CAP_USD" 'BEGIN{r=(b+0>0)?b-s:big; if(c>0&&c<r)r=c; if(r<0.01)r=0.01; printf "%.2f", r}'
 }
 # Exported to every cmd_ line (it runs through sh -c, so it can use them):
 #   APSOLUT_CALL_MINUTES      the hard cap `timeout` enforces on this call
@@ -437,7 +450,7 @@ cleanup() {
   # like a quiet one.
   if [ "$FINISHED" != yes ]; then
     tick "DIED: the runner stopped without a report (exit $crc) — this log and runs/trail-$DATE.tsv hold the night so far"
-    echo "$(date '+%Y-%m-%d %H:%M') — reason: the runner stopped without a report (exit $crc) — spend: \$$(spent) / \$$BUDGET" > "$WS/runs/.lane-end-$DATE-$AGENT"
+    echo "$(date '+%Y-%m-%d %H:%M') — reason: the runner stopped without a report (exit $crc) — spend: $(spend_txt)" > "$WS/runs/.lane-end-$DATE-$AGENT"
     notify "DIED: the runner stopped without a report (exit $crc)"
   fi
   rm -rf "$LANE"
@@ -828,7 +841,7 @@ finish() { # $1 reason, $2 exit code
   # lane never erases the first one's ending.
   LEND="$WS/runs/.lane-end-$DATE-$AGENT"
   {
-    echo "$(date '+%Y-%m-%d %H:%M') — reason: $1 — spend: \$$(spent) / \$$BUDGET"
+    echo "$(date '+%Y-%m-%d %H:%M') — reason: $1 — spend: $(spend_txt)"
     case "$1" in "waiting on a human"*) echo "- **Lane parked, $1.** Unfinished cards are still \`waiting\` with their attempts returned: fix it, then start the runner again.";; esac
   } > "$LEND"
   # Inside the lock this lane marks itself as ending and looks for lanes that are
@@ -919,7 +932,7 @@ finish() { # $1 reason, $2 exit code
   # cross-model morning audit of the trail (show-me-your-work's "Attention" section).
   # Only the last lane standing runs it: it then sees the whole night, and two lanes
   # never write the same review files at once.
-  if [ -n "$REVIEWER" ] && [ "$others" = no ] && awk "BEGIN{exit !($(spent) < $BUDGET)}" && [ -s "$WS/runs/trail-$DATE.tsv" ]; then
+  if [ -n "$REVIEWER" ] && [ "$others" = no ] && ! over_budget && [ -s "$WS/runs/trail-$DATE.tsv" ]; then
     AP="$WS/runs/night-$DATE-attention.md"; rm -f "$AP"
     p_begin
     pv AGENT "$REVIEWER"; pv REPORT "$REPORT"; pv TRAIL "$WS/runs/trail-$DATE.tsv"; pv HANDOFFS_DIR "$HO"
@@ -1003,9 +1016,9 @@ red() {
   BY=task
 }
 
-echo "runner[$AGENT]: timeout=${TIMEOUT_MIN}m attempts=$MAX_ATTEMPTS breaker=$MAX_FAILS budget=\$$BUDGET stop=$STOP goal=$GOAL_MODE verifier=${VERIFIER:-none}"
-tick "night start (budget \$$BUDGET, stop $STOP, goal mode $GOAL_MODE)"
-trail start "started the lane" "goal mode $GOAL_MODE, verifier ${VERIFIER:-none}, advisor ${ADVISOR:-none}" "pid $$" "budget \$$BUDGET"
+echo "runner[$AGENT]: timeout=${TIMEOUT_MIN}m attempts=$MAX_ATTEMPTS breaker=$MAX_FAILS budget=$BUDGET_TXT stop=$STOP goal=$GOAL_MODE verifier=${VERIFIER:-none}"
+tick "night start (budget $BUDGET_TXT, stop $STOP, goal mode $GOAL_MODE)"
+trail start "started the lane" "goal mode $GOAL_MODE, verifier ${VERIFIER:-none}, advisor ${ADVISOR:-none}" "pid $$" "budget $BUDGET_TXT"
 # --- waiting on a human (v0.13) ----------------------------------------------------
 # Two things a card cannot fix and a retry cannot fix: the key that signs commits is
 # locked, or a CLI lost its login. Marching the board through either blocks every
@@ -1073,7 +1086,7 @@ while :; do
   [ "$ONCE" = yes ] && [ "$DID_ONE" = yes ] && finish "once: one card through the pipeline" 0
   if [ "$ARMED" = no ]; then in_stop_window || ARMED=yes
   elif in_stop_window; then finish "stop_time" 0; fi
-  awk "BEGIN{exit !($(spent) >= $BUDGET)}" && { notify "BUDGET CAP hit (\$$(spent))"; finish "budget" 3; }
+  over_budget && { notify "BUDGET CAP hit (\$$(spent))"; finish "budget" 3; }
   [ "$FAILS" -ge "$MAX_FAILS" ] && { notify "CIRCUIT BREAKER: $FAILS consecutive failures"; finish "breaker" 2; }
   sign_ok || park "$(sign_why)" sign_ok
 

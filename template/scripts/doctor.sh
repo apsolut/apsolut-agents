@@ -53,7 +53,7 @@ timeout -k 1 5 true >/dev/null 2>&1 || fail "timeout is not GNU coreutils timeou
 
 # --- heartbeat ---------------------------------------------------------------------
 echo "[heartbeat]"
-GREEN=""
+GREEN=""; CAPS=off
 if [ ! -f "$HB" ]; then
   warn "no HEARTBEAT.md — nights/delegation (Tier 2) unavailable"
 else
@@ -85,6 +85,11 @@ else
       esac ;;
     esac
   done
+  # spend caps are optional and off by default: on when one of the three keys is a
+  # number above zero
+  for k in night_budget_usd delegate_budget_usd call_budget_usd; do
+    if awk -v b="$(num_or "$(cfg "$k")" 0)" 'BEGIN{exit !(b+0 > 0)}'; then CAPS=on; fi
+  done
   # HEARTBEAT.md is yours and no upgrade rewrites it, so an older cmd_ line keeps
   # running without the caps newer CLIs need. Judged by the binary, not the lane name.
   for a in $CMDS; do
@@ -93,7 +98,10 @@ else
     case "$(printf '%s\n' "$cl" | tr ' ' '\n' | grep -vE '^[A-Za-z_][A-Za-z0-9_]*=' | head -1)" in
       claude)
         case "$cl" in *--disallowedTools*|*--disallowed-tools*) ;; *) warn "cmd_$a: no --disallowedTools Agent,Task — claude can spawn its own subagents, outside the card clock and the spend ledger";; esac
-        case "$cl" in *--max-budget-usd*) ;; *) warn "cmd_$a: no --max-budget-usd \$APSOLUT_CALL_BUDGET_USD — one card can overshoot night_budget_usd";; esac
+        # only a workspace with a spend cap needs the per-call flag
+        if [ "$CAPS" = on ]; then
+          case "$cl" in *--max-budget-usd*) ;; *) warn "cmd_$a: no --max-budget-usd \$APSOLUT_CALL_BUDGET_USD — a spend cap is set, and one card can overshoot it";; esac
+        fi
         case "$cl" in *--strict-mcp-config*) ok "cmd_$a: locked down (--strict-mcp-config): the worker cannot reach the account's MCP servers and connectors" ;; *) note "cmd_$a: full access — the worker can use your account's MCP servers and connectors. To lock a night down, add --strict-mcp-config (see HEARTBEAT.md)";; esac ;;
       grok)
         case "$cl" in *--no-subagents*) ;; *) warn "cmd_$a: no --no-subagents — grok starts background subagents the runner neither waits for nor charges";; esac
@@ -361,7 +369,9 @@ if command -v gh >/dev/null 2>&1; then
 fi
 
 echo "[costs]"
-BUDGET=$(num_or "$(cfg night_budget_usd)" 100)
+# night_budget_usd empty, absent or 0 = no cap (the default)
+BUDGET=$(num_or "$(cfg night_budget_usd)" 0)
+if awk -v b="$BUDGET" 'BEGIN{exit !(b+0 > 0)}'; then NIGHT_CAP=on; else NIGHT_CAP=off; fi
 FB=$(num_or "$(cfg cost_fallback_usd)" 2)
 TOTAL=0; DAYS=0
 for s in "$WS"/runs/.spend-*; do
@@ -372,11 +382,19 @@ done
 ATTEMPTS=$(ls "$WS"/runs/*-attempt*.out 2>/dev/null | grep -c . || true)
 if [ "${ATTEMPTS:-0}" -gt 0 ] && [ "$DAYS" -gt 0 ]; then
   AVG=$(awk "BEGIN{printf \"%.2f\", $TOTAL / $ATTEMPTS}")
-  PER=$(awk "BEGIN{printf \"%.0f\", ($AVG > 0) ? $BUDGET / $AVG : 0}")
-  ok "rolling avg \$$AVG/attempt ($ATTEMPTS attempts over $DAYS day(s)) — budget \$$BUDGET ≈ $PER attempts/night"
-  awk "BEGIN{exit !($AVG > $FB * 2)}" && warn "avg \$$AVG is >2x cost_fallback_usd (\$$FB) — raise the fallback or budgets overshoot when cost output is missing"
-else
+  if [ "$NIGHT_CAP" = on ]; then
+    PER=$(awk "BEGIN{printf \"%.0f\", ($AVG > 0) ? $BUDGET / $AVG : 0}")
+    ok "rolling avg \$$AVG/attempt ($ATTEMPTS attempts over $DAYS day(s)) — budget \$$BUDGET ≈ $PER attempts/night"
+    awk "BEGIN{exit !($AVG > $FB * 2)}" && warn "avg \$$AVG is >2x cost_fallback_usd (\$$FB) — raise the fallback or budgets overshoot when cost output is missing"
+  else
+    ok "rolling avg \$$AVG/attempt ($ATTEMPTS attempts over $DAYS day(s))"
+  fi
+elif [ "$NIGHT_CAP" = on ]; then
   warn "no spend history yet — budgeting flies on cost_fallback_usd (\$$FB/card) until real cost data exists"
+fi
+# the cap is a choice, not a fault: say which way it is set, uncounted
+if [ "$NIGHT_CAP" = off ]; then
+  note "no night spend cap (night_budget_usd is empty or 0, the default): a night ends on stop_time, the breaker or an empty board. Paying per call? Set night_budget_usd in HEARTBEAT.md"
 fi
 
 # --- optional live probes ----------------------------------------------------------

@@ -10,14 +10,21 @@ the format. Tune thresholds here, not in code.
 card_timeout_minutes: 45
 max_attempts_per_card: 2
 max_consecutive_failures_lane: 3
-# night_budget_usd is a HARD stop but is checked BETWEEN cards — a night can overshoot
-# by roughly one card's cost before it trips. (Keep comments on their own line: the
-# scripts grep `key: value` and an inline comment would corrupt the value.)
-night_budget_usd: 100
+# SPEND CAPS ARE OFF BY DEFAULT: night_budget_usd, call_budget_usd and
+# delegate_budget_usd are empty. On a subscription plan nothing is charged per call,
+# so a dollar cap protects nothing there. Spend is still recorded in
+# runs/.spend-<date> and printed in the night report.
+# Paying per call (an API key)? Switch the cap on:   night_budget_usd: 100
+# It is then a HARD stop, checked BETWEEN cards — a night can overshoot by roughly one
+# card's cost before it trips. Empty or 0 = no cap. (Keep comments on their own line:
+# the scripts grep `key: value` and an inline comment would corrupt the value.)
+night_budget_usd:
 # call_budget_usd caps ONE CLI call. The scripts export the smaller of this and what is
 # left of the night as $APSOLUT_CALL_BUDGET_USD, and a cmd_ line hands it to a CLI that
 # has a spend flag (claude --max-budget-usd). A worker that hits it is blocked, not
-# retried: a retry at the same size pays the cap twice. Empty = what is left of the night.
+# retried: a retry at the same size pays the cap twice. Empty = what is left of the
+# night. With no night cap either, the variable holds 1000000: a number the flag
+# accepts and a call never reaches.
 call_budget_usd:
 # cost_fallback_usd is charged per card when the CLI emits no cost output — exactly when
 # you are flying blind. Field-observed real cards ran $6–10; tune this up, not down.
@@ -80,7 +87,9 @@ delegate_max_depth: 2
 delegate_max_concurrent: 2
 delegate_max_rounds: 4
 delegate_timeout_minutes: 45
-delegate_budget_usd: 25
+# daily spend cap for delegation, off by default. Empty = night_budget_usd, and no cap
+# when that is empty too. 0 = no cap for delegation even when the night has one.
+delegate_budget_usd:
 
 ## Verification — what "green" means for a card's worktree
 # green_cmd runs with cwd = the card's WORKTREE, which contains ONLY TRACKED files.
@@ -134,6 +143,7 @@ notify_url:
 ##
 ## A cmd_ line runs through `sh -c`, with three values exported for it:
 ##   $APSOLUT_CALL_BUDGET_USD    call_budget_usd, never more than what is left of the night
+##                               (1000000 while no spend cap is set)
 ##   $APSOLUT_CALL_MINUTES       the hard time cap `timeout` enforces on this call
 ##   $APSOLUT_SOFT_TIMEOUT_MIN   one minute less, for a CLI that can stop itself in time
 ## What the flags below are for (checked against claude 2.1.322, codex 0.167.0,
@@ -141,7 +151,8 @@ notify_url:
 ## - No native subagents. Every CLI can now fan out by itself, and that work is outside
 ##   the depth cap, the card clock and the spend ledger. claude --disallowedTools
 ##   Agent,Task · grok --no-subagents · codex --disable multi_agent. agy has no flag.
-## - claude --max-budget-usd stops one call at the per-call budget.
+## - claude --max-budget-usd stops one call at the per-call budget. It does nothing
+##   while no spend cap is set, and is already in place the day you set one.
 ## - agy --print-timeout makes agy stop itself and still print its JSON
 ##   ("finished_reason":"print_timeout"), which the runner reads as a timeout. Without
 ##   it a headless agy waits for its background tasks until `timeout` kills it.
@@ -175,13 +186,13 @@ cmd_codex: codex exec --dangerously-bypass-approvals-and-sandbox --disable multi
 ## Notes
 - Runner and delegates inherit your user environment: provider API keys ARE available to
   them by design. The rule is "no project `.env` in worktrees", not "no secrets anywhere".
-- `night_budget_usd` is a per-night HARD stop, enforced from CLI cost output when
-  available, else `cost_fallback_usd` per card. Per-card time cap = `budget:` on the
-  card, else `card_timeout_minutes`.
+- `night_budget_usd`, when set, is a per-night HARD stop, enforced from CLI cost output
+  when available, else `cost_fallback_usd` per card. Empty or 0 = no cap (the default).
+  Per-card time cap = `budget:` on the card, else `card_timeout_minutes`.
 - `stale_claim_minutes` = grace before a claim whose runner PID is dead gets released.
 - One runner per agent name — a second `runner.sh <agent>` refuses to start.
 - `delegate_*` keys are optional: `delegate.sh` has the same values built in as defaults,
   so a workspace upgraded from before delegation existed (this file is `kind=instance` and
   is never overwritten) works unchanged. Add them only to override.
 - `delegate_budget_usd` shares the daily ledger `runs/.spend-<date>` with `night_budget_usd`:
-  daytime delegation and that night's run draw from the same pot.
+  with a cap set, daytime delegation and that night's run draw from the same pot.
