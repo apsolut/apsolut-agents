@@ -370,3 +370,10 @@ v0.14.0 plus the status.sh fix: 20 tracked files changed in the working tree on 
 - Branch `v0.14.0-spend-caps-off`, PR #6 (the human said to commit and push). CI on 490a122: shellcheck, install-smoke and goal-loop (124 ok) pass; the two-lane stress step failed 1 of 4 rounds: round 1 (goal), one lane exited 255. Every other check of that round passed (both lanes' endings in the report, one Attention section, all four cards verified and integrated, no claim dropped).
 - Not reproduced: 12 rounds in Git Bash and 16 under WSL Linux, all ok. The CI log could not say where the lane stopped, because the fixture is thrown away; `tests/stress-two-lanes.sh` now prints the last lines of each lane and the DIED/error lines of a failed round.
 - Not looked into further, and not caused by anything I can tie to this change. Listed in TODO.md "Known defects".
+
+### claude — 2026-11-13 — v0.14.0 shipped to main
+- The human said to commit and put it on main. PR #6 was green in CI on 9543707 (shellcheck, install-smoke, goal-loop 124 ok, four stress rounds); main fast-forwarded to it, tagged v0.14.0.
+- Still open: the one stress round that failed in CI before (a lane exited 255, not reproduced in 28 local rounds; TODO.md "Known defects"); this repo's own caps are still 100 / 25.
+
+### claude — 2026-11-13 — PUSHED
+v0.14.0 shipped to main

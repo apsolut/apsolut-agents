@@ -11,24 +11,24 @@ anything no longer true (git keeps history), keep the whole file to ~1 screen.
 ## Facts (generated)
 
 <!-- facts:begin -->
-_Generated 2026-11-13 17:34 by status.sh — do not hand-edit this block._
+_Generated 2026-11-13 22:42 by status.sh — do not hand-edit this block._
 
 | | |
 |--|--|
 | Branch | `main` |
-| Ahead/behind upstream | 0 ahead / 0 behind upstream |
-| Dirty files | 21 |
+| Ahead/behind upstream | 2 ahead / 0 behind upstream |
+| Dirty files | 2 |
 | Worktrees | 1 (incl. primary) |
-| Last session token | claude — 2026-11-13 — HOLD |
-| agent-log.md | 367 lines |
+| Last session token | claude — 2026-11-13 — PUSHED |
+| agent-log.md | 379 lines |
 
 Recent commits:
 ```
+9543707 test: a failed stress round prints where each lane stopped
+490a122 feat: v0.14.0 — spend caps off by default; status.sh survives D-008
 b90e583 agents: claude session end 2026-11-12 (PUSHED)
 16eb6a7 chore: ignore the local TODO.md
 d3d950f agents: claude session end 2026-11-12 (HOLD)
-fde8e13 test: two lanes started together, as a stress test in the repo and in CI
-2ccced3 fix: v0.13.2 — a stopped or crashed lane says so, and the night heals
 ```
 <!-- facts:end -->
 
@@ -43,7 +43,7 @@ no — HOLD lifted 2026-07-29: human provided the remote (github.com/apsolut/aps
 | v0.9.0 (goal loop) + v0.10.0 (runner-enforced checks, four-model review) | Claude | done — on main, tagged and pushed 2026-11-10 (PR #1) |
 | v0.11.0 (lane caps) + v0.12.0 (risk routing, `Blocked by:`, `intake.sh`) | Claude | done — on main and tagged, pushed 2026-11-11 (fast-forward, no PR) |
 | v0.13.0 (fail fast, lane parking, `nightshift.sh`), v0.13.1 (full access by default, one report for all lanes), v0.13.2 (crash safety) | Claude | done — on main and tagged (PRs #2 to #5); v0.13.2 pushed 2026-11-12 |
-| v0.14.0 (spend caps off by default; empty or `0` = no cap; README caution block) — D-008. Also in it: `status.sh` no longer dies on a decision id of 008 or above | Claude | in the working tree on `main`, not committed, 2026-11-13. The human commits it (said 2026-11-13: tonight), then PR and tag. This repo's own `HEARTBEAT.md` still says 100 / 25 (the human's file) |
+| v0.14.0 (spend caps off by default; empty or `0` = no cap; README caution block) — D-008. Also in it: `status.sh` no longer dies on a decision id of 008 or above | Claude | done — on main and tagged, pushed 2026-11-13 (PR #6, fast-forward). This repo's own `HEARTBEAT.md` still says 100 / 25 (the human's file) |
 
 ## Blockers
 
